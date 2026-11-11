@@ -1,0 +1,10 @@
+<div id="flash" class="space-y-2 mb-6 empty:mb-0">
+  <% flash.each do |type, message| %>
+    <% next unless message.is_a?(String) %>
+    <% alert = type.to_s == "alert" %>
+    <div role="<%= alert ? "alert" : "status" %>"
+         class="rounded-lg border px-4 py-3 text-sm <%= alert ? "border-red-team/60 bg-red-team-soft" : "border-purple-team/60 bg-purple-team-soft" %>">
+      <%= message %>
+    </div>
+  <% end %>
+</div>

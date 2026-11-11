@@ -1,0 +1,15 @@
+<header class="border-b border-line bg-surface-sunken/80">
+  <nav aria-label="Main" class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <%= link_to root_path, class: "flex items-center gap-2 font-bold text-lg no-underline" do %>
+      <span aria-hidden="true" class="flex">
+        <span class="size-3 rounded-full bg-red-team"></span>
+        <span class="size-3 -ml-1 rounded-full bg-blue-team"></span>
+      </span>
+      <span>Purple</span>
+    <% end %>
+
+    <ul class="flex items-center gap-1 sm:gap-2 text-sm">
+      <li><%= link_to "How it works", root_path(anchor: "how-it-works"), class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
+    </ul>
+  </nav>
+</header>

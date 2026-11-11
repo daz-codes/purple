@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+  <head>
+    <title><%= content_for?(:title) ? "#{yield(:title)} · Purple" : "Purple — Red vs Blue cyber training" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Purple">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Play Red or Blue: craft social-engineering attacks or catch them while getting your work done.">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="flex flex-col">
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 btn-primary">Skip to content</a>
+
+    <%= render "layouts/nav" %>
+
+    <main id="main" class="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <%= render "layouts/flash" %>
+      <%= yield %>
+    </main>
+
+    <footer class="border-t border-line">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-sm text-ink-muted flex flex-wrap gap-x-6 gap-y-2 justify-between">
+        <p>Every company, person and domain in Purple is fictional. Never enter a real password.</p>
+        <p>&copy; <%= Date.current.year %> Purple</p>
+      </div>
+    </footer>
+  </body>
+</html>

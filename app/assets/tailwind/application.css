@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/*
+  Purple design tokens.
+  Red = attacker, Blue = defender, Purple = the debrief where both meet.
+  Colours are chosen for WCAG AA contrast on the dark surface.
+*/
+@theme {
+  --color-surface: #0f1020;
+  --color-surface-raised: #181a2e;
+  --color-surface-sunken: #0a0b17;
+  --color-line: #2b2e4a;
+  --color-ink: #e8e9f3;
+  --color-ink-muted: #a3a6c2;
+
+  --color-red-team: #f2545b;
+  --color-red-team-soft: #3a1820;
+  --color-blue-team: #4ea8ff;
+  --color-blue-team-soft: #13284a;
+  --color-purple-team: #b48cff;
+  --color-purple-team-soft: #2a1f48;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans antialiased min-h-screen;
+  }
+
+  /* Always-visible focus ring for keyboard players. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-purple-team;
+  }
+
+  a {
+    @apply underline-offset-4;
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold
+    transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+}
+@utility btn-primary {
+  @apply btn bg-purple-team text-surface hover:bg-purple-team/85;
+}
+@utility btn-red {
+  @apply btn bg-red-team text-surface hover:bg-red-team/85;
+}
+@utility btn-blue {
+  @apply btn bg-blue-team text-surface hover:bg-blue-team/85;
+}
+@utility btn-ghost {
+  @apply btn border border-line text-ink hover:bg-surface-raised;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface-raised p-6;
+}
+
+@utility form-label {
+  @apply block text-sm font-medium text-ink-muted mb-1;
+}
+@utility form-input {
+  @apply block w-full rounded-lg border border-line bg-surface-sunken px-3 py-2 text-ink
+    placeholder:text-ink-muted/70 focus:border-purple-team focus:outline-none;
+}
