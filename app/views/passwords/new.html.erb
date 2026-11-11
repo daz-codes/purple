@@ -1,0 +1,13 @@
+<% content_for :title, "Forgot your password?" %>
+
+<%= render layout: "shared/auth_card", locals: { title: "Forgot your password?", intro: "We'll email you a link to choose a new one." } do %>
+  <%= form_with url: passwords_path, class: "space-y-5" do |form| %>
+    <div>
+      <%= form.label :email_address, "Email address", class: "form-label" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username",
+            value: params[:email_address], class: "form-input" %>
+    </div>
+
+    <%= form.submit "Email reset instructions", class: "btn-primary w-full" %>
+  <% end %>
+<% end %>

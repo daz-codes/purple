@@ -1,0 +1,6 @@
+Hi <%= @user.display_name %>,
+
+Please confirm your email address for Purple by visiting:
+<%= email_confirmation_url(@token) %>
+
+This link will expire in 24 hours. If you didn't sign up for Purple, you can ignore this email.

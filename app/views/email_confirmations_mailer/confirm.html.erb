@@ -1,0 +1,8 @@
+<p>Hi <%= @user.display_name %>,</p>
+
+<p>
+  Please confirm your email address for Purple by visiting
+  <%= link_to "this confirmation page", email_confirmation_url(@token) %>.
+</p>
+
+<p>This link will expire in 24 hours. If you didn't sign up for Purple, you can ignore this email.</p>

@@ -1,0 +1,21 @@
+<% content_for :title, "Choose a new password" %>
+
+<%= render layout: "shared/auth_card", locals: { title: "Choose a new password" } do %>
+  <%= form_with url: password_path(params[:token]), method: :put, class: "space-y-5" do |form| %>
+    <div>
+      <%= form.label :password, "New password", class: "form-label" %>
+      <%= form.password_field :password, required: true, autofocus: true, autocomplete: "new-password",
+            minlength: User::PASSWORD_LENGTH.min, maxlength: User::PASSWORD_LENGTH.max,
+            aria: { describedby: "password_hint" }, class: "form-input" %>
+      <p id="password_hint" class="mt-1 text-xs text-ink-muted">At least <%= User::PASSWORD_LENGTH.min %> characters.</p>
+    </div>
+
+    <div>
+      <%= form.label :password_confirmation, "Confirm new password", class: "form-label" %>
+      <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password",
+            maxlength: User::PASSWORD_LENGTH.max, class: "form-input" %>
+    </div>
+
+    <%= form.submit "Save new password", class: "btn-primary w-full" %>
+  <% end %>
+<% end %>
