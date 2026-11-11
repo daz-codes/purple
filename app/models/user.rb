@@ -1,5 +1,7 @@
 class User < ApplicationRecord
-  PASSWORD_LENGTH = 12..72
+  PASSWORD_MIN_LENGTH = 12
+  # bcrypt's 72-byte limit, already enforced by has_secure_password. Only used for the form's maxlength.
+  PASSWORD_MAX_LENGTH = 72
   DISPLAY_NAME_FORMAT = /\A[a-zA-Z0-9_]{3,20}\z/
 
   has_secure_password
@@ -17,7 +19,7 @@ class User < ApplicationRecord
     format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :display_name, presence: true, uniqueness: true,
     format: { with: DISPLAY_NAME_FORMAT, message: "must be 3–20 letters, numbers or underscores" }
-  validates :password, length: { in: PASSWORD_LENGTH }, allow_nil: true
+  validates :password, length: { minimum: PASSWORD_MIN_LENGTH }, allow_nil: true
 
   def self.find_by_email_confirmation_token(token)
     find_by_token_for(:email_confirmation, token)
@@ -41,7 +43,15 @@ class User < ApplicationRecord
     confirmed?
   end
 
-  def to_param
-    display_name
+  # Sets a new password from the reset form. Unlike a plain update, a blank password is an error
+  # (has_secure_password silently ignores an empty string) and a missing confirmation counts as
+  # a mismatch rather than skipping the check.
+  def reset_password(password:, password_confirmation:)
+    if password.blank?
+      errors.add(:password, :blank)
+      return false
+    end
+
+    update(password: password, password_confirmation: password_confirmation.to_s)
   end
 end

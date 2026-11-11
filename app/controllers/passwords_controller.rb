@@ -19,7 +19,7 @@ class PasswordsController < ApplicationController
   end
 
   def update
-    if @user.update(params.permit(:password, :password_confirmation))
+    if @user.reset_password(password: params[:password], password_confirmation: params[:password_confirmation])
       # Following the emailed link proves the user owns the address.
       @user.confirm!
       @user.sessions.destroy_all

@@ -96,7 +96,31 @@ class UserTest < ActiveSupport::TestCase
     end
   end
 
-  test "uses display name in URLs" do
-    assert_equal "blue_one", users(:one).to_param
+  test "reset_password sets a new password" do
+    user = users(:one)
+    assert user.reset_password(password: "a brand new passphrase", password_confirmation: "a brand new passphrase")
+    assert user.reload.authenticate("a brand new passphrase")
+  end
+
+  test "reset_password rejects a blank password" do
+    user = users(:one)
+    assert_no_changes -> { user.reload.password_digest } do
+      assert_not user.reset_password(password: "", password_confirmation: "")
+    end
+    assert_includes user.errors[:password], "can't be blank"
+  end
+
+  test "reset_password treats a missing confirmation as a mismatch" do
+    user = users(:one)
+    assert_no_changes -> { user.reload.password_digest } do
+      assert_not user.reset_password(password: "a brand new passphrase", password_confirmation: nil)
+    end
+    assert user.errors[:password_confirmation].any?
+  end
+
+  test "a long password gets a single too-long error" do
+    user = User.new(password: "a" * 73)
+    user.valid?
+    assert_equal 1, user.errors[:password].size
   end
 end

@@ -23,7 +23,8 @@
           </p>
           <p class="text-sm text-ink-muted">
             <%= session_record.ip_address.presence || "Unknown IP" %> ·
-            signed in <%= time_ago_in_words(session_record.created_at) %> ago
+            signed in <%= time_ago_in_words(session_record.created_at) %> ago ·
+            last active <%= time_ago_in_words(session_record.updated_at) %> ago
           </p>
         </div>
         <%= button_to "Sign out", account_session_path(session_record), method: :delete, class: "btn-ghost",

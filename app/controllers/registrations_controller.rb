@@ -25,8 +25,4 @@ class RegistrationsController < ApplicationController
     def registration_params
       params.expect(user: %i[ email_address display_name password password_confirmation ])
     end
-
-    def redirect_signed_in_user
-      redirect_to root_path if authenticated?
-    end
 end

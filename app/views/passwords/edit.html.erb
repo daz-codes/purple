@@ -5,15 +5,15 @@
     <div>
       <%= form.label :password, "New password", class: "form-label" %>
       <%= form.password_field :password, required: true, autofocus: true, autocomplete: "new-password",
-            minlength: User::PASSWORD_LENGTH.min, maxlength: User::PASSWORD_LENGTH.max,
+            minlength: User::PASSWORD_MIN_LENGTH, maxlength: User::PASSWORD_MAX_LENGTH,
             aria: { describedby: "password_hint" }, class: "form-input" %>
-      <p id="password_hint" class="mt-1 text-xs text-ink-muted">At least <%= User::PASSWORD_LENGTH.min %> characters.</p>
+      <p id="password_hint" class="mt-1 text-xs text-ink-muted">At least <%= User::PASSWORD_MIN_LENGTH %> characters.</p>
     </div>
 
     <div>
       <%= form.label :password_confirmation, "Confirm new password", class: "form-label" %>
       <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password",
-            maxlength: User::PASSWORD_LENGTH.max, class: "form-input" %>
+            maxlength: User::PASSWORD_MAX_LENGTH, class: "form-input" %>
     </div>
 
     <%= form.submit "Save new password", class: "btn-primary w-full" %>

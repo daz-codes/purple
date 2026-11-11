@@ -22,11 +22,15 @@ module Authentication
     end
 
     def resume_session
-      Current.session ||= find_session_by_cookie
+      Current.session ||= find_session_by_cookie&.tap(&:record_activity)
     end
 
     def find_session_by_cookie
-      Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
+      Session.active.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
+    end
+
+    def redirect_signed_in_user
+      redirect_to root_path if authenticated?
     end
 
     def request_authentication
@@ -39,14 +43,22 @@ module Authentication
     end
 
     def start_new_session_for(user)
+      # Start a fresh Rails session so nothing set before sign-in carries over (session fixation).
+      # Only the return-to URL survives: it was set by request_authentication on this host.
+      return_to = session[:return_to_after_authenticating]
+      reset_session
+      session[:return_to_after_authenticating] = return_to if return_to
+
       user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
         Current.session = session
-        cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax }
+        cookies.signed[:session_id] = { value: session.id, expires: Session::ABSOLUTE_TIMEOUT.from_now,
+                                        httponly: true, same_site: :lax }
       end
     end
 
     def terminate_session
       Current.session.destroy
       cookies.delete(:session_id)
+      reset_session
     end
 end

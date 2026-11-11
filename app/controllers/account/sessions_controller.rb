@@ -2,7 +2,7 @@ module Account
   # Lists the signed-in user's sessions (one per device) and lets them revoke any of them.
   class SessionsController < ApplicationController
     def index
-      @sessions = Current.user.sessions.most_recent_first
+      @sessions = Current.user.sessions.active.most_recent_first
     end
 
     def destroy
