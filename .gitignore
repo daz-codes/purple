@@ -36,3 +36,23 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Test artefacts (coverage reports, failed system test screenshots live in /tmp).
+/coverage
+
+# JavaScript dependencies, if any tooling ever installs them.
+/node_modules
+
+# OS and editor files.
+.DS_Store
+Thumbs.db
+*.swp
+*~
+/.idea
+/.vscode
+/.zed
+
+# Local-only tool overrides.
+/mise.local.toml
+/.tool-versions.local
+/.claude/settings.local.json
