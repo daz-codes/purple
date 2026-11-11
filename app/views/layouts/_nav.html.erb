@@ -1,11 +1,13 @@
 <header class="border-b border-line bg-surface-sunken/80">
   <nav aria-label="Main" class="max-w-6xl mx-auto px-4 sm:px-6 min-h-16 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-    <%= link_to root_path, class: "flex items-center gap-2 font-bold text-lg no-underline" do %>
-      <span aria-hidden="true" class="flex">
-        <span class="size-3 rounded-full bg-red-team"></span>
-        <span class="size-3 -ml-1 rounded-full bg-blue-team"></span>
+    <%= link_to root_path, class: "flex items-center gap-3 no-underline", aria: { label: "Purple home" } do %>
+      <%= render "layouts/logo" %>
+      <span class="flex flex-col leading-none">
+        <span class="text-xl font-extrabold tracking-tight text-purple-team">Purple</span>
+        <span class="mt-1 text-[0.7rem] font-semibold uppercase tracking-widest text-ink-muted">
+          <span class="text-red-team">Red</span> v <span class="text-blue-team">Blue</span>
+        </span>
       </span>
-      <span>Purple</span>
     <% end %>
 
     <ul class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">

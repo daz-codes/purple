@@ -1,6 +1,6 @@
 # Purple
 
-A Red vs Blue social-engineering training game.
+A Red v Blue social-engineering training game.
 
 - **Blue** works a *shift*: a simulated working day with an inbox, a task list and a clock. Complete
   your tasks through the legitimate emails and catch Red's phishing along the way.
