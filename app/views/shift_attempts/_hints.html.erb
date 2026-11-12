@@ -1,0 +1,23 @@
+<% revealed = attempt.revealed_hints %>
+<% next_hint = attempt.next_hint %>
+<% if revealed.any? || next_hint %>
+  <section id="shift_hints" class="card p-4" aria-labelledby="hints-heading">
+    <h2 id="hints-heading" class="text-lg font-bold">Hints</h2>
+    <% if revealed.any? %>
+      <ol class="mt-3 space-y-2 text-sm" data-testid="hints">
+        <% revealed.each do |hint| %>
+          <li class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-3 py-2">💡 <%= hint.body %></li>
+        <% end %>
+      </ol>
+    <% end %>
+    <% if next_hint %>
+      <%= button_to revealed.any? ? "Take another hint" : "Take a hint", shift_attempt_hints_path(attempt),
+            class: "btn-ghost mt-3 w-full", form: { data: { turbo_confirm: "Take a hint? It costs #{next_hint.penalty_percent}% of the best possible score for this shift." } } %>
+      <p class="mt-2 text-xs text-ink-muted">Each hint costs <%= next_hint.penalty_percent %>% of the best possible score.</p>
+    <% else %>
+      <p class="mt-3 text-xs text-ink-muted">That's every hint for this shift.</p>
+    <% end %>
+  </section>
+<% else %>
+  <div id="shift_hints"></div>
+<% end %>

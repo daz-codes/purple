@@ -62,7 +62,7 @@ class ShiftPlayTest < ApplicationSystemTestCase
     assert_selector "[data-testid=security-score]", text: "30"
     assert_selector "[data-testid=productivity-score]", text: "-20"
     assert_selector "[data-testid=score]", text: "10"
-    assert_text "out of 70"
+    assert_text "out of 80"
     assert ShiftAttempt.sole.completed?
   end
 end

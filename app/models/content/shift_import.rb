@@ -130,7 +130,7 @@ module Content
         note_imitation(node, message)
         import_links(node, message, body.links)
         import_techniques(node, message)
-        import_red_flags(node, message, anchors: available_anchors(message, body, attachments))
+        import_red_flags(node, message, anchors: message.anchors)
         message
       end
 
@@ -227,13 +227,6 @@ module Content
         node.saving { message.techniques = techniques }
       end
 
-      def available_anchors(message, body, attachments)
-        anchors = %w[ from ]
-        anchors << "to" if message.to_address.present?
-        anchors << "reply_to" if message.reply_to.present?
-        anchors << "subject" if message.subject.present?
-        anchors + body.element_ids + attachments.map { |attachment| attachment["id"] }
-      end
 
       def import_red_flags(node, message, anchors:)
         has_flags = node.optional(:red_flags, Array, default: []).any?

@@ -1,6 +1,7 @@
 require "test_helper"
 
 class DebriefsHelperTest < ActionView::TestCase
+  include ShiftAttemptsHelper # anchor_label
   setup do
     @shift = shifts(:month_end)
   end
@@ -42,8 +43,9 @@ class DebriefsHelperTest < ActionView::TestCase
   end
 
   test "the headline sums up the shift" do
-    assert_equal "You reported 0 of 1 phish and finished 0 of 1 task on time.", debrief_headline(scorecard)
-    assert_match "A perfect shift", debrief_headline(scorecard(action("complete_task", "pay_supplier", minute: 1), action("report_message", "fake_invoice")))
+    assert_equal "You reported 0 of 1 phish, spotted 0 of 1 red flag, and finished 0 of 1 task on time.", debrief_headline(scorecard)
+    assert_match "A perfect shift", debrief_headline(scorecard(action("complete_task", "pay_supplier", minute: 1),
+      action("flag_element", "fake_invoice", result: { "anchor" => "from" }), action("report_message", "fake_invoice")))
   end
 
   test "the timeline describes each action, and marks the ones that mattered" do
@@ -52,6 +54,14 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_equal [ 4, "Ran Remittance_4471.pdf.exe: compromised", :bad ],
       debrief_timeline_entry(action("run_download", "fake_invoice", minute: 4, result: { "attachment" => "a1" }), card)
     assert_equal [ 5, "Completed “Approve invoice”", :good ], debrief_timeline_entry(action("complete_task", "pay_supplier", minute: 5), card)
+  end
+
+  test "the headline counts wrong flags and hints" do
+    hint = action("use_hint", nil, result: { "hint" => @shift.hints.first.position })
+    headline = debrief_headline(scorecard(action("flag_element", "real_invoice", result: { "anchor" => "p1" }), hint))
+
+    assert_match "flagged 1 part that wasn't a red flag", headline
+    assert_match "took 1 hint", headline
   end
 
   test "the headline leaves out what the shift didn't have" do
@@ -70,6 +80,22 @@ class DebriefsHelperTest < ActionView::TestCase
     compromise = action("run_download", "fake_invoice", result: { "link" => "l9" })
 
     assert_match "since been changed", story("fake_invoice", compromise).join
+  end
+
+  test "the timeline tells a flag from taking it off" do
+    flag = action("flag_element", "fake_invoice", result: { "anchor" => "from" })
+    entries = debrief_timeline([ flag, flag ], scorecard).map(&:second)
+
+    assert_equal [ "Flagged the sender in “URGENT invoice”", "Took the flag off the sender in “URGENT invoice”" ], entries
+  end
+
+  test "red flags show whether they were found, and wrong flags are called out" do
+    result = result("fake_invoice", action("flag_element", "fake_invoice", result: { "anchor" => "p1" }))
+
+    assert_equal [ [ "from", false ] ], debrief_red_flags(result).map { |flag, found| [ flag.anchor, found ] }
+    assert_equal "You also flagged paragraph 1, which wasn't a giveaway (−10).", debrief_false_flags(result)
+    assert_equal "You flagged the sender, but this email was genuine (−10).",
+      debrief_false_flags(result("real_invoice", action("flag_element", "real_invoice", result: { "anchor" => "from" })))
   end
 
   test "points are signed" do

@@ -45,7 +45,7 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=shift-progress]" do
       assert_select "*", text: /Completed/
       assert_select "strong", text: "10"
-      assert_select "*", text: /out of 70/
+      assert_select "*", text: /out of 80/
       assert_select "[data-testid=stars][aria-label='0 of 3 stars']"
       assert_select "a[href=?]", shift_attempt_path(best), text: "See debrief"
     end

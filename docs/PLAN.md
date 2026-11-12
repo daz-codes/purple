@@ -120,7 +120,7 @@ Hint
 ShiftAttempt
   user_id, shift_id, token (unique), status (open/completed/timed_out),
   clock_minutes (int), productivity_score, security_score, score,
-  hints_used, started_at, completed_at, scored (bool)
+  started_at, completed_at, scored (bool)
   — partial unique index on (user_id, shift_id) where scored = true
 
 AttemptAction              (append-only event log; drives the clock, scoring and the debrief)
@@ -174,7 +174,7 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - Legit message reported as phish: −15 (and its task is likely missed)
 - Bait link clicked, then landing page closed (near miss): −10
 - Credentials submitted or malicious attachment opened (compromised): −50
-- Each red flag correctly flagged in a phish: `+flag.points`. Each false flag: −5 (the flagging portion can't go below 0).
+- Each red flag correctly flagged in a phish: `+flag.points`. Each false flag: −10, so flagging every part of a known phish costs more than it finds.
 
 **Total** = productivity + security, minus hint penalties (`penalty_percent`% of the maximum possible score each), floored at 0. Shift star rating: 1–3 stars by thresholds, and 3 stars requires no compromise.
 

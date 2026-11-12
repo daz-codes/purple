@@ -26,6 +26,9 @@
     <% if (verification = debrief_verification(result)) %>
       <p class="text-sm text-ink-muted"><%= verification %></p>
     <% end %>
+    <% if (false_flags = debrief_false_flags(result)) %>
+      <p class="text-sm text-warn" data-testid="debrief-false-flags">🚩 <%= false_flags %></p>
+    <% end %>
   </div>
 
   <% if (lessons = debrief_lessons(result)).any? %>
@@ -41,10 +44,17 @@
     <div class="grid gap-4 md:grid-cols-2">
       <% if message.red_flags.any? %>
         <div>
-          <h4 class="text-sm font-semibold uppercase tracking-widest text-red-team">The giveaways</h4>
-          <ul class="mt-2 space-y-2 text-sm">
-            <% message.red_flags.each do |flag| %>
-              <li><span class="font-semibold"><%= flag.label %>.</span> <%= flag.explanation %></li>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-red-team">
+            The giveaways <span class="normal-case tracking-normal text-ink-muted">· you flagged <%= result.found_flags.size %> of <%= message.red_flags.size %></span>
+          </h4>
+          <ul class="mt-2 space-y-2 text-sm" data-testid="debrief-red-flags">
+            <% debrief_red_flags(result).each do |flag, found| %>
+              <li>
+                <span class="mr-1 rounded-full border px-1.5 text-xs font-semibold <%= debrief_tone_classes(found ? :good : :neutral) %>">
+                  <%= found ? "Flagged #{debrief_points(flag.points)}" : "Missed" %>
+                </span>
+                <span class="font-semibold"><%= flag.label %>.</span> <%= flag.explanation %>
+              </li>
             <% end %>
           </ul>
         </div>

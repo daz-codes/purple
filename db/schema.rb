@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_12_160001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_13_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -135,7 +135,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_160001) do
     t.integer "productivity_score"
     t.integer "security_score"
     t.integer "score"
-    t.integer "hints_used", default: 0, null: false
     t.datetime "started_at", null: false
     t.datetime "completed_at"
     t.boolean "scored", default: false, null: false
@@ -151,7 +150,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_160001) do
     t.check_constraint "NOT scored OR status::text <> 'open'::text", name: "shift_attempts_scored_only_when_finished"
     t.check_constraint "clock_minutes <= time_budget_minutes", name: "shift_attempts_clock_within_budget"
     t.check_constraint "clock_minutes >= 0", name: "shift_attempts_clock_non_negative"
-    t.check_constraint "hints_used >= 0", name: "shift_attempts_hints_used_non_negative"
     t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'timed_out'::character varying]::text[])", name: "shift_attempts_status"
     t.check_constraint "time_budget_minutes > 0", name: "shift_attempts_time_budget_positive"
   end

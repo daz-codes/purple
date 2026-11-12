@@ -19,7 +19,7 @@ class ShiftAttempt::FinishableTest < ActiveSupport::TestCase
 
     card = @attempt.scorecard
     assert_equal :arrived_after_shift, card.message_result_for("fake_invoice").outcome
-    assert_equal 30, card.security_max
+    assert_equal 30 + messages(:fake_invoice).red_flags.sum(&:points), card.security_max
     assert_equal [ 0, 0 ], [ @attempt.security_score, @attempt.score ]
   end
 
