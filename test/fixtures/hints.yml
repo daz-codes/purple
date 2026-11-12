@@ -1,0 +1,5 @@
+month_end_first:
+  shift: month_end
+  position: 1
+  body: Compare the sender domains.
+  penalty_percent: 20

@@ -6,6 +6,8 @@ class User < ApplicationRecord
 
   has_secure_password
   has_many :sessions, dependent: :destroy
+  has_many :user_badges, dependent: :destroy
+  has_many :badges, through: :user_badges
 
   # Single-use: the token embeds confirmed_at, so it stops working once used.
   generates_token_for :email_confirmation, expires_in: 24.hours do

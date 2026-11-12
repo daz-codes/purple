@@ -1,0 +1,20 @@
+lookalike_domain:
+  key: lookalike_domain
+  name: Lookalike domain
+  attack_id: T1583.001
+  category: sender
+  description: Registers a domain that looks like the real one.
+  defence_tip: Read the domain from right to left.
+  red_cost: 3
+  stealth: 6
+  red_flag_label: Lookalike sender domain
+
+end_of_day_rush:
+  key: end_of_day_rush
+  name: End-of-day rush
+  category: timing
+  description: Lands just before home time.
+  defence_tip: Notice when you're rushed.
+  red_cost: 1
+  stealth: 5
+  red_flag_label: Arrives when you're busy

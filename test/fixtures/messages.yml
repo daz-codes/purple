@@ -1,0 +1,25 @@
+real_invoice:
+  shift: month_end
+  key: real_invoice
+  channel: email
+  position: 1
+  arrives_at_minute: 0
+  legit: true
+  from_name: Northwind Supplies
+  from_address: accounts@northwind.example
+  to_address: you@contoso.example
+  subject: Invoice ready
+  body_html: <p id="p1"><span id="l1" class="fake-link" data-link-key="l1">Review</span></p>
+
+fake_invoice:
+  shift: month_end
+  key: fake_invoice
+  channel: email
+  position: 2
+  arrives_at_minute: 3
+  legit: false
+  from_name: Northwind Supplies
+  from_address: accounts@northwind-billing.example
+  to_address: you@contoso.example
+  subject: URGENT invoice
+  body_html: <p id="p1"><span id="l1" class="fake-link" data-link-key="l1">Pay now</span></p>

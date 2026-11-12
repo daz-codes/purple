@@ -38,8 +38,55 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 
 ## Content authoring
 
-_Coming in M2: shifts are written as YAML in `content/tracks/<track>/<shift>.yml` and imported with
-`bin/rails content:import`._
+All game content is YAML in `content/`:
+
+```
+content/
+  techniques.yml               the technique vocabulary, mapped to MITRE ATT&CK
+  badges.yml                   badges players can earn
+  tracks/<track>/_track.yml    a track's title, description, position and difficulty
+  tracks/<track>/<shift>.yml   one file per shift (the file name is the shift's slug)
+```
+
+Load it with:
+
+```sh
+bin/rails content:import              # also runs as part of bin/rails db:seed
+CONTENT_DIR=path/to/content bin/rails content:import
+```
+
+The import runs in one transaction and is idempotent: records are upserted by key or slug, children
+removed from a file are deleted, and shifts or tracks whose files have gone are unpublished (not
+deleted, so players' history survives). If anything is wrong, nothing is changed and the error names
+the file and the exact place, for example:
+
+```
+content/tracks/phishing-basics/month-end-at-contoso.yml: messages[1] (fake_invoice) → links[0]:
+  outcome must be one of bait_landing, malware, harmless for phishing messages (got completes_task)
+```
+
+### Writing a shift
+
+`content/tracks/phishing-basics/month-end-at-contoso.yml` is a complete example. Each message has a
+`body_html`, a list of `links` rules (`match` is a substring of the href), and for phishing messages
+`techniques` and `red_flags`.
+
+The importer enforces these rules:
+
+- **Fiction only.** Every URL, email address and host name, in links, addresses and text, must be on
+  `example.com`, `example.net`, `example.org` or under `.example`, `.test` or `.invalid`. Phone numbers
+  must be Ofcom drama numbers (`07700 900000`–`07700 900999`). No real brands.
+- **Safe HTML only:** `p br strong em b i u ul ol li blockquote h3 h4 hr small` and `<a href>`. No
+  scripts, styles, images, comments or other attributes. In particular, **don't add `id` or `data-*`
+  attributes**: the importer gives every paragraph-like element a neutral id (`p1`, `p2`…), every link
+  `l1`, `l2`… and every attachment `a1`, `a2`…, so nothing in the page hints at the answer.
+- **Red flag anchors** use those neutral ids, or `from`, `to`, `reply_to` and `subject`.
+- **Links never navigate.** Each `<a>` becomes a `<span>` carrying its key and URLs; the outcome
+  (`completes_task`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match
+  exactly one rule, and every rule at least one link.
+- **Every task is completable by exactly one link in a legitimate message.** Phishing messages can't
+  complete tasks; legitimate ones can't contain bait or malware, techniques or red flags.
+- Every shift has at least one phishing message, and tasks and messages fit inside the time budget.
 
 ## Deployment
 

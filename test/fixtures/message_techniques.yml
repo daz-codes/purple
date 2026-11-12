@@ -1,0 +1,3 @@
+fake_invoice_lookalike:
+  message: fake_invoice
+  technique: lookalike_domain

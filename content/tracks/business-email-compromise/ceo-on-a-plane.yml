@@ -1,0 +1,143 @@
+slug: ceo-on-a-plane
+title: "The CEO is on a plane"
+kind: inbox
+difficulty: intermediate
+time_budget_minutes: 40
+position: 1
+briefing: >
+  Jordan Hale, Contoso's CEO, flies to Singapore this morning and will be offline until Friday.
+  You're covering a few of Jordan's admin jobs: approving an expense claim, countersigning the
+  Fabrikam contract and booking the boardroom. Red has seen Jordan's out-of-office too.
+learning_summary: >
+  When the boss is unreachable, attackers step into the gap. Requests for secrecy, gift cards
+  or new bank details are red flags even when the sender looks right. A genuine mailbox can
+  still be hijacked, so verify unusual requests through a channel you already trust.
+
+tasks:
+  - { key: approve_expenses, title: "Approve Priya's expense claim", due_at_minute: 25, points: 30 }
+  - { key: sign_contract, title: "Countersign the Fabrikam contract", due_at_minute: 30, points: 40 }
+  - { key: book_room, title: "Book the boardroom for Thursday", due_at_minute: 38, points: 20 }
+
+messages:
+  - key: ceo_handover
+    channel: email
+    arrives_at_minute: 0
+    legit: true
+    from_name: "Jordan Hale"
+    from_address: "jordan.hale@contoso.example"
+    to_address: "you@contoso.example"
+    subject: "Before I fly"
+    body_html: |
+      <p>Morning! I'm offline from 9am until Friday.</p>
+      <p>Could you approve Priya's expense claim from the conference? It's waiting for me in the expenses system.</p>
+      <p><a href="https://expenses.contoso.example/claims/3310">Priya's claim</a></p>
+      <p>Thanks, Jordan</p>
+    links:
+      - { match: "expenses.contoso.example", outcome: completes_task, task: approve_expenses }
+    verify_result: "Jordan's assistant confirms Jordan sent this before leaving for the airport."
+
+  - key: gift_cards
+    channel: email
+    arrives_at_minute: 6
+    legit: false
+    techniques: [display_name_spoof, authority_pretext, urgency_pretext]
+    from_name: "Jordan Hale"
+    from_address: "jordan.hale.ceo@freemail.test"
+    to_address: "you@contoso.example"
+    subject: "Quick favour, are you at your desk?"
+    body_html: |
+      <p>I'm about to board and need a favour. Please keep this between us for now, it's a surprise for the team.</p>
+      <p>Can you buy ten £100 gift cards and email me the codes in the next 20 minutes? I'll make sure you're paid back on Friday.</p>
+      <p>Sent from my phone</p>
+    verify_result: "Jordan's assistant: \"Jordan's in the air with no wifi and would never ask for gift cards.\""
+    red_flags:
+      - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
+          explanation: "It says Jordan Hale, but the address is a free webmail account, not contoso.example." }
+      - { key: secrecy, anchor: p1, points: 10, label: "Asks for secrecy",
+          explanation: "\"Keep this between us\" is there to stop you checking with anyone." }
+      - { key: gift_card_codes, anchor: p2, points: 15, label: "Gift cards and a deadline",
+          explanation: "Gift card codes are untraceable cash. No legitimate boss pays for things this way." }
+
+  - key: boardroom_portal
+    channel: email
+    arrives_at_minute: 8
+    legit: true
+    from_name: "Contoso Facilities"
+    from_address: "facilities@contoso.example"
+    to_address: "all-staff@contoso.example"
+    subject: "Room bookings have moved"
+    body_html: |
+      <p>From today, all meeting rooms are booked through the new rooms portal.</p>
+      <p><a href="https://rooms.contoso.example/book?room=boardroom">Book a room</a></p>
+    links:
+      - { match: "rooms.contoso.example", outcome: completes_task, task: book_room }
+    verify_result: "Facilities confirms the new rooms portal went live today."
+
+  - key: fabrikam_contract
+    channel: email
+    arrives_at_minute: 10
+    legit: true
+    from_name: "Fabrikam Legal"
+    from_address: "legal@fabrikam.example"
+    to_address: "you@contoso.example"
+    subject: "Contract ready for countersignature"
+    body_html: |
+      <p>Hello, the services agreement Jordan approved last week is ready for Contoso's countersignature.</p>
+      <p><a href="https://sign.fabrikam.example/envelopes/7781">Review and sign</a></p>
+      <p>Fabrikam Legal</p>
+    links:
+      - { match: "sign.fabrikam.example", outcome: completes_task, task: sign_contract }
+    verify_result: "Fabrikam Legal (on the number in your contracts file) confirms the envelope is genuine."
+
+  - key: fabrikam_bank_change
+    channel: email
+    arrives_at_minute: 14
+    legit: false
+    techniques: [compromised_supplier, reply_to_mismatch, payment_change_pretext, malicious_link, credential_harvest]
+    from_name: "Fabrikam Accounts"
+    from_address: "accounts@fabrikam.example"
+    reply_to: "fabrikam.accounts@freemail.test"
+    to_address: "you@contoso.example"
+    subject: "Updated remittance details for the new contract"
+    body_html: |
+      <p>Following the new agreement, please note we've moved banks. All future payments must go to our new account.</p>
+      <p>Please confirm the change in our supplier portal today so the first invoice isn't delayed.</p>
+      <p><a href="https://fabrikam-remittance.example.net/confirm">Confirm new bank details</a></p>
+    links:
+      - { match: "fabrikam-remittance.example.net", outcome: bait_landing }
+    verify_result: "Fabrikam's finance team (on the number in your supplier file): \"Our bank hasn't changed. Our mailbox may have been hacked.\""
+    red_flags:
+      - { key: reply_redirect, anchor: reply_to, points: 10, label: "Replies go to a different address",
+          explanation: "The sender is genuine, but replies would go to a free webmail account. The mailbox has been hijacked." }
+      - { key: bank_change, anchor: p1, points: 15, label: "Changed bank details",
+          explanation: "Bank changes must always be confirmed by phone on a number you already hold, even from a real address." }
+      - { key: remittance_link, anchor: l1, points: 10, label: "Portal outside Fabrikam",
+          explanation: "fabrikam-remittance.example.net isn't fabrikam.example." }
+
+  - key: signing_reminder
+    channel: email
+    arrives_at_minute: 20
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
+    from_name: "SignFlow Notifications"
+    from_address: "notify@signfiow.example"
+    to_address: "you@contoso.example"
+    subject: "Reminder: Fabrikam contract expires today"
+    body_html: |
+      <p>Your envelope from Fabrikam Legal expires at 5pm today.</p>
+      <p>Sign in to review and sign before it's cancelled.</p>
+      <p><a href="https://signfiow.example/login?envelope=7781">Sign now</a></p>
+    links:
+      - { match: "signfiow.example", outcome: bait_landing }
+    verify_result: "Fabrikam Legal: \"We sent the contract once, from sign.fabrikam.example. We don't use SignFlow.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 15, label: "Lookalike sender domain",
+          explanation: "signfiow.example uses \"fi\" to look like \"fl\". The real contract came from sign.fabrikam.example." }
+      - { key: expiry, anchor: p1, points: 5, label: "Urgency or pressure",
+          explanation: "A sudden expiry deadline is there to rush you." }
+      - { key: sign_in_link, anchor: l1, points: 10, label: "Asks you to sign in from a link",
+          explanation: "The real envelope didn't need a separate sign-in. This page wants your password." }
+
+hints:
+  - { body: "Jordan really is on a plane. Which messages claim to be from Jordan, and from which address?", penalty_percent: 20 }
+  - { body: "A real supplier address can still be hacked. Check where replies would go.", penalty_percent: 20 }

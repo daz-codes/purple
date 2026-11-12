@@ -1,0 +1,6 @@
+first_catch:
+  key: first_catch
+  name: First Catch
+  description: Report your first phishing message.
+  side: blue
+  position: 1

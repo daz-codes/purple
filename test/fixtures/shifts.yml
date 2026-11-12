@@ -1,0 +1,11 @@
+month_end:
+  track: basics
+  slug: month-end
+  title: Month-end
+  kind: inbox
+  difficulty: beginner
+  time_budget_minutes: 30
+  position: 1
+  published: true
+  briefing: It's month-end.
+  learning_summary: Check where links go.
