@@ -8,8 +8,12 @@ module ShiftAttempt::Hintable
       hint = next_hint or reject "There are no more hints for this shift."
 
       record :use_hint, result: { "hint" => hint.position }
-      increment! :hints_used
     end
+  end
+
+  # Read from the log, like everything else about the attempt.
+  def hints_used
+    used_hint_positions.size
   end
 
   def revealed_hints

@@ -6,9 +6,8 @@
 # half. Security is judged message by message: +30 for reporting a phish, -15 for reporting a
 # legitimate message, -10 for each near miss (a bait page or malware download opened but not fallen
 # for), -50 for each compromise (a password entered or a download run), plus each red flag's points
-# when it's flagged and -5 for each flag on something that isn't one. Flagging can't cost points
-# overall: its total across the shift is never below 0. Each hint takes its penalty_percent of the
-# maximum score off the total. Total = productivity + security - hints, never below 0.
+# when it's flagged and -5 for each flag on something that isn't one, so flagging everything costs
+# more than it finds. Each hint takes its penalty_percent of the maximum score off the total. Total = productivity + security - hints, never below 0.
 #
 # clock_minutes: the minute the shift ended (or has reached). Every message in the shift is judged,
 # including any that arrived after the player ended the shift early: a phish they left behind still
@@ -109,10 +108,8 @@ class ShiftAttempt::Scorecard
     tasks.sum(&:points)
   end
 
-  # Flagging's total across the shift is never below 0, so wrong flags can't cost more than the
-  # right ones earned.
   def security
-    messages.sum(&:points) - [ messages.sum(&:flag_points), 0 ].min
+    messages.sum(&:points)
   end
 
   def total
@@ -153,6 +150,7 @@ class ShiftAttempt::Scorecard
 
   # 0 to 3.
   def stars
+    return 3 if perfect?
     return 0 unless total_max.positive?
 
     stars = STAR_THRESHOLDS.count { |threshold| total >= total_max * threshold }

@@ -1,16 +1,16 @@
 <% message = attempt.current_message %>
 <% flag_mode = local_assigns[:flag_mode] && message %>
+<% flagged = message ? attempt.flagged_anchors(message) : [] %>
 <%# Flag mode: every header, paragraph, link and attachment carries a neutral data-anchor, and any of
     them can be flagged, so nothing here says which parts are red flags. %>
 <section id="shift_reader" class="card p-0 overflow-hidden min-h-[28rem]" aria-labelledby="reader-heading"
          data-controller="link-status flag-mode"
          data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
-         data-flag-mode-flagged-value="<%= message ? attempt.flagged_anchors(message).to_json : "[]" %>"
-         data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture">
+         data-flag-mode-flagged-value="<%= flagged.to_json %>"
+         data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture turbo:submit-end->flag-mode#submitted">
   <% if message %>
     <% expanded = attempt.headers_expanded?(message) %>
     <% ref = attempt.message_ref(message) %>
-    <% flagged = attempt.flagged_anchors(message) %>
     <header class="p-5 border-b border-line">
       <% if message.subject.present? %>
         <h2 id="reader-heading" class="text-xl font-bold"><span data-anchor="subject"><%= message.subject %></span></h2>

@@ -112,6 +112,16 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal 2, unflagged.stars # 70 of 80 is under 90%
   end
 
+  test "a perfect shift earns three stars even when there's nothing to score" do
+    @shift.messages.destroy_all
+    @shift.tasks.destroy_all
+    card = scorecard
+
+    assert_equal 0, card.total_max
+    assert card.perfect?
+    assert_equal 3, card.stars
+  end
+
   test "three stars need no compromise" do
     file = { "attachment" => "a1" }
     card = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"),
@@ -127,9 +137,10 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal [ "from" ], scorecard(flag("fake_invoice", "from")).message_result_for("fake_invoice").found_flags.map(&:anchor)
   end
 
-  test "a wrong flag costs 5, but flagging can't cost points overall" do
+  # Otherwise flagging every part of every message would find every red flag for free.
+  test "a wrong flag costs 5, even when it takes flagging below zero" do
     assert_equal 5, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "p1")).security
-    assert_equal 0, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security
+    assert_equal(-10, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security)
     assert_equal 35, scorecard(action("report_message", "fake_invoice"), flag("fake_invoice", "from"), flag("real_invoice", "from")).security # 30 + 10 - 5
     assert_equal [ "p1" ], scorecard(flag("fake_invoice", "p1")).message_result_for("fake_invoice").false_flags
   end

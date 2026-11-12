@@ -29,6 +29,15 @@ class ShiftAttempt::FlaggableTest < ActiveSupport::TestCase
     assert_empty @attempt.actions.select(&:flag_element?)
   end
 
+  test "To and Reply-To can only be flagged once the full headers are showing" do
+    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "reply_to") }
+    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "to") }
+
+    @attempt.expand_headers(@phish)
+    @attempt.flag(@phish, "reply_to")
+    assert_equal %w[ reply_to ], @attempt.flagged_anchors(@phish)
+  end
+
   test "a reported message can't be flagged" do
     @attempt.report(@phish)
 

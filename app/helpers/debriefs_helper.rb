@@ -51,15 +51,18 @@ module DebriefsHelper
     compromised = phishes.count(&:compromised?)
 
     if scorecard.perfect?
-      "A perfect shift: every task done on time, and every phish reported without falling for any."
+      "A perfect shift: every task done on time, every phish reported and every red flag spotted, with no wrong flags and no hints."
     else
       parts = []
       parts << "reported #{reported} of #{pluralize(phishes.size, "phish")}" if phishes.any?
       parts << "fell for #{compromised}" if compromised.positive?
       red_flags = phishes.sum { |result| result.message.red_flags.size }
       parts << "spotted #{phishes.sum { |result| result.found_flags.size }} of #{pluralize(red_flags, "red flag")}" if red_flags.positive?
+      wrong_flags = scorecard.messages.sum { |result| result.false_flags.size }
+      parts << "flagged #{pluralize(wrong_flags, "part")} that #{wrong_flags == 1 ? "wasn't a red flag" : "weren't red flags"}" if wrong_flags.positive?
       tasks = scorecard.tasks
       parts << "finished #{tasks.count(&:on_time?)} of #{pluralize(tasks.size, "task")} on time" if tasks.any?
+      parts << "took #{pluralize(scorecard.hints.size, "hint")}" if scorecard.hints.any?
       parts.any? ? "You #{parts.to_sentence}." : "Shift over."
     end
   end
@@ -146,15 +149,8 @@ module DebriefsHelper
 
   # [minute, description, tone] for each action in the shift's log, in order.
   def debrief_timeline(actions, scorecard)
-    flagged = Hash.new(false)
-    actions.map do |action|
-      if action.flag_element?
-        key = [ action.target_key, action.result["anchor"] ]
-        flagged[key] = !flagged[key]
-        debrief_timeline_entry(action, scorecard, unflag: !flagged[key])
-      else
-        debrief_timeline_entry(action, scorecard)
-      end
+    actions.zip(ShiftAttempt::Flaggable.toggles(actions)).map do |action, on|
+      debrief_timeline_entry(action, scorecard, unflag: on == false)
     end
   end
 

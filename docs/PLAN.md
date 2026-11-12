@@ -120,7 +120,7 @@ Hint
 ShiftAttempt
   user_id, shift_id, token (unique), status (open/completed/timed_out),
   clock_minutes (int), productivity_score, security_score, score,
-  hints_used, started_at, completed_at, scored (bool)
+  started_at, completed_at, scored (bool)
   — partial unique index on (user_id, shift_id) where scored = true
 
 AttemptAction              (append-only event log; drives the clock, scoring and the debrief)

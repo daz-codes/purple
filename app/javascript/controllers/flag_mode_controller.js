@@ -34,6 +34,12 @@ export default class extends Controller {
     this.formTarget.requestSubmit()
   }
 
+  // A refused flag doesn't replace the reader (and with it this controller), so the guard must be
+  // reset whenever a submission finishes, however it went.
+  submitted() {
+    this.submitting = false
+  }
+
   keydown(event) {
     if (event.key === "Enter" || event.key === " ") this.pick(event)
   }

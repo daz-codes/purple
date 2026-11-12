@@ -56,6 +56,14 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_equal [ 5, "Completed “Approve invoice”", :good ], debrief_timeline_entry(action("complete_task", "pay_supplier", minute: 5), card)
   end
 
+  test "the headline counts wrong flags and hints" do
+    hint = action("use_hint", nil, result: { "hint" => @shift.hints.first.position })
+    headline = debrief_headline(scorecard(action("flag_element", "real_invoice", result: { "anchor" => "p1" }), hint))
+
+    assert_match "flagged 1 part that wasn't a red flag", headline
+    assert_match "took 1 hint", headline
+  end
+
   test "the headline leaves out what the shift didn't have" do
     messages(:fake_invoice).destroy!
     assert_equal "You finished 0 of 1 task on time.", debrief_headline(scorecard)
