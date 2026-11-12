@@ -3,7 +3,7 @@ real_invoice_link:
   task: pay_supplier
   key: l1
   display_url: Review
-  actual_url: https://portal.contoso.example/invoices/4471
+  actual_url: https://portal.larkhill.example/invoices/4471
   outcome: completes_task
   landing_template: portal_task
 
@@ -11,6 +11,6 @@ fake_invoice_link:
   message: fake_invoice
   key: l1
   display_url: Pay now
-  actual_url: https://contoso-portal.example.net/login
+  actual_url: https://larkhill-portal.example.net/login
   outcome: bait_landing
   landing_template: credential_harvest

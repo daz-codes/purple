@@ -2,6 +2,6 @@ lookalike:
   message: fake_invoice
   key: lookalike
   label: Lookalike sender domain
-  explanation: northwind-billing.example is not northwind.example.
+  explanation: tidemark-billing.example is not tidemark.example.
   anchor: from
   points: 10

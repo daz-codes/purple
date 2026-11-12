@@ -76,13 +76,13 @@ deleted, so players' history survives). If anything is wrong, nothing is changed
 the file and the exact place, for example:
 
 ```
-content/tracks/phishing-basics/month-end-at-contoso.yml: messages[1] (fake_invoice) → links[0]:
+content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invoice) → links[0]:
   outcome must be one of bait_landing, malware, harmless for phishing messages (got completes_task)
 ```
 
 ### Writing a shift
 
-`content/tracks/phishing-basics/month-end-at-contoso.yml` is a complete example. Each message has a
+`content/tracks/phishing-basics/month-end-at-larkhill.yml` is a complete example. Each message has a
 `body_html`, a list of `links` rules (`match` is a substring of the href), and for phishing messages
 `techniques` and `red_flags`.
 
