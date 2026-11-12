@@ -160,6 +160,10 @@ Badge / UserBadge          (as before)
 
 ## 6. Shift engine & scoring
 
+> **Superseded by M6b ("The inbox is the job").** This section describes the engine as built in
+> M3–M6: a task list, a minute clock driven by action costs, and live meters. M6b replaces the tasks,
+> the clock and the meters, and changes the scoring. Where the two disagree, M6b wins.
+
 Implement as concerns on `ShiftAttempt` (each move is a method that checks it's allowed, logs it, advances the clock and returns the logged action) and `ShiftAttempt::Scorecard` (pure function over the action log). Both must be fully unit-tested.
 
 **Action costs (configurable per shift):** open message 0, hover link 0, expand headers 1, verify sender 5, report message 1, complete task 2, hint 0 (score penalty instead).
@@ -254,6 +258,125 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - A phone-style UI for SMS and a chat-app style UI for fake "IT support" conversations, reusing the engine, links, browser and debrief.
 - One chat scenario where "IT support" asks for an MFA code. Blue can reply with a canned choice (give code / refuse / verify via helpdesk).
 - **Done when:** the system test passes and the message shift is playable.
+
+### M6b — The inbox is the job
+A redesign of Blue's shift after playtesting. The old engine leaked answers: the task list told you
+when you were done, and ticking a task off revealed which look-alike message was the fake. "Wait for
+new mail (N min)" told you exactly when the next message would land, and the live meters and
+compromise alert told you mid-shift that you'd got something wrong. Genuine messages without a task
+link scored nothing however you handled them. M6b replaces the task list, the minute clock, the
+meters and the wait button.
+
+**Ending a shift**
+- A shift is a fixed set of messages, and it **ends when every one has been dealt with**. The player
+  goes straight to the debrief.
+- There's no task list, no wait button and no "End shift" button. A **Give up** button ends the shift
+  early, and anything left counts as ignored.
+- The inbox shows only what's in it, never a total, so the player can't tell whether more is coming.
+
+**Dealing with a message.** Each message ends in one of three states:
+- **Reported**: the player thinks it's a phish.
+- **Done**: they replied, or acted through its link, then archived it.
+- **Archived**: nothing was needed.
+
+Flags are notes made along the way. They don't finish a message.
+
+**How messages arrive.** Authored per message:
+- `arrives: start`: in the inbox when the shift begins.
+- `after_handled: 2`: arrives once any 2 messages have been dealt with.
+- `after: courier_slot`: a follow-up, arriving once that message has been dealt with.
+
+The rules:
+- Triggers depend only on *that* a message was dealt with, never on whether it was handled right.
+  For example, there's no "thanks for reporting" from security after a correct report.
+- No branching for now: a message always triggers the same follow-up, whichever reply was sent.
+- The importer checks that every message can arrive and that no triggers loop.
+- The starting inbox order is shuffled per attempt, seeded from the attempt token.
+
+**What each message expects** (hidden on the server, like `legit`):
+- Each genuine message has `expects: reply | act | archive`. A phish expects a report.
+- `act` means doing the thing through the message's link, on a portal page.
+- `reply` means sending any of its canned replies that isn't marked poor.
+- A genuine message can be urgent: `urgent_within: 10` means deal with it within 10 minutes of its
+  arrival.
+
+**Scoring** (all of it revealed only in the debrief):
+
+| The player did this | To a genuine message | To a phish |
+|---|---|---|
+| Handled it as expected | `+points`, half if an urgent one was late | +30 for reporting |
+| Archived it without doing what was needed | `−points / 2` | 0 |
+| Reported it | −15 | |
+| Fell for it (signed in, ran a file, handed over a code) | | −50 |
+| Clicked a bait link but backed out (near miss) | | −10 |
+
+Red flags and hints score as before: +each flag's points, −10 per wrong flag, and each hint costs its
+`penalty_percent` of the maximum. Total = message points + flags + speed bonus − hints, floored at 0.
+Stars are 1–3 by thresholds of the maximum, and 3 stars needs no compromise.
+
+**Time**
+- Time is real time, measured on the server from the start of the attempt. **No clock is shown.**
+- **Calling the sender back** is instant but adds a **30 s time penalty** to the attempt's elapsed
+  time. Every other move is free.
+- **Speed bonus:** each shift has a target time (`par_minutes`). The player gets +20 for each full
+  5-minute block under par, and nothing over it. No per-second scoring.
+- An attempt left open for 2 hours closes the next time it's visited, and anything unhandled counts
+  as ignored.
+- Elapsed time and penalties are computed only on the server. The browser never sends a time.
+
+**Relaxed mode** (a site-wide account setting): no speed bonus and no urgency penalties. Relaxed and
+timed scores are kept separately for the M9 leaderboards. This is also the accessible option for
+anyone who doesn't want to be timed (WCAG 2.2.1).
+
+**No clues during the shift**
+- No productivity or security meters, and no compromise alert. The debrief says what happened ("4
+  minutes in, someone signed in as you from abroad").
+- After the player signs in on a bait page, it quietly sends them on to a plausible page, as real
+  phishing kits do.
+- Real portals end on the same kind of plain "Submitted" confirmation, so neither page says whether
+  the player was right.
+
+**Fine-grained flags**
+- In flag mode the player can **highlight any words** by dragging across them, such as "within 12
+  hours" or "Dear valued customer".
+- **Clicking without dragging flags the whole sentence.** Sentences are reachable by Tab and Enter, so
+  this is also the keyboard and touch route.
+- Headers (sender, To, Reply-To, subject) stay as whole parts. Clicking a highlight removes it.
+- **Red flags are authored as quoted phrases:** `{ quote: "within 12 hours", in: p1, points, label,
+  explanation }`. The importer checks the quote appears exactly once in that paragraph. Header red
+  flags keep `anchor: from` and so on.
+- **The importer splits every paragraph into sentences with neutral ids** (`p1s1`, `p1s2`…). Every
+  sentence gets one, so the markup says nothing about where the red flags are.
+- The browser posts only the paragraph and the character range of the selection. The quote never
+  reaches the page.
+- **What counts as a hit:**
+  - A highlight finds a red flag if it covers most of the quoted phrase and isn't much longer than it.
+    Highlighting a whole paragraph to catch everything doesn't count.
+  - A sentence click counts if the sentence contains the phrase.
+  - A highlight that hits nothing is a wrong flag (−10).
+- **The debrief shows each message with the player's highlights and the real red flags marked on
+  the text:** caught, missed, and flagged by mistake.
+
+**What goes**
+- The `tasks` table and `due_at_minute`.
+- Per-move minute costs (`action_costs`) and the minute clock.
+- The productivity and security meters, and the wait button.
+- The "fakes must arrive before the genuine message they imitate" rule (`imitates`).
+
+What stays: the action log, opaque message refs, the in-game browser, canned replies, hints, the
+Purple debrief, and XP only for the first scored attempt.
+
+**Content.** Re-author all four shifts for this model. Each gets:
+- genuine messages that need a reply (like Sam's text) or an action;
+- at least one triggered follow-up;
+- a genuine message that looks suspicious;
+- red flags as quoted phrases.
+
+**Done when:**
+- System tests cover clearing an inbox that has a triggered follow-up, relaxed mode against timed
+  mode, the 30 s call penalty, and flagging by highlight and by sentence. They also check that no
+  score, outcome, red-flag quote or expectation reaches the page mid-shift.
+- The scorecard, the trigger rules and the highlight-matching rules are unit-tested.
 
 ### M7 — Red's Workshop
 - Models from section 5 (Target, TargetOption, BotPersona, RedCampaign). Seed 3 bot personas. Extend the importer for `content/targets/*.yml`.
