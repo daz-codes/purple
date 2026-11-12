@@ -4,13 +4,23 @@
 <div class="flex flex-col gap-4">
   <%= render "shift_attempts/status_bar", attempt: %>
   <div id="shift_notice" aria-live="polite"></div>
-  <div class="grid gap-4 lg:grid-cols-[16rem_22rem_minmax(0,1fr)] items-start">
-    <div class="flex flex-col gap-4">
-      <%= render "shift_attempts/tasks", attempt: %>
-      <%= render "shift_attempts/hints", attempt: %>
+  <% if attempt.shift.kind_messages? %>
+    <div class="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] items-start">
+      <div class="flex flex-col gap-4">
+        <%= render "shift_attempts/tasks", attempt: %>
+        <%= render "shift_attempts/hints", attempt: %>
+      </div>
+      <%= render "shift_attempts/phone", attempt: %>
     </div>
-    <%= render "shift_attempts/inbox", attempt: %>
-    <%= render "shift_attempts/reader", attempt: %>
-  </div>
+  <% else %>
+    <div class="grid gap-4 lg:grid-cols-[16rem_22rem_minmax(0,1fr)] items-start">
+      <div class="flex flex-col gap-4">
+        <%= render "shift_attempts/tasks", attempt: %>
+        <%= render "shift_attempts/hints", attempt: %>
+      </div>
+      <%= render "shift_attempts/inbox", attempt: %>
+      <%= render "shift_attempts/reader", attempt: %>
+    </div>
+  <% end %>
   <%= render "shift_attempts/browser", attempt: %>
 </div>

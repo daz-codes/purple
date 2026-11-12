@@ -24,7 +24,7 @@
 
   <div class="flex flex-wrap gap-2 md:justify-end">
     <% if (next_arrival = attempt.next_arrival_minute) %>
-      <%= shift_action_button attempt, "Wait for new mail", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
+      <%= shift_action_button attempt, attempt.shift.kind_messages? ? "Wait for new messages" : "Wait for new mail", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
     <% end %>
     <% confirm = "End your shift now? Unfinished tasks count as missed." %>
     <% confirm += " More mail is due today: anything that arrives after you leave goes unhandled." if next_arrival %>

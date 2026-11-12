@@ -10,7 +10,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # technique tags and red-flag labels. None may appear anywhere in a mid-shift page.
   SHIFT_SECRETS = %w[
     legit outcome task_id completes_task bait_landing credential_harvest malware harmless portal_task
-    file_preview real_invoice fake_invoice pay_supplier lookalike_domain T1583 lookalike
+    file_preview real_invoice fake_invoice pay_supplier lookalike_domain T1583 lookalike sam_text it_chat code_request
   ].freeze
 
   private

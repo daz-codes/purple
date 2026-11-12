@@ -1,0 +1,78 @@
+<%# SECRET-FREE ZONE, like the email reader: never render a message's key, legit flag, links'
+    outcomes, red flags, techniques or replies' outcomes. A reply's text is all the player sees until
+    they send it, then what came back. On a phone there's no hovering and no headers: what you see is
+    what you get. %>
+<% message = attempt.current_message %>
+<% flag_mode = local_assigns[:flag_mode] && message %>
+<% flagged = message ? attempt.flagged_anchors(message) : [] %>
+<section id="shift_reader" class="flex h-full flex-col" aria-labelledby="reader-heading"
+         data-controller="flag-mode"
+         data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
+         data-flag-mode-flagged-value="<%= flagged.to_json %>"
+         data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture turbo:submit-end->flag-mode#submitted">
+  <header class="flex shrink-0 items-center gap-3 border-b border-line px-3 pb-3">
+    <button type="button" class="rounded-full px-2 py-1 text-xl text-blue-team cursor-pointer hover:bg-surface" data-action="phone#showList"
+            aria-label="Back to all messages">‹</button>
+    <% if message %>
+      <span class="grid size-9 shrink-0 place-items-center rounded-full font-bold <%= message.chat? ? "bg-purple-team-soft text-purple-team" : "bg-blue-team-soft text-blue-team" %>" aria-hidden="true"><%= avatar_initial(message) %></span>
+      <div class="min-w-0">
+        <h2 id="reader-heading" class="truncate font-bold" data-anchor="from"><%= message.from_name %><% if message.from_address != message.from_name %>
+          <span class="block truncate font-mono text-xs font-normal text-ink-muted"><%= message.from_address %></span><% end %></h2>
+        <p class="text-xs text-ink-muted"><%= channel_label(message) %></p>
+      </div>
+    <% else %>
+      <h2 id="reader-heading" class="font-bold">Messages</h2>
+    <% end %>
+  </header>
+
+  <% if message %>
+    <% ref = attempt.message_ref(message) %>
+    <% reply = attempt.sent_reply(message) %>
+    <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" data-controller="scroll-to-end">
+      <p class="text-center text-xs text-ink-muted">Minute <%= message.arrives_at_minute %></p>
+      <%# Links post only their neutral key (l1, l2…) to this URL; the server decides what opens. %>
+      <div class="message-body max-w-[85%] rounded-2xl rounded-bl-sm bg-surface-raised px-4 py-2 break-words"
+           data-link-visit-url="<%= shift_attempt_message_link_visit_path(attempt, ref, "__key__") %>"
+           data-testid="incoming-bubble">
+        <%= sanitize message.body_html, tags: Content::MessageBody::OUTPUT_TAGS, attributes: Content::MessageBody::OUTPUT_ATTRIBUTES %>
+      </div>
+
+      <% if reply %>
+        <p class="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-blue-team px-4 py-2 text-surface" data-testid="sent-reply"><%= reply["text"] %></p>
+        <% if reply["response"] %>
+          <p class="max-w-[85%] rounded-2xl rounded-bl-sm bg-surface-raised px-4 py-2" data-testid="reply-response"><%= reply["response"] %></p>
+        <% end %>
+      <% end %>
+
+      <%= render "shift_attempts/reader/verification", attempt:, message: %>
+      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flagged:, flag_mode:,
+            parts: "Tap anything that looks wrong: the sender, a line of the message or a link." %>
+    </div>
+
+    <div class="shrink-0 space-y-3 border-t border-line px-4 py-3">
+      <% if message.replies.any? && !reply %>
+        <div class="flex flex-col items-end gap-2" role="group" aria-label="Reply with">
+          <p class="self-start text-xs font-semibold uppercase tracking-widest text-ink-muted">Reply with</p>
+          <% message.visible_replies.each do |option| %>
+            <%= shift_action_button attempt, option["text"], shift_attempt_message_reply_path(attempt, ref),
+                  params: { reply: option["id"] }, cost: attempt.action_cost(:send_reply),
+                  class: "rounded-2xl border border-blue-team px-3 py-1.5 text-left text-sm text-blue-team cursor-pointer hover:bg-blue-team-soft disabled:opacity-50" %>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div class="flex flex-wrap gap-2 text-sm">
+        <% unless attempt.sender_verified?(message) %>
+          <%= shift_action_button attempt, "Call the sender back", shift_attempt_message_verification_path(attempt, ref),
+                cost: attempt.action_cost(:verify_sender) %>
+        <% end %>
+        <button type="button" class="btn-ghost aria-pressed:border-red-team aria-pressed:bg-red-team-soft aria-pressed:text-red-team" data-action="flag-mode#toggle" data-flag-mode-target="toggle"
+                aria-pressed="<%= flag_mode ? "true" : "false" %>">🚩 Flag red flags</button>
+        <%= shift_action_button attempt, "Report phishing", shift_attempt_message_report_path(attempt, ref),
+              cost: attempt.action_cost(:report_message), class: "btn-red" %>
+      </div>
+    </div>
+  <% else %>
+    <p class="p-8 text-center text-ink-muted">Pick a conversation to read it.</p>
+  <% end %>
+</section>
