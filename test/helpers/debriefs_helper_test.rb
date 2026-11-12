@@ -54,6 +54,11 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_equal [ 5, "Completed “Approve invoice”", :good ], debrief_timeline_entry(action("complete_task", "pay_supplier", minute: 5), card)
   end
 
+  test "the timeline says when the rest of the day's mail arrived early" do
+    assert_equal "Your task list was clear, so the rest of the day's mail arrived",
+      debrief_timeline_entry(action("wait", nil, result: { "tasks_done" => true }), scorecard).second
+  end
+
   test "points are signed" do
     assert_equal [ "+30", "−10", "0" ], [ 30, -10, 0 ].map { |points| debrief_points(points) }
   end

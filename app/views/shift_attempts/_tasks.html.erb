@@ -13,4 +13,9 @@
       </li>
     <% end %>
   </ul>
+  <% if attempt.all_tasks_resolved? %>
+    <p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-3 py-2 text-sm" data-testid="tasks-clear">
+      Nothing left on your list, so the rest of today's mail has arrived. Deal with your inbox, then end your shift.
+    </p>
+  <% end %>
 </section>

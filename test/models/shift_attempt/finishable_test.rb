@@ -5,11 +5,14 @@ class ShiftAttempt::FinishableTest < ActiveSupport::TestCase
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
   end
 
-  test "the shift ends when every task is resolved" do
+  test "clearing the task list brings the rest of the day's mail, and the shift carries on" do
     # Reporting the only message that can complete the task makes the task impossible.
     @attempt.report(messages(:real_invoice))
 
-    assert @attempt.completed?
+    assert @attempt.open?
+    assert_equal 3, @attempt.clock_minutes # the phish arrives at minute 3
+    assert_includes @attempt.arrived_messages, messages(:fake_invoice)
+    assert_equal [ "wait", { "tasks_done" => true } ], [ @attempt.actions.last.kind, @attempt.actions.last.result ]
   end
 
   test "a task with no completing link doesn't end the shift" do
@@ -34,12 +37,12 @@ class ShiftAttempt::FinishableTest < ActiveSupport::TestCase
   end
 
   test "ending the shift doesn't finish it twice or lose first-attempt scoring" do
-    # Everything is already resolved, so recording end_shift finishes the attempt by itself.
-    @attempt.attempt_actions.create!(kind: "report_message", target_key: "real_invoice", minute: 0)
+    # The clock is at the end of the day, so recording end_shift finishes the attempt by itself.
+    @attempt.update_columns(clock_minutes: 30)
     @attempt.reload
     @attempt.end_shift
 
-    assert @attempt.completed?
+    assert @attempt.timed_out?
     assert @attempt.scored?
     assert_equal 1, @attempt.attempt_actions.where(kind: "end_shift").count
   end

@@ -150,7 +150,8 @@ module DebriefsHelper
       when "run_download" then [ "Ran #{tab_label(tab)}: compromised", :bad ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "complete_task" then [ "Completed “#{task_title(scorecard, action.target_key)}”", :good ]
-      when "wait" then [ "Waited for new mail", :neutral ]
+      when "wait"
+        [ action.result["tasks_done"] ? "Your task list was clear, so the rest of the day's mail arrived" : "Waited for new mail", :neutral ]
       when "end_shift" then [ "Ended the shift", :neutral ]
       else [ action.kind.humanize, :neutral ]
       end

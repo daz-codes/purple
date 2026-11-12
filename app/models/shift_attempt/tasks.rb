@@ -22,8 +22,8 @@ module ShiftAttempt::Tasks
   end
 
   # A task is resolved when it's done, or when every message that could complete it has been
-  # reported. A task with no completing link at all isn't resolved: that's broken content, and it
-  # mustn't end the shift.
+  # reported. Once they all are, the rest of the day's mail arrives. A task with no completing link
+  # at all isn't resolved: that's broken content.
   def all_tasks_resolved?
     tasks = shift.tasks.includes(links: :message)
     tasks.any? && tasks.all? do |task|

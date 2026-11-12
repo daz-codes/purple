@@ -1,5 +1,6 @@
-# The end of a shift: when the clock reaches the time budget, when every task is resolved, or when
-# the player ends it. Finishing scores the attempt from its log.
+# The end of a shift: when the clock reaches the time budget, or when the player ends it. Clearing the
+# task list doesn't end it: the rest of the day's mail arrives instead (see Inbox), and the player
+# has to deal with everything. Finishing scores the attempt from its log.
 module ShiftAttempt::Finishable
   extend ActiveSupport::Concern
 
@@ -15,7 +16,7 @@ module ShiftAttempt::Finishable
   def end_shift
     acting_on do
       record :end_shift, cost: 0
-      finish :completed # does nothing if recording the action already ended the shift
+      finish :completed # does nothing if recording the action already ran the clock out
     end
   end
 
@@ -25,11 +26,7 @@ module ShiftAttempt::Finishable
 
   private
     def finish_if_over
-      if time_up?
-        finish :timed_out
-      elsif all_tasks_resolved?
-        finish :completed
-      end
+      finish :timed_out if time_up?
     end
 
     def finish(status)

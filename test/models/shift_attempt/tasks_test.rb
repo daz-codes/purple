@@ -33,15 +33,26 @@ class ShiftAttempt::TasksTest < ActiveSupport::TestCase
     @attempt.complete_task
 
     assert @attempt.task_completed?(tasks(:pay_supplier))
-    assert_equal [ "complete_task", "pay_supplier", 2 ],
-      [ @attempt.actions.last.kind, @attempt.actions.last.target_key, @attempt.actions.last.cost_minutes ]
+    completion = @attempt.actions.find(&:complete_task?)
+    assert_equal [ "pay_supplier", 2 ], [ completion.target_key, completion.cost_minutes ]
   end
 
-  test "completing the last task ends the shift" do
+  test "completing the last task brings the rest of the day's mail instead of ending the shift" do
     @attempt.visit(links(:real_invoice_link))
     @attempt.complete_task
 
-    assert @attempt.completed?
+    assert @attempt.open?
+    assert_equal 3, @attempt.clock_minutes
+    assert_includes @attempt.arrived_messages, messages(:fake_invoice)
+  end
+
+  test "with every message already in, clearing the task list leaves the clock alone" do
+    @attempt.wait_for_mail # to minute 3: everything has arrived
+    @attempt.visit(links(:real_invoice_link))
+    @attempt.complete_task
+
+    assert_equal 5, @attempt.clock_minutes
+    assert_equal %w[ wait click_link complete_task ], @attempt.actions.map(&:kind)
   end
 
   test "a task can't be completed from a page that isn't its portal" do
