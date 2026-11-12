@@ -102,7 +102,8 @@ Task                       (Blue's to-do list for the shift)
 Message                    (an email or SMS/chat message in the shift)
   shift_id, key, channel (email/sms/chat), position, arrives_at_minute,
   from_name, from_address, reply_to, to_address, subject, body_html (sanitized),
-  attachments (jsonb: [{id, name, type, size}]), legit (bool)
+  attachments (jsonb: [{id, name, type, size}]),
+  replies (jsonb: [{id, text, outcome, response}], texts and chats only), legit (bool)
 
 Link                       (every link in a message, extracted on import)
   message_id, key (e.g. l1), display_url, actual_url,
@@ -253,6 +254,8 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 ### M6 — Message shift (SMS & chat)
 - A phone-style UI for SMS and a chat-app style UI for fake "IT support" conversations, reusing the engine, links, browser and debrief.
 - One chat scenario where "IT support" asks for an MFA code. Blue can reply with a canned choice (give code / refuse / verify via helpdesk).
+- Canned replies (`replies:` in the YAML, texts and chats only, 2-4 each) get neutral ids (`r1`…) on import; each one's outcome (`safe`, `compromise`, `verify`) stays on the server, like an attachment's. There's no free text. Sending one is a `send_reply` move: `compromise` counts like entering a password on a bait page, and `verify` is the same move as calling the sender back. Genuine messages offer replies too, so having replies doesn't mark a message as the phish.
+- The phone shows one screen at a time (conversation list or one conversation). There are no headers to expand and no hovering: the sender's number or chat account is all there is. Attachments are for emails only.
 - **Done when:** the system test passes and the message shift is playable.
 
 ### M7 — Red's Workshop

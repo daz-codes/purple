@@ -11,7 +11,8 @@ briefing: >
 learning_summary: >
   On a phone you can't hover, so read links and sender details carefully before tapping. A text
   can appear in a genuine-looking thread, a tiny fee is still bait, and IT will never ask for a
-  one-time code.
+  one-time code, however urgent they make it sound. If someone asks for one, refuse, and check with the
+  service desk on a number you already have.
 
 tasks:
   - { key: confirm_courier, title: "Confirm the courier slot for the new laptops", due_at_minute: 15, points: 30 }
@@ -23,7 +24,7 @@ messages:
     arrives_at_minute: 0
     legit: true
     from_name: "Tidemark Logistics"
-    from_address: "NWLogistics"
+    from_address: "Tidemark"
     body_html: |
       <p>Tidemark Logistics: your Larkhill delivery (3 laptops) is ready. Choose a delivery slot: <a href="https://track.tidemark.example/slot/2231">track.tidemark.example/slot/2231</a></p>
     links:
@@ -72,6 +73,13 @@ messages:
     body_html: |
       <p>Hi, this is Larkhill IT. We're seeing unusual sign-ins on your account from abroad.</p>
       <p>To lock it down, please reply with the 6-digit code we've just sent to your phone.</p>
+    replies:
+      - { text: "Sure, it's 482 913", outcome: compromise,
+          response: "Perfect, thanks! That's your account locked down. Nothing else you need to do 👍" }
+      - { text: "I'm not sharing a code. If there's a problem I'll contact IT myself.", outcome: safe,
+          response: "This is urgent!! If you don't send it now your account will be suspended in 10 minutes." }
+      - { text: "Let me check with the service desk first.", outcome: verify,
+          response: "There's no time for that, someone is in your account RIGHT NOW." }
     verify_result: "The IT service desk: \"That isn't us. We never ask for codes, and this chat account is external.\""
     red_flags:
       - { key: external_account, anchor: from, points: 10, label: "External chat account",
@@ -107,6 +115,9 @@ messages:
     from_address: "07700 900118"
     body_html: |
       <p>Running 10 mins late for the site meeting, sorry! Grab me a flat white if you're passing the café?</p>
+    replies:
+      - { text: "Will do, see you there ☕", outcome: safe, response: "You're a star, thanks!" }
+      - { text: "Sorry, no time today. See you at the meeting.", outcome: safe, response: "No worries!" }
     verify_result: "Sam is in your contacts, and the meeting is in your calendar."
 
 hints:

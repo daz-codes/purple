@@ -82,6 +82,7 @@ module DebriefsHelper
         story << (tasks.any? ? "It was genuine, and the way to #{quoted_titles(tasks)}." : "It was genuine.")
       end
     elsif result.phish?
+      story << reply_sentence(result) if result.reply
       result.compromises.each { |tab| story << compromise_sentence(tab) }
       result.near_misses.each { |tab| story << near_miss_sentence(tab) }
 
@@ -105,11 +106,11 @@ module DebriefsHelper
       tasks = message.links.select(&:outcome_completes_task?).map(&:task).uniq
       if result.reported?
         sentence = "This was genuine, but you reported it. False alarms cost the security team time"
-        sentence += tasks.any? ? ", and it was the email you needed for #{quoted_titles(tasks)}." : "."
+        sentence += tasks.any? ? ", and it was the #{message_noun(message)} you needed for #{quoted_titles(tasks)}." : "."
         story << sentence
       elsif result.completed_tasks.any?
         story << "This was genuine, and you used it for #{quoted_titles(result.completed_tasks)}. " \
-          "Trusting the real email matters as much as spotting the fake one."
+          "Trusting the real #{message_noun(message)} matters as much as spotting the fake one."
       elsif tasks.any?
         story << "This was genuine, and it was the way to #{quoted_titles(tasks)}, which you didn't finish."
       else
@@ -132,6 +133,10 @@ module DebriefsHelper
         "Don't open files you weren't expecting, and read the whole file name: one that ends in .exe is a program, whatever it says before that."
       end
     end
+    if result.gave_in?
+      lessons << "Never share a one-time code, a password or an approval with anyone who asks for it, whoever they say they are. " \
+        "IT will never ask: the code exists to prove it's you."
+    end
     lessons << "When a request is unexpected, check with the sender on a number you already hold before acting on it." if result.reported? && !result.phish?
     lessons
   end
@@ -140,7 +145,9 @@ module DebriefsHelper
   def debrief_verification(result)
     reply = result.message.verify_result.presence or return
 
-    if result.verified?
+    if result.verified? && result.reply&.fetch("outcome") == "verify"
+      "You checked with someone you already trust: “#{reply}”"
+    elsif result.verified?
       "You called the sender back: “#{reply}”"
     elsif result.outcome.in?(%i[ compromised near_miss not_reported reported_wrongly ])
       "Calling the sender back would have told you: “#{reply}”"
@@ -175,6 +182,9 @@ module DebriefsHelper
       when "flag_element"
         part = result ? anchor_label(result.message, action.result["anchor"]) : "part"
         [ "#{unflag ? "Took the flag off" : "Flagged"} #{part} in #{subject}", :neutral ]
+      when "send_reply"
+        reply = result&.message&.reply(action.result["reply"])
+        [ "Replied “#{reply ? reply["text"] : "…"}” to #{subject}", reply&.fetch("outcome") == "compromise" ? :bad : :neutral ]
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "complete_task" then [ "Completed “#{task_title(scorecard, action.target_key)}”", :good ]
@@ -200,7 +210,7 @@ module DebriefsHelper
       "You also flagged #{parts}, which #{result.false_flags.one? ? "wasn't a giveaway" : "weren't giveaways"} " \
         "(#{debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)})."
     else
-      "You flagged #{parts}, but this email was genuine (#{debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)})."
+      "You flagged #{parts}, but this #{message_noun(result.message)} was genuine (#{debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)})."
     end
   end
 
@@ -213,7 +223,22 @@ module DebriefsHelper
     end
   end
 
+  # What to call a message in a sentence: an email, a text or a chat message.
+  def message_noun(message)
+    { "email" => "email", "sms" => "text", "chat" => "chat message" }.fetch(message.channel)
+  end
+
   private
+    def reply_sentence(result)
+      text = result.reply["text"]
+      if result.gave_in?
+        "You replied “#{text}”, handing over exactly what they asked for. In a real attack Red is now signed in as you " \
+          "(#{debrief_points(ShiftAttempt::Scorecard::COMPROMISED)})."
+      else
+        "You replied “#{text}”, and gave them nothing they could use. Good."
+      end
+    end
+
     def compromise_sentence(tab)
       if !tab.showable?
         "You were compromised by a link or file in this message that has since been changed in the shift's content."
