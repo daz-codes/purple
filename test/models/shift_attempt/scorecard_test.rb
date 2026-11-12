@@ -82,12 +82,12 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
                                 action("close_landing", "fake_invoice", result: { "link" => "l1" })).security_meter
   end
 
-  test "the maximum is every task on time plus every phish that arrived, reported" do
+  test "the maximum is every task on time plus every phish that arrived, reported and with every red flag found" do
     card = scorecard
 
     assert_equal 40, card.productivity_max
-    assert_equal 30, card.security_max
-    assert_equal 70, card.total_max
+    assert_equal 40, card.security_max # 30 for the report and 10 for its one red flag
+    assert_equal 80, card.total_max
   end
 
   test "a phish that hadn't arrived when the shift ended isn't judged or counted in the maximum" do
@@ -98,16 +98,44 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   end
 
   test "a perfect shift earns three stars, and anything less is judged against the maximum" do
-    perfect = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"))
+    perfect = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"))
     assert perfect.perfect?
     assert_equal 3, perfect.stars
 
-    nearly = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"),
-                       action("open_attachment", "fake_invoice", result: { "attachment" => "a1" }))
-    assert_not nearly.perfect?
-    assert_equal 2, nearly.stars # 60 of 70
+    unflagged = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"))
+    assert_not unflagged.perfect?
+    assert_equal 2, unflagged.stars # 70 of 80 is under 90%
+  end
 
+  test "three stars need no compromise" do
+    file = { "attachment" => "a1" }
+    card = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"),
+                     action("open_attachment", "fake_invoice", result: file), action("run_download", "fake_invoice", result: file))
+
+    assert_equal 1, card.stars # 30 of 80
     assert_equal 0, scorecard.stars
+  end
+
+  test "a red flag earns its points once flagged, and a flag taken off again counts for nothing" do
+    assert_equal 10, scorecard(flag("fake_invoice", "from")).security
+    assert_equal 0, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "from")).security
+    assert_equal [ "from" ], scorecard(flag("fake_invoice", "from")).message_result_for("fake_invoice").found_flags.map(&:anchor)
+  end
+
+  test "a wrong flag costs 5, but flagging can't cost points overall" do
+    assert_equal 5, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "p1")).security
+    assert_equal 0, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security
+    assert_equal 35, scorecard(action("report_message", "fake_invoice"), flag("fake_invoice", "from"), flag("real_invoice", "from")).security # 30 + 10 - 5
+    assert_equal [ "p1" ], scorecard(flag("fake_invoice", "p1")).message_result_for("fake_invoice").false_flags
+  end
+
+  test "each hint takes its share of the maximum off the total" do
+    card = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"),
+                     action("use_hint", nil, result: { "hint" => 1 }))
+
+    assert_equal [ 16 ], card.hints.map(&:penalty) # 20% of 80
+    assert_equal 64, card.total
+    assert_not card.perfect?
   end
 
   test "each message is judged on what the player did with it" do
@@ -141,6 +169,10 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   private
     def outcome(key, *actions)
       scorecard(*actions).message_result_for(key).outcome
+    end
+
+    def flag(key, anchor)
+      action("flag_element", key, result: { "anchor" => anchor })
     end
 
     def action(kind, target_key, minute: 0, cost: 0, result: {})

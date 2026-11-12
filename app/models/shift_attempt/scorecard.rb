@@ -5,20 +5,21 @@
 # Productivity: a task completed on time earns its points, late earns half, never completed loses
 # half. Security is judged message by message: +30 for reporting a phish, -15 for reporting a
 # legitimate message, -10 for each near miss (a bait page or malware download opened but not fallen
-# for), -50 for each compromise (a password entered or a download run). Total = productivity +
-# security, never below 0.
+# for), -50 for each compromise (a password entered or a download run), plus each red flag's points
+# when it's flagged and -5 for each flag on something that isn't one. Flagging can't cost points
+# overall: its total across the shift is never below 0. Each hint takes its penalty_percent of the
+# maximum score off the total. Total = productivity + security - hints, never below 0.
 #
 # arrived_by: the minute the shift ended. Messages that hadn't arrived by then can't be judged, so
 # they count neither way and aren't in the maximum.
-#
-# Red flags and hints arrive in M5.
 class ShiftAttempt::Scorecard
   REPORTED_PHISH = 30
   REPORTED_LEGIT = -15
   NEAR_MISS = -10
   COMPROMISED = -50
+  FALSE_FLAG = -5
 
-  # Share of the maximum score needed for each star.
+  # Share of the maximum score needed for each star. Three stars also need no compromise.
   STAR_THRESHOLDS = [ 0.3, 0.6, 0.9 ].freeze
 
   TaskResult = Data.define(:task, :status, :points, :completed_at_minute) do
@@ -27,9 +28,12 @@ class ShiftAttempt::Scorecard
     def missed? = status == :missed
   end
 
+  HintUsed = Data.define(:hint, :penalty)
+
   # What the player did with one message, and what it scored. compromises and near_misses are the
-  # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links.
-  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks) do
+  # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links;
+  # flagged are the anchors the player left flagged.
+  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks, :flagged) do
     def phish? = message.phish?
     def opened? = actions.any?(&:open_message?)
     def verified? = actions.any?(&:verify_sender?)
@@ -60,11 +64,28 @@ class ShiftAttempt::Scorecard
     end
 
     def points
-      report_points + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED
+      report_points + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED + flag_points
     end
 
     def best_points
-      phish? ? REPORTED_PHISH : 0
+      phish? ? REPORTED_PHISH + message.red_flags.sum(&:points) : 0
+    end
+
+    def found_flags
+      message.red_flags.select { |flag| flag.anchor.in?(flagged) }
+    end
+
+    def missed_flags
+      message.red_flags - found_flags
+    end
+
+    # Flagged anchors that aren't red flags.
+    def false_flags
+      flagged - message.red_flags.map(&:anchor)
+    end
+
+    def flag_points
+      found_flags.sum(&:points) + false_flags.size * FALSE_FLAG
     end
 
     def report_points
@@ -84,12 +105,26 @@ class ShiftAttempt::Scorecard
     tasks.sum(&:points)
   end
 
+  # Flagging's total across the shift is never below 0, so wrong flags can't cost more than the
+  # right ones earned.
   def security
-    messages.sum(&:points)
+    messages.sum(&:points) - [ messages.sum(&:flag_points), 0 ].min
   end
 
   def total
-    [ productivity + security, 0 ].max
+    [ productivity + security - hint_penalty, 0 ].max
+  end
+
+  # The hints the player took, each with the points it cost.
+  def hints
+    @hints ||= @actions.select(&:use_hint?).filter_map do |action|
+      hint = @shift.hints.find { |candidate| candidate.position == action.result["hint"] } or next
+      HintUsed.new(hint:, penalty: (total_max * hint.penalty_percent / 100.0).round)
+    end
+  end
+
+  def hint_penalty
+    hints.sum(&:penalty)
   end
 
   def productivity_max
@@ -105,15 +140,19 @@ class ShiftAttempt::Scorecard
   end
 
   def perfect?
-    productivity == productivity_max && security == security_max
+    productivity == productivity_max && security == security_max && hints.none?
+  end
+
+  def compromised?
+    messages.any?(&:compromised?)
   end
 
   # 0 to 3.
   def stars
-    return 3 if perfect?
     return 0 unless total_max.positive?
 
-    STAR_THRESHOLDS.count { |threshold| total >= total_max * threshold }.clamp(0, 2)
+    stars = STAR_THRESHOLDS.count { |threshold| total >= total_max * threshold }
+    compromised? ? [ stars, 2 ].min : stars
   end
 
   def tasks
@@ -178,7 +217,8 @@ class ShiftAttempt::Scorecard
       near_misses = tabs(message, actions, ShiftAttempt::Browsing::TAB_OPENERS).select(&:trap?)
         .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
 
-      MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message))
+      MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message),
+        flagged: ShiftAttempt::Flaggable.standing_anchors(actions))
     end
 
     # The pages or files the given kinds of action happened on, once each. Uses the same rules as

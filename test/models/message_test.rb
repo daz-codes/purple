@@ -18,4 +18,9 @@ class MessageTest < ActiveSupport::TestCase
       message.destroy
     end
   end
+
+  test "every header, paragraph, link and attachment is a flaggable anchor" do
+    assert_equal %w[ from reply_to to subject p1 p2 l1 a1 ], messages(:fake_invoice).anchors
+    assert_equal %w[ from to subject p1 l1 a1 ], messages(:real_invoice).anchors
+  end
 end

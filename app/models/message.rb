@@ -21,6 +21,15 @@ class Message < ApplicationRecord
     !legit?
   end
 
+  # The parts of the message a player can flag, by their neutral ids: the headers, then every
+  # paragraph, link and attachment. Everything is flaggable, so this says nothing about which parts
+  # are red flags.
+  def anchors
+    @anchors ||= [ "from", ("reply_to" if reply_to.present?), ("to" if to_address.present?), ("subject" if subject.present?) ].compact +
+      Nokogiri::HTML5.fragment(body_html).css("[data-anchor]").map { |node| node["data-anchor"] } +
+      attachments.map { |attachment| attachment["id"] }
+  end
+
   def attachment(id)
     attachments.find { |attachment| attachment["id"] == id } if id
   end
