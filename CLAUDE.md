@@ -1,4 +1,4 @@
-# CLAUDE.md — Purple (Red vs Blue cyber training game)
+# CLAUDE.md — Purple (Red v Blue cyber training game)
 
 The full product plan lives in `docs/PLAN.md`. Work through its milestones **in order**
 (M0 → M10). Finish each one (code + tests + green CI) before starting the next, and ask before

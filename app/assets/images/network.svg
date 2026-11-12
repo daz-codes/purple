@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+  <!-- A tile of network nodes sitting on the 32px graph-paper grid.
+       Purple = quiet hosts, red/blue = "active" hosts. Kept away from tile edges so it repeats cleanly. -->
+  <g stroke="#b48cff" stroke-opacity="0.12" stroke-width="1" fill="none">
+    <path d="M96 128 L224 96 L352 160 L480 96 L576 192" />
+    <path d="M224 96 L256 256 L128 320 L96 128" />
+    <path d="M352 160 L416 320 L256 256" />
+    <path d="M416 320 L576 192 L544 416 L416 320" />
+    <path d="M128 320 L192 480 L352 512 L416 320" />
+    <path d="M352 512 L544 416 L512 576" />
+    <path d="M192 480 L64 544" />
+  </g>
+  <g stroke="#f2545b" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="3 5" fill="none">
+    <path d="M480 96 L416 320 L192 480" />
+  </g>
+  <g stroke="#4ea8ff" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="3 5" fill="none">
+    <path d="M96 128 L256 256 L544 416" />
+  </g>
+
+  <g fill="#b48cff" fill-opacity="0.35">
+    <circle cx="224" cy="96" r="2.5" />
+    <circle cx="352" cy="160" r="2.5" />
+    <circle cx="576" cy="192" r="2.5" />
+    <circle cx="128" cy="320" r="2.5" />
+    <circle cx="416" cy="320" r="3" />
+    <circle cx="352" cy="512" r="2.5" />
+    <circle cx="512" cy="576" r="2.5" />
+    <circle cx="64" cy="544" r="2.5" />
+    <circle cx="192" cy="480" r="2.5" />
+  </g>
+
+  <!-- Highlighted hosts: a soft halo plus a bright core. -->
+  <g fill="#f2545b">
+    <circle cx="480" cy="96" r="10" fill-opacity="0.08" />
+    <circle cx="480" cy="96" r="3.5" fill-opacity="0.7" />
+  </g>
+  <g fill="#4ea8ff">
+    <circle cx="96" cy="128" r="10" fill-opacity="0.08" />
+    <circle cx="96" cy="128" r="3.5" fill-opacity="0.7" />
+    <circle cx="544" cy="416" r="10" fill-opacity="0.08" />
+    <circle cx="544" cy="416" r="3.5" fill-opacity="0.7" />
+  </g>
+  <g fill="#b48cff">
+    <circle cx="256" cy="256" r="12" fill-opacity="0.08" />
+    <circle cx="256" cy="256" r="4" fill-opacity="0.75" />
+  </g>
+</svg>

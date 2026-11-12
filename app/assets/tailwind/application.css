@@ -31,6 +31,35 @@
 
   body {
     @apply bg-surface text-ink font-sans antialiased min-h-screen;
+    isolation: isolate;
+  }
+
+  /*
+    Background: faint purple graph paper with a network of nodes on its
+    intersections. Fixed behind the page and faded out towards the edges and
+    bottom so it never competes with content.
+  */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      url("network.svg"),
+      linear-gradient(to right, rgb(180 140 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(180 140 255 / 0.07) 1px, transparent 1px),
+      linear-gradient(to right, rgb(180 140 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(180 140 255 / 0.035) 1px, transparent 1px);
+    background-size: 640px 640px, 160px 160px, 160px 160px, 32px 32px, 32px 32px;
+    background-position: -1px -1px;
+    mask-image: radial-gradient(ellipse 90% 75% at 50% 25%, black 30%, transparent 100%);
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    body::before {
+      opacity: 0.5;
+    }
   }
 
   /* Always-visible focus ring for keyboard players. */

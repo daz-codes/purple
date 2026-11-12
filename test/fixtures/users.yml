@@ -1,0 +1,18 @@
+<% password_digest = BCrypt::Password.create("correct horse battery") %>
+
+one:
+  email_address: one@example.com
+  display_name: blue_one
+  password_digest: <%= password_digest %>
+  confirmed_at: <%= 1.week.ago.to_fs(:db) %>
+
+two:
+  email_address: two@example.com
+  display_name: red_two
+  password_digest: <%= password_digest %>
+  confirmed_at: <%= 1.day.ago.to_fs(:db) %>
+
+unconfirmed:
+  email_address: new@example.com
+  display_name: new_starter
+  password_digest: <%= password_digest %>

@@ -1,0 +1,13 @@
+<%# Red and Blue circles; where they overlap is Purple. %>
+<svg viewBox="0 0 44 32" class="<%= local_assigns.fetch(:classes, "h-11 w-auto") %>" aria-hidden="true" focusable="false">
+  <defs>
+    <clipPath id="logo-red-circle">
+      <circle cx="15" cy="16" r="13" />
+    </clipPath>
+  </defs>
+  <circle cx="15" cy="16" r="13" class="fill-red-team" />
+  <circle cx="29" cy="16" r="13" class="fill-blue-team" />
+  <circle cx="29" cy="16" r="13" clip-path="url(#logo-red-circle)" class="fill-purple-team" />
+  <circle cx="15" cy="16" r="13" fill="none" class="stroke-surface" stroke-width="1.5" />
+  <circle cx="29" cy="16" r="13" fill="none" class="stroke-surface" stroke-width="1.5" />
+</svg>

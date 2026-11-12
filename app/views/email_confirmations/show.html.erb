@@ -1,0 +1,10 @@
+<% content_for :title, "Confirm your email" %>
+
+<%= render layout: "shared/auth_card", locals: { title: "Confirm your email address" } do %>
+  <p class="text-ink-muted">
+    Confirm <strong class="text-ink"><%= @user.email_address %></strong> to start earning XP
+    and appear on the leaderboards.
+  </p>
+  <%= button_to "Confirm my email address", email_confirmation_path(params[:token]), method: :patch,
+        class: "btn-primary w-full mt-6" %>
+<% end %>
