@@ -20,7 +20,7 @@ module ShiftAttempt::Finishable
   end
 
   def scorecard
-    ShiftAttempt::Scorecard.new(shift:, actions:)
+    ShiftAttempt::Scorecard.new(shift:, actions:, arrived_by: clock_minutes)
   end
 
   private
