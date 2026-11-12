@@ -46,4 +46,13 @@ class ShiftAttempt::TabTest < ActiveSupport::TestCase
 
     assert_equal "Invoice_4471.zip", tab.file_name
   end
+
+  test "a tab whose link a re-import removed has no address, host or file name" do
+    tab = ShiftAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l9" })
+
+    assert_not tab.showable?
+    assert_nil tab.address
+    assert_nil tab.host
+    assert_nil tab.file_name
+  end
 end

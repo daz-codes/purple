@@ -32,8 +32,9 @@ messages:
 
   - key: parcel_fee
     channel: sms
-    arrives_at_minute: 3
+    arrives_at_minute: 0
     legit: false
+    imitates: confirm_courier
     techniques: [smishing, urgency_pretext, credential_harvest]
     from_name: "07700 900461"
     from_address: "07700 900461"

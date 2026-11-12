@@ -10,9 +10,9 @@ class ShiftAttempts::Tabs::TaskCompletionsControllerTest < ActionDispatch::Integ
     @attempt.visit(links(:real_invoice_link))
     post shift_attempt_tab_task_completion_path(@attempt), as: :turbo_stream
 
-    # It was the only task: the rest of the day's mail arrives, and the shift carries on.
+    # It was the only task, but the shift carries on as before.
     assert_response :success
-    assert_includes response.body, "Nothing left on your list"
+    assert_select "[data-testid=clock]", text: /Minute 2 of 30/
     assert @attempt.reload.task_completed?(tasks(:pay_supplier))
   end
 

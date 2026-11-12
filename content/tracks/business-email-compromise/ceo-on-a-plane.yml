@@ -75,7 +75,7 @@ messages:
 
   - key: pellowclarke_contract
     channel: email
-    arrives_at_minute: 10
+    arrives_at_minute: 12
     legit: true
     from_name: "Pellow Clarke Legal"
     from_address: "legal@pellowclarke.example"
@@ -114,25 +114,26 @@ messages:
       - { key: remittance_link, anchor: l1, points: 10, label: "Portal outside Pellow Clarke",
           explanation: "pellowclarke-remittance.example.net isn't pellowclarke.example." }
 
-  - key: signing_reminder
+  - key: signflow_envelope
     channel: email
-    arrives_at_minute: 20
+    arrives_at_minute: 10
     legit: false
+    imitates: sign_contract
     techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
     from_name: "SignFlow Notifications"
     from_address: "notify@signfiow.example"
     to_address: "you@larkhill.example"
-    subject: "Reminder: Pellow Clarke contract expires today"
+    subject: "Pellow Clarke Legal sent you a document to sign"
     body_html: |
-      <p>Your envelope from Pellow Clarke Legal expires at 5pm today.</p>
-      <p>Sign in to review and sign before it's cancelled.</p>
+      <p>Pellow Clarke Legal has sent you "Services agreement: Larkhill Finance" to review and sign.</p>
+      <p>Sign in to review and sign. This envelope expires at 5pm today.</p>
       <p><a href="https://signfiow.example/login?envelope=7781">Sign now</a></p>
     links:
       - { match: "signfiow.example", outcome: bait_landing }
     verify_result: "Pellow Clarke Legal: \"We sent the contract once, from sign.pellowclarke.example. We don't use SignFlow.\""
     red_flags:
       - { key: lookalike, anchor: from, points: 15, label: "Lookalike sender domain",
-          explanation: "signfiow.example uses \"fi\" to look like \"fl\". The real contract came from sign.pellowclarke.example." }
+          explanation: "signfiow.example uses \"fi\" to look like \"fl\". The real contract comes from sign.pellowclarke.example." }
       - { key: expiry, anchor: p1, points: 5, label: "Urgency or pressure",
           explanation: "A sudden expiry deadline is there to rush you." }
       - { key: sign_in_link, anchor: l1, points: 10, label: "Asks you to sign in from a link",

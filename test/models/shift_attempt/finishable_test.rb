@@ -5,14 +5,22 @@ class ShiftAttempt::FinishableTest < ActiveSupport::TestCase
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
   end
 
-  test "clearing the task list brings the rest of the day's mail, and the shift carries on" do
-    # Reporting the only message that can complete the task makes the task impossible.
+  # Otherwise the clock (or the shift ending) would tell the player the report was wrong.
+  test "reporting the only message that can complete a task gives nothing away" do
     @attempt.report(messages(:real_invoice))
 
     assert @attempt.open?
-    assert_equal 3, @attempt.clock_minutes # the phish arrives at minute 3
-    assert_includes @attempt.arrived_messages, messages(:fake_invoice)
-    assert_equal [ "wait", { "tasks_done" => true } ], [ @attempt.actions.last.kind, @attempt.actions.last.result ]
+    assert_equal %w[ report_message ], @attempt.actions.map(&:kind)
+    assert_not_includes @attempt.arrived_messages, messages(:fake_invoice)
+  end
+
+  test "ending the shift early leaves the phishes still to come unreported" do
+    @attempt.end_shift # at minute 0: the phish is due at minute 3
+
+    card = @attempt.scorecard
+    assert_equal :arrived_after_shift, card.message_result_for("fake_invoice").outcome
+    assert_equal 30, card.security_max
+    assert_equal [ 0, 0 ], [ @attempt.security_score, @attempt.score ]
   end
 
   test "a task with no completing link doesn't end the shift" do

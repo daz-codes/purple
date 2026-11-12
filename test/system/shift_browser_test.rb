@@ -19,15 +19,15 @@ class ShiftBrowserTest < ApplicationSystemTestCase
       click_on "Approve invoice (2 min)"
     end
 
-    # It was the only task, so the rest of the day's mail arrives, and the shift carries on.
-    within("#shift_tasks") { assert_selector "[data-testid=tasks-clear]" }
-    assert_selector "[data-testid=clock]", text: "Minute 3 of 30"
-    within("#shift_inbox") { assert_button "URGENT invoice" }
+    # It was the only task, but nothing says so beyond the task itself: the shift carries on.
+    within("#shift_tasks") { assert_text "Done" }
+    assert_selector "[data-testid=clock]", text: "Minute 2 of 30"
     assert_no_answers
 
     within("dialog") { click_on "Close tab" }
-    accept_confirm { click_on "End shift" }
-    assert_text "You ended your shift at minute 3 of 30."
+    accept_confirm(/More mail is due today/) { click_on "End shift" }
+    assert_text "You ended your shift at minute 2 of 30."
+    assert_text "Phish: arrived after you left"
     within("[data-testid=debrief-task]") { assert_text "On time +40" }
   end
 

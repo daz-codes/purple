@@ -1,6 +1,7 @@
 # The end of a shift: when the clock reaches the time budget, or when the player ends it. Clearing the
-# task list doesn't end it: the rest of the day's mail arrives instead (see Inbox), and the player
-# has to deal with everything. Finishing scores the attempt from its log.
+# task list doesn't end it, and nothing in play says the list is clear beyond the tasks themselves:
+# the rest of the day's mail still has to be dealt with. Ending early leaves that mail unhandled (see
+# Scorecard). Finishing scores the attempt from its log.
 module ShiftAttempt::Finishable
   extend ActiveSupport::Concern
 
@@ -13,8 +14,10 @@ module ShiftAttempt::Finishable
     # The highest-scoring finished attempt at each of the given shifts, keyed by shift id: the
     # player's progress on a track page. Ties go to the earlier attempt.
     def best_by_shift(shifts)
-      finished.where(shift: shifts).includes(:attempt_actions, :shift).order(score: :desc, completed_at: :asc)
-        .group_by(&:shift_id).transform_values(&:first)
+      finished.where(shift: shifts)
+        .select("DISTINCT ON (shift_attempts.shift_id) shift_attempts.*")
+        .reorder(:shift_id, score: :desc, completed_at: :asc)
+        .includes(:attempt_actions, :shift).index_by(&:shift_id)
     end
   end
 
@@ -30,7 +33,7 @@ module ShiftAttempt::Finishable
   end
 
   def scorecard
-    ShiftAttempt::Scorecard.new(shift:, actions:, arrived_by: clock_minutes)
+    ShiftAttempt::Scorecard.new(shift:, actions:, clock_minutes:)
   end
 
   private

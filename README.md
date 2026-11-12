@@ -106,6 +106,9 @@ The importer enforces these rules:
 - **Every task is completable by exactly one link in a legitimate message.** Phishing messages can't
   complete tasks; legitimate ones can't contain bait or malware, techniques or red flags.
 - Every shift has at least one phishing message, and tasks and messages fit inside the time budget.
+- A phishing message may say which task it pretends to be about (`imitates: pay_supplier`). It must
+  then arrive no later than the genuine message for that task: a fake that lands after the task is
+  done gives itself away.
 
 ## Deployment
 
