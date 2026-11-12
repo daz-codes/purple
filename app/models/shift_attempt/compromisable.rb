@@ -21,8 +21,4 @@ module ShiftAttempt::Compromisable
       record :run_download, message: tab.message, result: tab.source
     end
   end
-
-  def compromised?
-    actions.any? { |action| action.kind.in?(COMPROMISING_KINDS) }
-  end
 end

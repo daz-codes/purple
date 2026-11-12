@@ -1,5 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 
+// One visit at a time across every link, so a double-click or held Enter posts once. The server
+// also refuses to reopen the page that's already open.
+let visiting = false
+
 // A link in a message. It never navigates: clicking (or Enter) posts only the link's neutral key
 // to the server, which decides what the in-game browser shows. The URL comes from the message body's
 // data-link-visit-url, with __key__ standing for the key.
@@ -21,7 +25,8 @@ export default class extends Controller {
   visit = (event) => {
     event.preventDefault()
     const template = this.element.closest("[data-link-visit-url]")?.dataset.linkVisitUrl
-    if (!template) return
+    if (!template || visiting) return
+    visiting = true
 
     const form = document.createElement("form")
     form.method = "post"
@@ -37,7 +42,10 @@ export default class extends Controller {
       form.append(input)
     }
 
-    form.addEventListener("turbo:submit-end", () => form.remove())
+    form.addEventListener("turbo:submit-end", () => {
+      visiting = false
+      form.remove()
+    })
     document.body.append(form)
     form.requestSubmit()
   }

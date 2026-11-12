@@ -10,7 +10,7 @@ class ShiftAttempt::CompromisableTest < ActiveSupport::TestCase
     @attempt.visit(links(:fake_invoice_link))
     @attempt.submit_credentials
 
-    assert @attempt.compromised?
+    assert_equal 50, @attempt.scorecard.security_meter
     assert_nil @attempt.current_tab
     assert @attempt.open?
     assert_equal({ "link" => "l1" }, @attempt.actions.last.result)
@@ -20,7 +20,7 @@ class ShiftAttempt::CompromisableTest < ActiveSupport::TestCase
     @attempt.open_attachment(messages(:fake_invoice), "a1")
     @attempt.run_download
 
-    assert @attempt.compromised?
+    assert_equal 50, @attempt.scorecard.security_meter
   end
 
   test "you can only sign in on a sign-in page, or run a download from a download" do
@@ -32,6 +32,6 @@ class ShiftAttempt::CompromisableTest < ActiveSupport::TestCase
 
     @attempt.open_attachment(messages(:real_invoice), "a1")
     assert_raises(ShiftAttempt::Rejected, match: /no download/) { @attempt.run_download }
-    assert_not @attempt.compromised?
+    assert_equal 100, @attempt.scorecard.security_meter
   end
 end

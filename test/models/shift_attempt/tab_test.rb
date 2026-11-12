@@ -11,6 +11,19 @@ class ShiftAttempt::TabTest < ActiveSupport::TestCase
     assert_nil tab.task
   end
 
+  test "only sign-in and download pages are traps" do
+    assert ShiftAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l1" }).trap?
+    assert ShiftAttempt::Tab.new(message: messages(:fake_invoice), source: { "attachment" => "a1" }).trap?
+    assert_not ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }).trap?
+    assert_not ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "attachment" => "a1" }).trap?
+  end
+
+  test "a tab whose link or attachment no longer exists can't be shown" do
+    assert_not ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l9" }).showable?
+    assert_not ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "attachment" => "a9" }).showable?
+    assert ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }).showable?
+  end
+
   test "a portal tab knows the task it completes" do
     tab = ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" })
 

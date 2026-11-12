@@ -12,6 +12,6 @@ class ShiftAttempts::Tabs::DownloadRunsControllerTest < ActionDispatch::Integrat
     post shift_attempt_tab_download_run_path(@attempt), as: :turbo_stream
 
     assert_select "turbo-stream[target=shift_notice] template [role=alert]", text: /being encrypted/
-    assert @attempt.reload.compromised?
+    assert_equal 50, @attempt.reload.scorecard.security_meter
   end
 end

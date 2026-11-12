@@ -3,12 +3,15 @@
 <div id="shift_browser">
   <% if (tab = attempt.current_tab) %>
     <dialog class="browser m-auto w-[min(56rem,calc(100vw-2rem))] max-h-[calc(100vh-2rem)] rounded-xl border border-line bg-surface p-0 text-ink shadow-2xl"
-            aria-labelledby="browser-title" data-controller="browser" data-action="cancel->browser#cancel">
+            aria-labelledby="browser-title" data-controller="browser" data-action="cancel->browser#cancel close->browser#closed">
       <div class="flex items-center justify-between gap-3 border-b border-line bg-surface-sunken px-3 py-2">
         <p id="browser-title" class="truncate text-sm font-medium"><%= tab.title %></p>
         <%= button_to "Close tab", shift_attempt_tab_path(attempt), method: :delete, class: "btn-ghost py-1",
               form: { class: "contents" }, data: { browser_target: "close" } %>
       </div>
+
+      <%# Notices shown inside the modal, where the player can see them. %>
+      <div id="browser_notice" class="empty:hidden border-b border-line px-3 py-2" aria-live="assertive"></div>
 
       <% if tab.address %>
         <div class="flex items-center gap-2 border-b border-line bg-surface-raised px-3 py-2">

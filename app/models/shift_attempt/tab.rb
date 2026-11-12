@@ -4,6 +4,9 @@
 # #landing picks the page the server renders. It reflects the hidden outcome, so it must only ever
 # be used to render the page the player has already chosen to open, never anything else.
 class ShiftAttempt::Tab
+  # Pages where the player can fall for it. Opening one and backing out is a near miss.
+  TRAP_LANDINGS = %w[ credential_harvest malware_download ].freeze
+
   attr_reader :message, :source
 
   # source: { "link" => "l1" } or { "attachment" => "a1" }, as recorded in the action's result.
@@ -19,7 +22,7 @@ class ShiftAttempt::Tab
   end
 
   def attachment
-    message.attachments.find { |attachment| attachment["id"] == source["attachment"] } if source["attachment"]
+    message.attachment(source["attachment"])
   end
 
   def landing
@@ -28,6 +31,19 @@ class ShiftAttempt::Tab
     elsif attachment
       attachment["outcome"] == "malware" ? "malware_download" : "file_preview"
     end
+  end
+
+  # False once a content re-import has removed the link or attachment this tab was opened from.
+  def showable?
+    landing.present?
+  end
+
+  def trap?
+    landing.in?(TRAP_LANDINGS)
+  end
+
+  def same_page?(other)
+    other.present? && other.message == message && other.source == source
   end
 
   # What the address bar shows: where the link really goes. Attachments open locally, so they have none.

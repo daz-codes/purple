@@ -22,7 +22,7 @@ class ShiftAttempts::Tabs::SignInsControllerTest < ActionDispatch::IntegrationTe
 
     assert_response :success
     assert_select "turbo-stream[target=shift_notice] template [role=alert]", text: /just sent 400 emails/
-    assert @attempt.reload.compromised?
+    assert_equal 50, @attempt.reload.scorecard.security_meter
     assert @attempt.open?
     assert_not_includes @attempt.attempt_actions.to_json, "hunter2"
   end

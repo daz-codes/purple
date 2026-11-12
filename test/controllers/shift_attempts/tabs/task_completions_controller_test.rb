@@ -20,4 +20,14 @@ class ShiftAttempts::Tabs::TaskCompletionsControllerTest < ActionDispatch::Integ
 
     assert_response :unprocessable_content
   end
+
+  test "a refused move is shown inside the in-game browser as well as behind it" do
+    @attempt.update!(clock_minutes: 29) # completing the task takes 2 minutes
+    @attempt.visit(links(:real_invoice_link))
+    post shift_attempt_tab_task_completion_path(@attempt), as: :turbo_stream
+
+    assert_response :unprocessable_content
+    assert_select "turbo-stream[target=shift_notice] template [role=alert]", text: /Not enough time left/
+    assert_select "turbo-stream[target=browser_notice] template [role=alert]", text: /Not enough time left/
+  end
 end

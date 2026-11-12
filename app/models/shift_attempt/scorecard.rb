@@ -83,27 +83,23 @@ class ShiftAttempt::Scorecard
 
     # Each trap the player fell for, once per page or file: [message key, source].
     def compromises
-      sources_of(ShiftAttempt::Compromisable::COMPROMISING_KINDS)
+      @compromises ||= sources_of(ShiftAttempt::Compromisable::COMPROMISING_KINDS)
     end
 
     # Each bait page or malware download the player opened without falling for it.
     def near_misses
-      sources_of(ShiftAttempt::Browsing::TAB_OPENERS).select { |source| trap?(*source) } - compromises
+      @near_misses ||= sources_of(ShiftAttempt::Browsing::TAB_OPENERS).select { |source| trap?(*source) } - compromises
     end
 
     def sources_of(kinds)
       @actions.select { |action| action.kind.in?(kinds) }.map { |action| [ action.target_key, action.result ] }.uniq
     end
 
+    # Uses the same rules as the page the browser showed, so scoring can't disagree with it.
     def trap?(message_key, source)
       message = messages[message_key] or return false
 
-      if source["link"]
-        link = message.links.find { |link| link.key == source["link"] }
-        link.present? && (link.outcome_bait_landing? || link.outcome_malware?)
-      else
-        message.attachments.any? { |attachment| attachment["id"] == source["attachment"] && attachment["outcome"] == "malware" }
-      end
+      ShiftAttempt::Tab.new(message:, source:).trap?
     end
 
     def messages

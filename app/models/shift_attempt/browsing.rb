@@ -8,15 +8,14 @@ module ShiftAttempt::Browsing
   TAB_CLOSERS = %w[ close_landing submit_credentials run_download ].freeze
 
   def visit(link)
-    acting_on(link.message) { record :click_link, message: link.message, result: { "link" => link.key } }
+    acting_on(link.message) { open_tab :click_link, link.message, "link" => link.key }
   end
 
   def open_attachment(message, attachment_id)
     acting_on(message) do
-      attachment = message.attachments.find { |attachment| attachment["id"] == attachment_id }
-      reject "That attachment isn't there." unless attachment
+      attachment = message.attachment(attachment_id) or reject "That attachment isn't there."
 
-      record :open_attachment, message:, result: { "attachment" => attachment["id"] }
+      open_tab :open_attachment, message, "attachment" => attachment["id"]
     end
   end
 
@@ -28,13 +27,16 @@ module ShiftAttempt::Browsing
     end
   end
 
-  # The open tab, if any: the last link or attachment opened, unless it's been closed since.
+  # The open tab, if any: the last link or attachment opened, unless it's been closed since. A tab
+  # whose message has been reported, or whose link or attachment a content re-import removed, is
+  # gone too, so nothing more can be done on it.
   def current_tab
     return @current_tab if defined?(@current_tab)
 
     action = actions.reverse_each.find { |action| action.kind.in?(TAB_OPENERS) || action.kind.in?(TAB_CLOSERS) }
-    message = shift.messages.find_by(key: action.target_key) if action&.kind.in?(TAB_OPENERS)
-    @current_tab = (ShiftAttempt::Tab.new(message:, source: action.result) if message)
+    message = arrived_messages.find { |arrived| arrived.key == action.target_key } if action&.kind.in?(TAB_OPENERS)
+    tab = ShiftAttempt::Tab.new(message:, source: action.result) if message && !reported?(message)
+    @current_tab = (tab if tab&.showable?)
   end
 
   def reload(*)
@@ -43,6 +45,13 @@ module ShiftAttempt::Browsing
   end
 
   private
+    # A second click on the page already open (a double-click, or a held Enter) changes nothing.
+    def open_tab(kind, message, source)
+      reject "That's already open." if ShiftAttempt::Tab.new(message:, source:).same_page?(current_tab)
+
+      record kind, message:, result: source
+    end
+
     def current_tab_showing!(landing, otherwise)
       tab = current_tab
       reject otherwise unless tab&.landing == landing

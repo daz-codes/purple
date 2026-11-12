@@ -40,6 +40,40 @@ class ShiftAttempt::BrowsingTest < ActiveSupport::TestCase
     assert_raises(ShiftAttempt::Rejected, match: /attachment isn't there/) { @attempt.open_attachment(messages(:real_invoice), "a9") }
   end
 
+  test "opening the page that's already open is refused, so a double-click is logged once" do
+    @attempt.visit(links(:real_invoice_link))
+    assert_raises(ShiftAttempt::Rejected, match: /already open/) { @attempt.visit(links(:real_invoice_link)) }
+
+    @attempt.open_attachment(messages(:real_invoice), "a1")
+    assert_raises(ShiftAttempt::Rejected, match: /already open/) { @attempt.open_attachment(messages(:real_invoice), "a1") }
+    assert_equal %w[ click_link open_attachment ], @attempt.actions.map(&:kind)
+  end
+
+  test "reporting a message closes its tab, so nothing more can be done on that page" do
+    @attempt.wait_for_mail
+    @attempt.visit(links(:fake_invoice_link))
+    @attempt.report(messages(:fake_invoice))
+
+    assert_nil @attempt.current_tab
+    assert_raises(ShiftAttempt::Rejected, match: /no sign-in page/) { @attempt.submit_credentials }
+  end
+
+  test "a tab whose link a re-import removed is gone, rather than breaking the page" do
+    @attempt.visit(links(:real_invoice_link))
+    links(:real_invoice_link).destroy!
+
+    assert_nil @attempt.reload.current_tab
+    assert_raises(ShiftAttempt::Rejected, match: /no task to do/) { @attempt.complete_task }
+  end
+
+  test "a tab whose message a re-import removed is gone" do
+    @attempt.wait_for_mail
+    @attempt.open_attachment(messages(:fake_invoice), "a1")
+    messages(:fake_invoice).destroy!
+
+    assert_nil @attempt.reload.current_tab
+  end
+
   test "there's nothing to close when no tab is open" do
     assert_raises(ShiftAttempt::Rejected, match: /no page open/) { @attempt.close_tab }
   end
