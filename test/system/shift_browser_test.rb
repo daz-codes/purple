@@ -14,7 +14,7 @@ class ShiftBrowserTest < ApplicationSystemTestCase
     within("#shift_reader") { find(".fake-link", text: "Review").click }
 
     within("dialog") do
-      assert_selector "[data-testid=address-bar]", text: "https://portal.contoso.example/invoices/4471"
+      assert_selector "[data-testid=address-bar]", text: "https://portal.larkhill.example/invoices/4471"
       assert_no_answers
       click_on "Approve invoice (2 min)"
     end
@@ -29,7 +29,7 @@ class ShiftBrowserTest < ApplicationSystemTestCase
     within("#shift_reader") { find(".fake-link", text: "Pay now").click }
 
     within("dialog") do
-      assert_selector "[data-testid=address-bar]", text: "https://contoso-portal.example.net/login"
+      assert_selector "[data-testid=address-bar]", text: "https://larkhill-portal.example.net/login"
       assert_selector "input[placeholder='Never enter a real password']"
       assert_no_answers
       click_on "Close tab"

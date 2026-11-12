@@ -22,13 +22,13 @@ messages:
     channel: sms
     arrives_at_minute: 0
     legit: true
-    from_name: "Northwind Logistics"
+    from_name: "Tidemark Logistics"
     from_address: "NWLogistics"
     body_html: |
-      <p>Northwind Logistics: your Contoso delivery (3 laptops) is ready. Choose a delivery slot: <a href="https://track.northwind.example/slot/2231">track.northwind.example/slot/2231</a></p>
+      <p>Tidemark Logistics: your Larkhill delivery (3 laptops) is ready. Choose a delivery slot: <a href="https://track.tidemark.example/slot/2231">track.tidemark.example/slot/2231</a></p>
     links:
-      - { match: "track.northwind.example", outcome: completes_task, task: confirm_courier }
-    verify_result: "The IT team confirms Northwind is delivering the new laptops this week."
+      - { match: "track.tidemark.example", outcome: completes_task, task: confirm_courier }
+    verify_result: "The IT team confirms Tidemark is delivering the new laptops this week."
 
   - key: parcel_fee
     channel: sms
@@ -41,7 +41,7 @@ messages:
       <p>ParcelPoint: your parcel is on hold due to an unpaid £1.45 delivery fee. Pay within 12 hours to avoid return: <a href="https://parcelpoint-fees.test/pay">parcelpoint-fees.test/pay</a></p>
     links:
       - { match: "parcelpoint-fees.test", outcome: bait_landing }
-    verify_result: "There's no parcel on hold. Your laptops are coming from Northwind, not ParcelPoint."
+    verify_result: "There's no parcel on hold. Your laptops are coming from Tidemark, not ParcelPoint."
     red_flags:
       - { key: personal_number, anchor: from, points: 10, label: "Sent from a personal mobile number",
           explanation: "Delivery companies text from a sender name, not a random mobile number." }
@@ -52,13 +52,13 @@ messages:
     channel: chat
     arrives_at_minute: 6
     legit: true
-    from_name: "Contoso Facilities Bot"
-    from_address: "facilities-bot@contoso.example"
+    from_name: "Larkhill Facilities Bot"
+    from_address: "facilities-bot@larkhill.example"
     body_html: |
       <p>Good morning! Hot desks for tomorrow are now open for booking.</p>
-      <p><a href="https://desks.contoso.example/book">Book a desk</a></p>
+      <p><a href="https://desks.larkhill.example/book">Book a desk</a></p>
     links:
-      - { match: "desks.contoso.example", outcome: completes_task, task: book_desk }
+      - { match: "desks.larkhill.example", outcome: completes_task, task: book_desk }
     verify_result: "Facilities confirms the desk bot posts every morning."
 
   - key: fake_it_chat
@@ -66,15 +66,15 @@ messages:
     arrives_at_minute: 9
     legit: false
     techniques: [it_support_pretext, urgency_pretext, mfa_code_theft]
-    from_name: "IT Support (Contoso)"
-    from_address: "it.support.contoso@freemail.test"
+    from_name: "IT Support (Larkhill)"
+    from_address: "it.support.larkhill@freemail.test"
     body_html: |
-      <p>Hi, this is Contoso IT. We're seeing unusual sign-ins on your account from abroad.</p>
+      <p>Hi, this is Larkhill IT. We're seeing unusual sign-ins on your account from abroad.</p>
       <p>To lock it down, please reply with the 6-digit code we've just sent to your phone.</p>
     verify_result: "The IT service desk: \"That isn't us. We never ask for codes, and this chat account is external.\""
     red_flags:
       - { key: external_account, anchor: from, points: 10, label: "External chat account",
-          explanation: "A free webmail account calling itself \"IT Support (Contoso)\" is not the IT team." }
+          explanation: "A free webmail account calling itself \"IT Support (Larkhill)\" is not the IT team." }
       - { key: scare, anchor: p1, points: 5, label: "Scary security warning",
           explanation: "\"Unusual sign-ins from abroad\" is designed to make you panic and comply." }
       - { key: code_request, anchor: p2, points: 15, label: "Asks for a one-time code",
@@ -109,5 +109,5 @@ messages:
     verify_result: "Sam is in your contacts, and the meeting is in your calendar."
 
 hints:
-  - { body: "Which texts are you actually expecting today? Your laptops are coming from Northwind.", penalty_percent: 20 }
+  - { body: "Which texts are you actually expecting today? Your laptops are coming from Tidemark.", penalty_percent: 20 }
   - { body: "Would the real IT team ever need a code that was sent to your phone?", penalty_percent: 20 }

@@ -20,7 +20,7 @@ class ShiftPlayTest < ApplicationSystemTestCase
     within("#shift_reader") do
       assert_selector "h2", text: "Invoice ready"
       find(".fake-link", text: "Review").hover
-      assert_text "https://portal.contoso.example/invoices/4471"
+      assert_text "https://portal.larkhill.example/invoices/4471"
     end
     assert_no_answers
 
@@ -32,13 +32,13 @@ class ShiftPlayTest < ApplicationSystemTestCase
 
     # Check it: the full headers show the real addresses, and the sender's call-back answer appears.
     within("#shift_reader") do
-      assert_no_text "accounts@northwind-billing.example"
+      assert_no_text "accounts@tidemark-billing.example"
       click_on "Show full headers (1 min)"
-      assert_text "accounts@northwind-billing.example"
+      assert_text "accounts@tidemark-billing.example"
       assert_text "nw.payments@freemail.test"
 
       click_on "Call the sender back (5 min)"
-      assert_selector "[data-testid=verify-result]", text: "Northwind haven't changed their bank details."
+      assert_selector "[data-testid=verify-result]", text: "Tidemark haven't changed their bank details."
     end
     assert_selector "[data-testid=clock]", text: "Minute 9 of 30"
     assert_no_answers

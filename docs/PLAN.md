@@ -183,7 +183,7 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 ## 6b. Red's Workshop (simple Red mode)
 
 **How a Workshop round plays:**
-1. **Recon.** Red reads the target brief, e.g. "Contoso Finance pays Northwind invoices at month-end. Staff: Bob (busy, approves payments), Carol (security-minded), Nia (started last week)."
+1. **Recon.** Red reads the target brief, e.g. "Larkhill Finance pays Tidemark invoices at month-end. Staff: Bob (busy, approves payments), Carol (security-minded), Nia (started last week)."
 2. **Build.** Red picks one card per slot: **pretext** (subject and story), **sender** (lookalike domain, display-name spoof, compromised supplier), **lure** (link, attachment, QR code), **payload** (credential page, malware download) and **timing** (Monday 9am, Friday 4:55pm). Each card costs budget, and stealthier cards cost more. There's no free text: the email is assembled from the chosen cards' pre-written `rendered_value`s, so the Workshop can't produce a usable real-world phish.
 3. **Preview.** Red sees the finished email exactly as Blue would.
 4. **Launch.** `RedCampaign::Simulation` runs the email against each `BotPersona`. Each bot's chance of spotting each technique uses its `vigilance`, the technique's `stealth`, its `detects` bonuses and the pretext's `relevance` to the target's real tasks. The result is deterministic for the stored `seed`, so it can be replayed and tested.
@@ -222,7 +222,7 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - **Done when:** the import is idempotent and tested, and bad content fails with clear errors.
 
 ### M3 — Inbox shift: core play
-- Track page → shift briefing ("Red's campaign targets Contoso Finance today…") → play screen.
+- Track page → shift briefing ("Red's campaign targets Larkhill Finance today…") → play screen.
 - Play screen: task list with deadlines (left), inbox list (middle), reading pane (right), and the clock and two meters in the header. Messages can arrive mid-shift (`arrives_at_minute`) via Turbo Stream after any action that advances the clock.
 - Actions: open message, expand headers, verify sender (shows a scripted result, e.g. "Finance confirms they sent this" or "No record of this invoice"), report phishing. Every action POSTs to its own resource controller (e.g. `ShiftAttempts::Messages::ReportsController`) → a `ShiftAttempt` method → Turbo Stream updates to the clock, meters and panes.
 - Shift ends when every task is resolved or the clock runs out. "End shift" is also available.
@@ -286,9 +286,9 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 ## 8. Content YAML example
 
 ```yaml
-# content/tracks/phishing-basics/month-end-at-contoso.yml
-slug: month-end-at-contoso
-title: "Month-end at Contoso Finance"
+# content/tracks/phishing-basics/month-end-at-larkhill.yml
+slug: month-end-at-larkhill
+title: "Month-end at Larkhill Finance"
 kind: inbox
 difficulty: beginner
 time_budget_minutes: 30
@@ -301,7 +301,7 @@ learning_summary: >
   goes, and verify payment changes through a known channel.
 
 tasks:
-  - { key: pay_supplier, title: "Approve Northwind invoice #4471", due_at_minute: 20, points: 40 }
+  - { key: pay_supplier, title: "Approve Tidemark invoice #4471", due_at_minute: 20, points: 40 }
   - { key: sign_policy, title: "Sign the updated HR policy", due_at_minute: 30, points: 30 }
 
 messages:
@@ -309,53 +309,53 @@ messages:
     channel: email
     arrives_at_minute: 0
     legit: true
-    from_name: "Northwind Supplies"
-    from_address: "accounts@northwind.example"
-    to_address: "you@contoso.example"
+    from_name: "Tidemark Supply"
+    from_address: "accounts@tidemark.example"
+    to_address: "you@larkhill.example"
     subject: "Invoice #4471 ready for approval"
     body_html: |
       <p>Hi, invoice #4471 is ready in the supplier portal.</p>
-      <p><a href="https://portal.contoso.example/invoices/4471">Review invoice</a></p>
+      <p><a href="https://portal.larkhill.example/invoices/4471">Review invoice</a></p>
     links:
-      - { match: "portal.contoso.example", outcome: completes_task, task: pay_supplier, landing: portal_task }
+      - { match: "portal.larkhill.example", outcome: completes_task, task: pay_supplier, landing: portal_task }
 
   - key: fake_invoice
     channel: email
     arrives_at_minute: 3
     legit: false
     techniques: [lookalike_domain, urgency_pretext, credential_harvest]
-    from_name: "Northwind Supplies"
-    from_address: "accounts@northwind-billing.example"
+    from_name: "Tidemark Supply"
+    from_address: "accounts@tidemark-billing.example"
     reply_to: "nw.payments@freemail.test"
-    to_address: "you@contoso.example"
+    to_address: "you@larkhill.example"
     subject: "URGENT: Invoice #4471 — updated bank details"
     body_html: |
       <p>Our bank details have changed. Payment must be approved within 1 hour.</p>
-      <p><a href="https://contoso-portal.example.net/login">https://portal.contoso.example/invoices/4471</a></p>
+      <p><a href="https://larkhill-portal.example.net/login">https://portal.larkhill.example/invoices/4471</a></p>
     links:
-      - { match: "contoso-portal.example.net", outcome: bait_landing, landing: credential_harvest }
-    verify_result: "Northwind's finance team: 'We haven't changed our bank details.'"
+      - { match: "larkhill-portal.example.net", outcome: bait_landing, landing: credential_harvest }
+    verify_result: "Tidemark's finance team: 'We haven't changed our bank details.'"
     red_flags:   # anchors use the neutral ids the importer assigns: p1, p2, l1, from, reply_to, subject
       - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
-          explanation: "northwind-billing.example is not northwind.example." }
+          explanation: "tidemark-billing.example is not tidemark.example." }
       - { key: bank_change, anchor: p1, points: 10, label: "Changed bank details + urgency",
           explanation: "A classic payment-fraud pretext. Always verify by phone." }
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text ≠ destination",
-          explanation: "The text shows the real portal, but the link goes to contoso-portal.example.net." }
+          explanation: "The text shows the real portal, but the link goes to larkhill-portal.example.net." }
 
   - key: hr_policy
     channel: email
     arrives_at_minute: 5
     legit: true
-    from_name: "Contoso HR"
-    from_address: "hr@contoso.example"
-    to_address: "you@contoso.example"
+    from_name: "Larkhill HR"
+    from_address: "hr@larkhill.example"
+    to_address: "you@larkhill.example"
     subject: "Action needed: sign the updated policy"
     body_html: |
       <p>Please sign the updated hybrid working policy by end of day.</p>
-      <p><a href="https://hr.contoso.example/sign/2291">Open policy</a></p>
+      <p><a href="https://hr.larkhill.example/sign/2291">Open policy</a></p>
     links:
-      - { match: "hr.contoso.example", outcome: completes_task, task: sign_policy, landing: portal_task }
+      - { match: "hr.larkhill.example", outcome: completes_task, task: sign_policy, landing: portal_task }
 
 hints:
   - { body: "Two emails mention the same invoice. Compare the sender domains closely.", penalty_percent: 20 }

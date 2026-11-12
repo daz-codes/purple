@@ -5,8 +5,8 @@ class ShiftAttempt::TabTest < ActiveSupport::TestCase
     tab = ShiftAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l1" })
 
     assert_equal "credential_harvest", tab.landing
-    assert_equal "https://contoso-portal.example.net/login", tab.address
-    assert_equal "contoso-portal.example.net", tab.title
+    assert_equal "https://larkhill-portal.example.net/login", tab.address
+    assert_equal "larkhill-portal.example.net", tab.title
     assert tab.padlock?, "https phishing sites have padlocks too"
     assert_nil tab.task
   end

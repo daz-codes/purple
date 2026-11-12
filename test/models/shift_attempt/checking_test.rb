@@ -11,7 +11,7 @@ class ShiftAttempt::CheckingTest < ActiveSupport::TestCase
     @attempt.verify_sender(messages(:fake_invoice))
     @attempt.verify_sender(messages(:real_invoice))
 
-    assert_equal "Northwind haven't changed their bank details.", @attempt.verification_reply(messages(:fake_invoice))
+    assert_equal "Tidemark haven't changed their bank details.", @attempt.verification_reply(messages(:fake_invoice))
     assert_equal "Nobody picked up.", @attempt.verification_reply(messages(:real_invoice))
   end
 

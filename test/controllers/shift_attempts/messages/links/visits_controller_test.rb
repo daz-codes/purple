@@ -12,7 +12,7 @@ class ShiftAttempts::Messages::Links::VisitsControllerTest < ActionDispatch::Int
 
     assert_response :success
     assert_select "turbo-stream[target=shift_browser] template dialog [data-testid=address-bar]",
-      text: /contoso-portal\.example\.net\/login/
+      text: /larkhill-portal\.example\.net\/login/
   end
 
   test "a link key that isn't in the message is refused" do

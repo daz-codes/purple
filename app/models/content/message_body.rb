@@ -71,8 +71,8 @@ module Content
                        "Use example.com/.net/.org, or the .example, .test or .invalid domains"
       end
 
-      # The text as a reader sees it: block elements are separated, so "<li>Contoso</li><li>example.com</li>"
-      # isn't read as "Contosoexample.com", while inline elements still join, so "real<b>bank.com</b>"
+      # The text as a reader sees it: block elements are separated, so "<li>Larkhill</li><li>example.com</li>"
+      # isn't read as "Larkhillexample.com", while inline elements still join, so "real<b>bank.com</b>"
       # is read as "realbank.com". Link targets are checked separately in rewrite_links.
       def rendered_text(fragment)
         text = +""

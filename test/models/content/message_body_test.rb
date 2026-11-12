@@ -4,7 +4,7 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
   BODY = <<~HTML
     <p>Our bank details have <strong>changed</strong>.</p>
     <ul><li>Pay within 1 hour</li></ul>
-    <p><a href="https://contoso-portal.example.net/login">https://portal.contoso.example/invoices/4471</a></p>
+    <p><a href="https://larkhill-portal.example.net/login">https://portal.larkhill.example/invoices/4471</a></p>
   HTML
 
   test "assigns neutral anchors to every paragraph, list item and link" do
@@ -27,11 +27,11 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
     assert_not_includes result.html, "href"
     assert_equal "fake-link", span["data-controller"]
     assert_equal "l1", span["data-link-key"]
-    assert_equal "https://portal.contoso.example/invoices/4471", span["data-display-url"]
-    assert_equal "https://contoso-portal.example.net/login", span["data-actual-url"]
+    assert_equal "https://portal.larkhill.example/invoices/4471", span["data-display-url"]
+    assert_equal "https://larkhill-portal.example.net/login", span["data-actual-url"]
     assert_equal "0", span["tabindex"]
-    assert_equal [ Content::MessageBody::ExtractedLink.new(key: "l1", href: "https://contoso-portal.example.net/login",
-                                                          text: "https://portal.contoso.example/invoices/4471") ],
+    assert_equal [ Content::MessageBody::ExtractedLink.new(key: "l1", href: "https://larkhill-portal.example.net/login",
+                                                          text: "https://portal.larkhill.example/invoices/4471") ],
       result.links
   end
 
@@ -77,8 +77,8 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
   end
 
   test "reads separate block elements as separate words" do
-    assert_nothing_raised { Content::MessageBody.new("<ul><li>Contoso</li><li>example.com</li></ul>") }
-    assert_nothing_raised { Content::MessageBody.new("<p>Contoso</p><p>example.com</p>") }
+    assert_nothing_raised { Content::MessageBody.new("<ul><li>Larkhill</li><li>example.com</li></ul>") }
+    assert_nothing_raised { Content::MessageBody.new("<p>Larkhill</p><p>example.com</p>") }
   end
 
   test "reads inline elements as joined, as they render" do
