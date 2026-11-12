@@ -21,9 +21,9 @@ class ShiftDebriefTest < ApplicationSystemTestCase
     assert_selector "h2", text: "Message by message"
     # -20 for the missed task; 30 for the report less 50 for running the file.
     assert_selector "[data-testid=score]", text: "0"
-    assert_text "out of 70"
+    assert_text "out of 80"
     assert_selector "[data-testid=stars]", text: "☆☆☆"
-    assert_selector "[data-testid=debrief-headline]", text: "You reported 1 of 1 phish, fell for 1, and finished 0 of 1 task on time."
+    assert_selector "[data-testid=debrief-headline]", text: "You reported 1 of 1 phish, fell for 1, spotted 0 of 1 red flag, and finished 0 of 1 task on time."
 
     phish, genuine = all("[data-testid=debrief-message]").partition { |card| card.has_text?("URGENT invoice") }.map(&:first)
     within(phish) do

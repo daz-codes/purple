@@ -40,9 +40,24 @@
           <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_LEGIT) %> per genuine email reported,
           <%= debrief_points(ShiftAttempt::Scorecard::NEAR_MISS) %> per close call,
           <%= debrief_points(ShiftAttempt::Scorecard::COMPROMISED) %> each time you fell for one.
+          Each red flag you spot earns its points, and each wrong flag costs <%= ShiftAttempt::Scorecard::FALSE_FLAG.abs %>.
         </dd>
       </div>
     </dl>
+
+    <% if scorecard.hints.any? %>
+      <div class="mt-4 rounded-xl border border-warn/60 bg-warn-soft p-4" data-testid="debrief-hints">
+        <p class="font-semibold text-warn">Hints: <%= debrief_points(-scorecard.hint_penalty) %></p>
+        <ul class="mt-1 space-y-1 text-sm">
+          <% scorecard.hints.each do |used| %>
+            <li>💡 <%= used.hint.body %> <span class="text-ink-muted">(<%= debrief_points(-used.penalty) %>)</span></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+    <% if scorecard.compromised? %>
+      <p class="mt-4 text-sm text-ink-muted">Three stars need a shift where you don't fall for anything.</p>
+    <% end %>
   </section>
 
   <section aria-labelledby="messages-heading">
@@ -80,8 +95,7 @@
         <h2 id="timeline-heading" class="inline text-xl font-bold">Your shift, minute by minute</h2>
       </summary>
       <ol class="mt-4 space-y-1 text-sm" data-testid="debrief-timeline">
-        <% attempt.actions.each do |action| %>
-          <% minute, description, tone = debrief_timeline_entry(action, scorecard) %>
+        <% debrief_timeline(attempt.actions, scorecard).each do |minute, description, tone| %>
           <li class="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
             <span class="text-ink-muted tabular-nums">Min <%= minute %></span>
             <span class="<%= debrief_text_class(tone) %>"><%= description %></span>

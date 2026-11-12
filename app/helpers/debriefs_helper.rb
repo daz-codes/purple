@@ -54,6 +54,8 @@ module DebriefsHelper
     else
       parts = [ "You reported #{reported} of #{pluralize(phishes.size, "phish")}" ]
       parts << "fell for #{compromised}" if compromised.positive?
+      red_flags = phishes.sum { |result| result.message.red_flags.size }
+      parts << "spotted #{phishes.sum { |result| result.found_flags.size }} of #{pluralize(red_flags, "red flag")}" if red_flags.positive?
       tasks = scorecard.tasks
       parts << "finished #{tasks.count(&:on_time?)} of #{pluralize(tasks.size, "task")} on time"
       parts.to_sentence + "."
@@ -131,8 +133,23 @@ module DebriefsHelper
     end
   end
 
-  # [minute, description, tone] for one action in the shift's log.
-  def debrief_timeline_entry(action, scorecard)
+  # [minute, description, tone] for each action in the shift's log, in order.
+  def debrief_timeline(actions, scorecard)
+    flagged = Hash.new(false)
+    actions.map do |action|
+      if action.flag_element?
+        key = [ action.target_key, action.result["anchor"] ]
+        flagged[key] = !flagged[key]
+        debrief_timeline_entry(action, scorecard, unflag: !flagged[key])
+      else
+        debrief_timeline_entry(action, scorecard)
+      end
+    end
+  end
+
+  # [minute, description, tone] for one action in the shift's log. unflag: the flag_element took a
+  # flag off rather than putting one on.
+  def debrief_timeline_entry(action, scorecard, unflag: false)
     result = scorecard.message_result_for(action.target_key)
     subject = result ? "“#{result.message.subject.presence || result.message.from_name}”" : "a message"
     tab = ShiftAttempt::Tab.new(message: result.message, source: action.result) if result
@@ -148,6 +165,10 @@ module DebriefsHelper
       when "close_landing" then [ "Closed #{tab_label(tab)}", tab&.trap? ? :good : :neutral ]
       when "submit_credentials" then [ "Entered a password on #{tab_label(tab)}: compromised", :bad ]
       when "run_download" then [ "Ran #{tab_label(tab)}: compromised", :bad ]
+      when "flag_element"
+        part = result ? anchor_label(result.message, action.result["anchor"]) : "part"
+        [ "#{unflag ? "Took the flag off" : "Flagged"} #{part} in #{subject}", :neutral ]
+      when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "complete_task" then [ "Completed “#{task_title(scorecard, action.target_key)}”", :good ]
       when "wait"
@@ -157,6 +178,24 @@ module DebriefsHelper
       end
 
     [ action.minute, description, tone ]
+  end
+
+  # Each red flag in a phish, and whether the player flagged it: [flag, found?].
+  def debrief_red_flags(result)
+    result.message.red_flags.map { |flag| [ flag, flag.anchor.in?(result.flagged) ] }
+  end
+
+  # The parts the player flagged that weren't giveaways.
+  def debrief_false_flags(result)
+    return if result.false_flags.empty?
+
+    parts = result.false_flags.map { |anchor| anchor_label(result.message, anchor) }.to_sentence
+    if result.phish?
+      "You also flagged #{parts}, which #{result.false_flags.one? ? "wasn't a giveaway" : "weren't giveaways"} " \
+        "(#{debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)})."
+    else
+      "You flagged #{parts}, but this email was genuine (#{debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)})."
+    end
   end
 
   def debrief_task_timing(task_result)
