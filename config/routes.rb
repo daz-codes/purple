@@ -27,6 +27,7 @@ Rails.application.routes.draw do
           resource :headers, only: :create
           resource :verification, only: :create
           resource :report, only: :create
+          resource :reply, only: :create
           resources :flags, only: :create
           resources :links, param: :key, only: [] do
             resource :visit, only: :create, module: :links

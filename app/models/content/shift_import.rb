@@ -113,6 +113,7 @@ module Content
 
         body = processed_body(node)
         attachments = attachments_for(node)
+        node.error!("attachments are only for emails") if attachments.any? && channel != "email"
         replies = replies_for(node, channel:, legit:)
         message = @shift.messages.find_or_initialize_by(key: node.required(:key))
 

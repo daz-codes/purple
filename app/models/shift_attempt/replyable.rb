@@ -31,10 +31,20 @@ module ShiftAttempt::Replyable
     done?(:send_reply, message.key)
   end
 
+  # Whether the reply the player sent handed over what the sender asked for. Only asked once it's sent,
+  # to show the damage, as a password entered on a bait page does.
+  def handed_over?(message)
+    chosen_reply(message)&.fetch("outcome") == "compromise"
+  end
+
   # The reply the player sent, as they saw it: its text and the answer that came back.
   def sent_reply(message)
-    action = actions.find { |action| action.send_reply? && action.target_key == message.key } or return
-
-    message.reply(action.result["reply"])&.slice("text", "response")
+    chosen_reply(message)&.slice("text", "response")
   end
+
+  private
+    def chosen_reply(message)
+      action = actions.find { |action| action.send_reply? && action.target_key == message.key }
+      message.reply(action.result["reply"]) if action
+    end
 end

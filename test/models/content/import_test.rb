@@ -159,6 +159,8 @@ class Content::ImportTest < ActiveSupport::TestCase
                                                /only phishing messages can imitate a task/ ],
       "imitating an unknown task" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives_at_minute" => 0) },
                                       /imitates "nope", which isn't in this shift's tasks/ ],
+      "an attachment on a text" => [ ->(s) { textify(s["messages"].last)["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
+                                     /attachments are only for emails/ ],
       "replies on an email" => [ ->(s) { s["messages"].last["replies"] = chat_replies }, /replies are only for sms and chat messages/ ],
       "a single reply" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
       "five replies" => [ ->(s) { textify(s["messages"].last)["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
