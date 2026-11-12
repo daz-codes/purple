@@ -24,6 +24,20 @@ Rails.application.routes.draw do
           resource :headers, only: :create
           resource :verification, only: :create
           resource :report, only: :create
+          resources :links, param: :key, only: [] do
+            resource :visit, only: :create, module: :links
+          end
+          resources :attachments, param: :key, only: [] do
+            resource :opening, only: :create, module: :attachments
+          end
+        end
+      end
+      # The page open in the in-game browser, and the moves you can make on it.
+      resource :tab, only: :destroy do
+        scope module: :tabs do
+          resource :task_completion, only: :create
+          resource :sign_in, only: :create
+          resource :download_run, only: :create
         end
       end
       resource :wait, only: :create

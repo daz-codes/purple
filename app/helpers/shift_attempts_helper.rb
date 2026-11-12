@@ -8,6 +8,20 @@ module ShiftAttemptsHelper
       form: { class: "contents" }
   end
 
+  # The page each landing shows in the in-game browser. Partial names are neutral ("sign_in", not
+  # "credential_harvest") because they can surface in error pages and logs.
+  LANDING_PARTIALS = {
+    "portal_task" => "shift_attempts/landings/portal",
+    "credential_harvest" => "shift_attempts/landings/sign_in",
+    "malware_download" => "shift_attempts/landings/download",
+    "file_preview" => "shift_attempts/landings/document",
+    "harmless" => "shift_attempts/landings/article"
+  }.freeze
+
+  def landing_partial(tab)
+    LANDING_PARTIALS.fetch(tab.landing)
+  end
+
   def shift_clock_label(attempt)
     "Minute #{attempt.clock_minutes} of #{attempt.time_budget}"
   end

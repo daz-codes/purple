@@ -12,15 +12,17 @@ module ShiftPlay
   end
 
   private
-    def play
+    # alert: what the player sees if the move went wrong for them (a compromise).
+    def play(alert: nil)
       arrived_before = @attempt.arrived_messages.size
       yield
-      return redirect_to(@attempt, status: :see_other) if @attempt.finished?
+      return redirect_to(@attempt, status: :see_other, alert:) if @attempt.finished?
 
-      @notice = new_mail_notice(@attempt.arrived_messages.size - arrived_before)
+      @alert = alert.present?
+      @notice = alert || new_mail_notice(@attempt.arrived_messages.size - arrived_before)
       respond_to do |format|
         format.turbo_stream { render "shift_attempts/play" }
-        format.html { redirect_to @attempt, notice: @notice }
+        format.html { redirect_to @attempt, flash: { (@alert ? :alert : :notice) => @notice } }
       end
     end
 

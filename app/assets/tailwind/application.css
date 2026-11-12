@@ -163,3 +163,10 @@
     cursor: pointer;
   }
 }
+
+/* The in-game browser opens as a modal <dialog>; dim the shift behind it. */
+@layer components {
+  .browser::backdrop {
+    background: rgb(10 11 23 / 0.75);
+  }
+}
