@@ -8,5 +8,6 @@ class TracksController < ApplicationController
   def show
     @track = Track.published.find_by!(slug: params[:id])
     @shifts = @track.shifts.published
+    @best_attempts = authenticated? ? Current.user.shift_attempts.best_by_shift(@shifts) : {}
   end
 end

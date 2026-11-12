@@ -9,6 +9,15 @@ module ShiftAttempt::Finishable
     scope :scored, -> { where(scored: true) }
   end
 
+  class_methods do
+    # The highest-scoring finished attempt at each of the given shifts, keyed by shift id: the
+    # player's progress on a track page. Ties go to the earlier attempt.
+    def best_by_shift(shifts)
+      finished.where(shift: shifts).includes(:attempt_actions, :shift).order(score: :desc, completed_at: :asc)
+        .group_by(&:shift_id).transform_values(&:first)
+    end
+  end
+
   def finished?
     !open?
   end
