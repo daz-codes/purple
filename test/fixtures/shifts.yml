@@ -9,3 +9,15 @@ month_end:
   published: true
   briefing: It's month-end.
   learning_summary: Check where links go.
+
+site_visit:
+  track: basics
+  slug: site-visit
+  title: Site visit
+  kind: messages
+  difficulty: beginner
+  time_budget_minutes: 30
+  position: 2
+  published: true
+  briefing: You're on site with only your phone.
+  learning_summary: IT will never ask for a one-time code.

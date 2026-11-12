@@ -182,6 +182,29 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal 7, scorecard(action("complete_task", "pay_supplier", minute: 5, cost: 2)).tasks.first.completed_at_minute
   end
 
+  test "handing over a code in a chat is a compromise" do
+    @shift = shifts(:site_visit) # no tasks; it_chat is the phish, with one red flag worth 15
+    card = scorecard(action("send_reply", "it_chat", result: { "reply" => "r1" }), flag("it_chat", "p2"),
+      action("report_message", "it_chat"))
+
+    result = card.message_result_for("it_chat")
+    assert result.gave_in?
+    assert card.compromised?
+    assert_equal :compromised, result.outcome
+    assert_equal 30 - 50 + 15, card.security
+    assert_equal 50, card.security_meter
+  end
+
+  test "a safe reply, or checking first, costs nothing" do
+    @shift = shifts(:site_visit)
+    card = scorecard(action("send_reply", "it_chat", result: { "reply" => "r3" }), action("send_reply", "sam_text", result: { "reply" => "r1" }))
+
+    assert_not card.compromised?
+    assert_equal({ "id" => "r1", "text" => "Sure, see you there", "outcome" => "safe", "response" => "Legend, thanks!" },
+      card.message_result_for("sam_text").reply)
+    assert_equal [ 0, 100 ], [ card.security, card.security_meter ]
+  end
+
   private
     def outcome(key, *actions)
       scorecard(*actions).message_result_for(key).outcome

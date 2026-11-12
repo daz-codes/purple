@@ -5,3 +5,11 @@ lookalike:
   explanation: tidemark-billing.example is not tidemark.example.
   anchor: from
   points: 10
+
+code_request:
+  message: it_chat
+  key: code_request
+  label: Asks for a one-time code
+  explanation: Never share a one-time code.
+  anchor: p2
+  points: 15

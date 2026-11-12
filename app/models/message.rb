@@ -1,7 +1,7 @@
 # An email, SMS or chat message in a shift.
 #
-# SECRET: legit, links' outcomes and tasks, red flags, techniques and attachment outcomes are
-# answers. They must never reach the browser before the debrief.
+# SECRET: legit, links' outcomes and tasks, red flags, techniques, attachment outcomes and reply
+# outcomes are answers. They must never reach the browser before the debrief.
 class Message < ApplicationRecord
   enum :channel, { email: "email", sms: "sms", chat: "chat" }, validate: true
 
@@ -42,5 +42,15 @@ class Message < ApplicationRecord
   # Attachment details that are safe to show. Each attachment's outcome stays on the server.
   def visible_attachments
     attachments.map { |attachment| attachment.slice("id", "name", "type", "size") }
+  end
+
+  # The canned replies a text or chat message offers, by their neutral ids (r1, r2…).
+  def reply(id)
+    replies.find { |reply| reply["id"] == id } if id
+  end
+
+  # Reply options that are safe to show: only their text. What each one leads to stays on the server.
+  def visible_replies
+    replies.map { |reply| reply.slice("id", "text") }
   end
 end

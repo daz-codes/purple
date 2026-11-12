@@ -7,9 +7,11 @@ module Content
                      learning_summary action_costs tasks messages hints ].freeze
     TASK_KEYS = %i[ key title due_at_minute points ].freeze
     MESSAGE_KEYS = %i[ key channel arrives_at_minute legit imitates techniques from_name from_address reply_to
-                       to_address subject body_html attachments links verify_result red_flags ].freeze
+                       to_address subject body_html attachments replies links verify_result red_flags ].freeze
     LINK_KEYS = %i[ match outcome task landing ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
+    REPLY_KEYS = %i[ text outcome response ].freeze
+    MAX_REPLIES = 4
     RED_FLAG_KEYS = %i[ key anchor points label explanation ].freeze
     HINT_KEYS = %i[ body penalty_percent ].freeze
 
@@ -111,6 +113,7 @@ module Content
 
         body = processed_body(node)
         attachments = attachments_for(node)
+        replies = replies_for(node, channel:, legit:)
         message = @shift.messages.find_or_initialize_by(key: node.required(:key))
 
         node.saving do
@@ -123,6 +126,7 @@ module Content
             subject: subject_for(node, channel),
             body_html: body.html,
             attachments:,
+            replies:,
             verify_result: fictional(node, :verify_result, node.optional(:verify_result))
           )
         end
@@ -157,6 +161,28 @@ module Content
             "outcome" => one_of(attachment_node, :outcome, ATTACHMENT_OUTCOMES)
           }
         end
+      end
+
+      # Canned replies, for texts and chats only. Each gets a neutral id (r1, r2…); its outcome stays on
+      # the server. Only a phishing message can have a reply that hands something over.
+      def replies_for(node, channel:, legit:)
+        replies = node.each_item(:replies, required: false) do |reply_node, index|
+          reply_node.allow_only!(*REPLY_KEYS)
+          outcome = one_of(reply_node, :outcome, legit ? ShiftAttempt::Replyable::OUTCOMES - %w[ compromise ] : ShiftAttempt::Replyable::OUTCOMES,
+            hint: legit ? "legitimate messages" : "phishing messages")
+          {
+            "id" => "r#{index + 1}",
+            "text" => fictional(reply_node, :text, reply_node.required(:text)),
+            "outcome" => outcome,
+            "response" => fictional(reply_node, :response, reply_node.optional(:response))
+          }.compact
+        end
+        return replies if replies.empty?
+
+        node.error!("replies are only for sms and chat messages") if channel == "email"
+        node.error!("replies must have from 2 to #{MAX_REPLIES} options") unless replies.size.between?(2, MAX_REPLIES)
+        node.error!("each reply needs different text") if replies.map { |reply| reply["text"] }.uniq.size < replies.size
+        replies
       end
 
       # Each <a> in the body must match exactly one link rule, and each rule at least one <a>.

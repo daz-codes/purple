@@ -158,7 +158,20 @@ class Content::ImportTest < ActiveSupport::TestCase
       "a genuine message imitating a task" => [ ->(s) { s["messages"].first["imitates"] = "pay_supplier" },
                                                /only phishing messages can imitate a task/ ],
       "imitating an unknown task" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives_at_minute" => 0) },
-                                      /imitates "nope", which isn't in this shift's tasks/ ]
+                                      /imitates "nope", which isn't in this shift's tasks/ ],
+      "replies on an email" => [ ->(s) { s["messages"].last["replies"] = chat_replies }, /replies are only for sms and chat messages/ ],
+      "a single reply" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
+      "five replies" => [ ->(s) { textify(s["messages"].last)["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
+                          /from 2 to 4 options/ ],
+      "a reply that hands over on a genuine message" => [
+        ->(s) { textify(s["messages"].first)["replies"] = chat_replies },
+        /outcome must be one of safe, verify for legitimate messages \(got compromise\)/ ],
+      "an unknown reply outcome" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
+                                      /outcome must be one of safe, compromise, verify/ ],
+      "a repeated reply" => [ ->(s) { textify(s["messages"].last)["replies"] = [ chat_replies.first, chat_replies.first ] },
+                              /each reply needs different text/ ],
+      "a real brand in a reply" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.each { |r| r["response"] = "Sent from PayPal" } },
+                                     /response mentions names outside the reserved fictional set: PayPal/ ]
     }.each do |description, (mutate, message)|
       @shift = valid_shift
       mutate.call(@shift)
@@ -171,6 +184,16 @@ class Content::ImportTest < ActiveSupport::TestCase
   test "a fake may imitate a task if it arrives no later than the genuine message" do
     @shift["messages"].last.merge!("imitates" => "pay_supplier", "arrives_at_minute" => 0)
     assert_nothing_raised { import! }
+  end
+
+  test "a text or chat can offer canned replies, with neutral ids and outcomes kept on the server" do
+    textify(@shift["messages"].last)["replies"] = chat_replies
+    import!
+
+    fake = Message.find_by!(key: "fake_invoice")
+    assert_equal %w[ r1 r2 r3 ], fake.replies.map { |reply| reply["id"] }
+    assert_equal %w[ compromise safe verify ], fake.replies.map { |reply| reply["outcome"] }
+    assert_equal [ { "id" => "r1", "text" => "Here it is: 482 913" } ], fake.visible_replies.first(1)
   end
 
   test "a legitimate message may list an empty red_flags" do
@@ -307,6 +330,17 @@ class Content::ImportTest < ActiveSupport::TestCase
         ],
         "hints" => [ { "body" => "Compare the domains." } ]
       }
+    end
+
+    # Turns a message from the valid shift into a chat message.
+    def textify(message)
+      message.merge!("channel" => "chat").except!("to_address", "subject")
+    end
+
+    def chat_replies
+      [ { "text" => "Here it is: 482 913", "outcome" => "compromise", "response" => "Thanks, all sorted!" },
+        { "text" => "I won't share a code.", "outcome" => "safe" },
+        { "text" => "I'll check with the service desk.", "outcome" => "verify" } ]
     end
 
     def snapshot
