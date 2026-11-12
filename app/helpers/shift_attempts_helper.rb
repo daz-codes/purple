@@ -22,6 +22,19 @@ module ShiftAttemptsHelper
     LANDING_PARTIALS.fetch(tab.landing)
   end
 
+  HEADER_ANCHOR_LABELS = { "from" => "the sender", "reply_to" => "the Reply-To address", "to" => "the To address", "subject" => "the subject" }.freeze
+
+  # How a flagged part of a message is named to the player: "the sender", "paragraph 2", the link's
+  # text, or the attachment's file name. Only ever what the player can see in the message.
+  def anchor_label(message, anchor)
+    HEADER_ANCHOR_LABELS[anchor] ||
+      case anchor
+      when /\Ap(\d+)\z/ then "paragraph #{$1}"
+      when /\Al(\d+)\z/ then "the link “#{message.links.find { |link| link.key == anchor }&.display_url || "link #{$1}"}”"
+      else message.attachment(anchor)&.fetch("name") || anchor
+      end
+  end
+
   def shift_clock_label(attempt)
     "Minute #{attempt.clock_minutes} of #{attempt.time_budget}"
   end
