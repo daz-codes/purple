@@ -27,4 +27,28 @@ class ShiftAttempt::TasksTest < ActiveSupport::TestCase
 
     assert_not @attempt.reload.all_tasks_resolved?
   end
+
+  test "a task is completed from its portal page, costs two minutes and can only be done once" do
+    @attempt.visit(links(:real_invoice_link))
+    @attempt.complete_task
+
+    assert @attempt.task_completed?(tasks(:pay_supplier))
+    assert_equal [ "complete_task", "pay_supplier", 2 ],
+      [ @attempt.actions.last.kind, @attempt.actions.last.target_key, @attempt.actions.last.cost_minutes ]
+  end
+
+  test "completing the last task ends the shift" do
+    @attempt.visit(links(:real_invoice_link))
+    @attempt.complete_task
+
+    assert @attempt.completed?
+  end
+
+  test "a task can't be completed from a page that isn't its portal" do
+    @attempt.wait_for_mail
+    @attempt.visit(links(:fake_invoice_link))
+
+    assert_raises(ShiftAttempt::Rejected, match: /no task/) { @attempt.complete_task }
+    assert_not @attempt.task_completed?(tasks(:pay_supplier))
+  end
 end

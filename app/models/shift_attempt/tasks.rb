@@ -1,7 +1,17 @@
-# Blue's to-do list. A task is done when its completing link is used (M4), overdue once the clock
-# passes its deadline, and resolved when it's done or can no longer be done.
+# Blue's to-do list. A task is done from the portal page its legitimate link opens, overdue once the
+# clock passes its deadline, and resolved when it's done or can no longer be done.
 module ShiftAttempt::Tasks
   extend ActiveSupport::Concern
+
+  # Does the task on the portal page in the open tab.
+  def complete_task
+    acting_on do
+      tab = current_tab_showing!("portal_task", "There's no task to do on this page.")
+      reject "That task is already done." if task_completed?(tab.task)
+
+      record :complete_task, message: tab.message, target_key: tab.task.key, result: tab.source
+    end
+  end
 
   def task_completed?(task)
     done?(:complete_task, task.key)

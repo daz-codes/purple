@@ -6,7 +6,7 @@
 class AttemptAction < ApplicationRecord
   KINDS = %w[
     open_message expand_headers verify_sender hover_link click_link close_landing submit_credentials
-    open_attachment report_message flag_element complete_task use_hint wait end_shift
+    open_attachment run_download report_message flag_element complete_task use_hint wait end_shift
   ].freeze
 
   enum :kind, KINDS.index_by(&:itself), validate: true

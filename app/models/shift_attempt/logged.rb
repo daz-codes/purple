@@ -33,12 +33,13 @@ module ShiftAttempt::Logged
       end
     end
 
-    def record(kind, message: nil, cost: action_cost(kind), result: {})
+    # target_key is the message's key, or for a completed task the task's key.
+    def record(kind, message: nil, target_key: message&.key, cost: action_cost(kind), result: {})
       unless affordable?(cost)
         reject "Not enough time left: that takes #{cost} min and you have #{minutes_left}."
       end
 
-      action = attempt_actions.create!(kind:, target_key: message&.key, minute: clock_minutes, cost_minutes: cost, result:)
+      action = attempt_actions.create!(kind:, target_key:, minute: clock_minutes, cost_minutes: cost, result:)
       advance_clock(cost)
       reload
       finish_if_over

@@ -1,0 +1,21 @@
+<%# A lookalike sign-in page. The inputs deliberately have no name attribute, so the browser never
+    submits what's typed: only the button press reaches the server. %>
+<%= render "shift_attempts/landings/site_header", tab: %>
+<div class="grid place-items-center px-6 py-10">
+  <div class="w-full max-w-sm rounded-xl border border-slate-200 p-6 shadow-sm">
+    <h2 class="text-2xl font-bold">Sign in</h2>
+    <p class="mt-1 text-sm text-slate-600">Your session has expired. Sign in with your work account to continue.</p>
+
+    <%= form_with url: shift_attempt_tab_sign_in_path(attempt), class: "mt-6 space-y-4" do %>
+      <label class="block text-sm font-medium">Email address
+        <input type="email" autocomplete="off" class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+               placeholder="you@contoso.example" aria-label="Email address on this page">
+      </label>
+      <label class="block text-sm font-medium">Password
+        <input type="password" autocomplete="off" class="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+               placeholder="Never enter a real password" aria-label="Password on this page">
+      </label>
+      <button type="submit" class="btn w-full bg-blue-700 text-white hover:bg-blue-600">Sign in</button>
+    <% end %>
+  </div>
+</div>

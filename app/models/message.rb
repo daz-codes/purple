@@ -21,6 +21,10 @@ class Message < ApplicationRecord
     !legit?
   end
 
+  def attachment(id)
+    attachments.find { |attachment| attachment["id"] == id } if id
+  end
+
   # Attachment details that are safe to show. Each attachment's outcome stays on the server.
   def visible_attachments
     attachments.map { |attachment| attachment.slice("id", "name", "type", "size") }

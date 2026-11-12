@@ -2,13 +2,15 @@
 # the actions: it reads nothing else and changes nothing, so the same log always gives the same score.
 #
 # Productivity: a task completed on time earns its points, late earns half, never completed loses
-# half. Security: +30 for each phish reported, -15 for each legitimate message reported, -50 for each
-# compromise. Total = productivity + security, never below 0.
+# half. Security: +30 for each phish reported, -15 for each legitimate message reported, -10 for each
+# near miss (a bait page or malware download opened but not fallen for), -50 for each compromise
+# (a password entered or a download run). Total = productivity + security, never below 0.
 #
-# Link clicks, near misses and attachments arrive in M4; red flags and hints in M5.
+# Red flags and hints arrive in M5.
 class ShiftAttempt::Scorecard
   REPORTED_PHISH = 30
   REPORTED_LEGIT = -15
+  NEAR_MISS = -10
   COMPROMISED = -50
 
   TaskResult = Data.define(:task, :status, :points) do
@@ -27,7 +29,7 @@ class ShiftAttempt::Scorecard
   end
 
   def security
-    reports_score + compromises * COMPROMISED
+    reports_score + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED
   end
 
   def total
@@ -39,8 +41,9 @@ class ShiftAttempt::Scorecard
   end
 
   # Meters shown in the header during a shift. They only reflect what the player already knows:
-  # tasks they've completed and compromises they've seen happen. Whether a report was right stays
-  # hidden until the debrief, otherwise the meter would give the answer away.
+  # tasks they've completed and compromises they've seen happen. Whether a report was right, or
+  # whether a page they closed was a trap, stays hidden until the debrief: otherwise the meter would
+  # give the answer away.
   def productivity_meter
     earned = task_results(open: true).sum(&:points)
     maximum = @shift.tasks.sum(&:points)
@@ -48,7 +51,7 @@ class ShiftAttempt::Scorecard
   end
 
   def security_meter
-    (100 + compromises * COMPROMISED).clamp(0, 100)
+    (100 + compromises.size * COMPROMISED).clamp(0, 100)
   end
 
   private
@@ -69,8 +72,6 @@ class ShiftAttempt::Scorecard
     end
 
     def reports_score
-      messages = @shift.messages.index_by(&:key)
-
       # A message removed by a later content import no longer counts either way.
       first_actions(:report_message).keys.sum do |key|
         message = messages[key]
@@ -80,9 +81,29 @@ class ShiftAttempt::Scorecard
       end
     end
 
-    # Entering a password on a lookalike page. Opening malware joins this in M4.
+    # Each trap the player fell for, once per page or file: [message key, source].
     def compromises
-      @actions.count(&:submit_credentials?)
+      @compromises ||= sources_of(ShiftAttempt::Compromisable::COMPROMISING_KINDS)
+    end
+
+    # Each bait page or malware download the player opened without falling for it.
+    def near_misses
+      @near_misses ||= sources_of(ShiftAttempt::Browsing::TAB_OPENERS).select { |source| trap?(*source) } - compromises
+    end
+
+    def sources_of(kinds)
+      @actions.select { |action| action.kind.in?(kinds) }.map { |action| [ action.target_key, action.result ] }.uniq
+    end
+
+    # Uses the same rules as the page the browser showed, so scoring can't disagree with it.
+    def trap?(message_key, source)
+      message = messages[message_key] or return false
+
+      ShiftAttempt::Tab.new(message:, source:).trap?
+    end
+
+    def messages
+      @messages ||= @shift.messages.includes(:links).index_by(&:key)
     end
 
     def first_actions(kind)

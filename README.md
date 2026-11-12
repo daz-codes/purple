@@ -45,6 +45,12 @@ ending the shift) is a POST to its own small controller, which calls a method on
 (`attempt.report(message)`). The attempt logs the move as an `AttemptAction`, moves the in-game clock
 on and the panes update by Turbo Stream. `ShiftAttempt::Scorecard` scores the log.
 
+Links and attachments open in an in-game browser (`ShiftAttempt::Browsing`). It shows the link's real
+address, and the server picks the page: a portal where the task gets done, a harmless article, a
+lookalike sign-in page or a download prompt. Signing in or running a download compromises you
+(`ShiftAttempt::Compromisable`), and the shift carries on. The lookalike page's fields have no names,
+so nothing typed is ever sent.
+
 ## Content authoring
 
 All game content is YAML in `content/`:

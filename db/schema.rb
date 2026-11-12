@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_12_140000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_12_160001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_140000) do
     t.datetime "created_at", null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "cost_minutes >= 0", name: "attempt_actions_cost_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'hover_link'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'report_message'::character varying, 'flag_element'::character varying, 'complete_task'::character varying, 'use_hint'::character varying, 'wait'::character varying, 'end_shift'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'hover_link'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'report_message'::character varying, 'flag_element'::character varying, 'complete_task'::character varying, 'use_hint'::character varying, 'wait'::character varying, 'end_shift'::character varying]::text[])", name: "attempt_actions_kind"
     t.check_constraint "minute >= 0", name: "attempt_actions_minute_non_negative"
   end
 

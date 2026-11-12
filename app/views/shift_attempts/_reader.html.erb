@@ -43,7 +43,9 @@
       <% end %>
     </header>
 
+    <%# Links post only their neutral key (l1, l2…) to this URL; the server decides what opens. %>
     <div class="message-body p-5"
+         data-link-visit-url="<%= shift_attempt_message_link_visit_path(attempt, ref, "__key__") %>"
          data-action="mouseover->link-status#show mouseout->link-status#hide focusin->link-status#show focusout->link-status#hide">
       <%= sanitize message.body_html, tags: Content::MessageBody::OUTPUT_TAGS, attributes: Content::MessageBody::OUTPUT_ATTRIBUTES %>
     </div>
@@ -51,8 +53,12 @@
     <% if message.visible_attachments.any? %>
       <ul class="px-5 pb-5 flex flex-wrap gap-2" aria-label="Attachments">
         <% message.visible_attachments.each do |attachment| %>
-          <li class="rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm" data-anchor="<%= attachment["id"] %>">
-            📎 <span class="font-medium"><%= attachment["name"] %></span> <span class="text-ink-muted"><%= attachment["size"] %></span>
+          <li data-anchor="<%= attachment["id"] %>">
+            <%= button_to shift_attempt_message_attachment_opening_path(attempt, ref, attachment["id"]),
+                  class: "rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm cursor-pointer hover:border-blue-team",
+                  aria: { label: "Open attachment #{attachment["name"]}" } do %>
+              📎 <span class="font-medium"><%= attachment["name"] %></span> <span class="text-ink-muted"><%= attachment["size"] %></span>
+            <% end %>
           </li>
         <% end %>
       </ul>
