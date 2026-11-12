@@ -37,8 +37,9 @@ messages:
 
   - key: password_expiry
     channel: email
-    arrives_at_minute: 2
+    arrives_at_minute: 0
     legit: false
+    imitates: set_password
     techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
     from_name: "Larkhill IT Support"
     from_address: "it-support@larkhill-helpdesk.example.net"

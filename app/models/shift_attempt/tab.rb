@@ -68,6 +68,7 @@ class ShiftAttempt::Tab
   # The file a download offers: the attachment's name, or the last part of the link's path.
   def file_name
     return attachment["name"] if attachment
+    return unless address
 
     name = File.basename(URI(address).path.to_s)
     name.include?(".") ? name : "document.zip"

@@ -56,9 +56,22 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_equal [ 5, "Completed “Approve invoice”", :good ], debrief_timeline_entry(action("complete_task", "pay_supplier", minute: 5), card)
   end
 
-  test "the timeline says when the rest of the day's mail arrived early" do
-    assert_equal "Your task list was clear, so the rest of the day's mail arrived",
-      debrief_timeline_entry(action("wait", nil, result: { "tasks_done" => true }), scorecard).second
+  test "the headline leaves out what the shift didn't have" do
+    messages(:fake_invoice).destroy!
+    assert_equal "You finished 0 of 1 task on time.", debrief_headline(scorecard)
+  end
+
+  test "a message that arrived after the shift ended says so" do
+    card = ShiftAttempt::Scorecard.new(shift: @shift, actions: [], clock_minutes: 1)
+
+    assert_equal [ "Phish: arrived after you left", :warn ], debrief_verdict(card.message_result_for("fake_invoice"))
+    assert_match "after you'd ended your shift", debrief_story(card.message_result_for("fake_invoice")).join
+  end
+
+  test "a compromise through a link that a re-import removed still has a story" do
+    compromise = action("run_download", "fake_invoice", result: { "link" => "l9" })
+
+    assert_match "since been changed", story("fake_invoice", compromise).join
   end
 
   test "the timeline tells a flag from taking it off" do

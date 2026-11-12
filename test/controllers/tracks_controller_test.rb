@@ -51,6 +51,17 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a best attempt that ran out of time says so" do
+    sign_in_as users(:one)
+    attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
+    attempt.update_columns(clock_minutes: 30)
+    attempt.reload.end_shift
+    assert attempt.timed_out?
+
+    get track_path(tracks(:basics))
+    assert_select "[data-testid=shift-progress]", text: /Ran out of time/
+  end
+
   test "an unfinished attempt doesn't count as completed" do
     sign_in_as users(:one)
     ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))

@@ -14,6 +14,7 @@ module DebriefsHelper
     reported: [ "Phish: reported", :good ],
     near_miss: [ "Phish: close call", :warn ],
     not_reported: [ "Phish: not reported", :warn ],
+    arrived_after_shift: [ "Phish: arrived after you left", :warn ],
     reported_wrongly: [ "Genuine: reported by mistake", :bad ],
     used: [ "Genuine: used for your work", :good ],
     left_alone: [ "Genuine", :neutral ]
@@ -52,13 +53,14 @@ module DebriefsHelper
     if scorecard.perfect?
       "A perfect shift: every task done on time, and every phish reported without falling for any."
     else
-      parts = [ "You reported #{reported} of #{pluralize(phishes.size, "phish")}" ]
+      parts = []
+      parts << "reported #{reported} of #{pluralize(phishes.size, "phish")}" if phishes.any?
       parts << "fell for #{compromised}" if compromised.positive?
       red_flags = phishes.sum { |result| result.message.red_flags.size }
       parts << "spotted #{phishes.sum { |result| result.found_flags.size }} of #{pluralize(red_flags, "red flag")}" if red_flags.positive?
       tasks = scorecard.tasks
-      parts << "finished #{tasks.count(&:on_time?)} of #{pluralize(tasks.size, "task")} on time"
-      parts.to_sentence + "."
+      parts << "finished #{tasks.count(&:on_time?)} of #{pluralize(tasks.size, "task")} on time" if tasks.any?
+      parts.any? ? "You #{parts.to_sentence}." : "Shift over."
     end
   end
 
@@ -67,7 +69,16 @@ module DebriefsHelper
     message = result.message
     story = []
 
-    if result.phish?
+    if !result.arrived?
+      story << "This arrived at minute #{message.arrives_at_minute}, after you'd ended your shift."
+      if result.phish?
+        story << "It was a phish, and nobody was there to report it. Stay until the day's mail is in: " \
+          "reporting it would have been worth #{debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH)}."
+      else
+        tasks = message.links.select(&:outcome_completes_task?).map(&:task).uniq
+        story << (tasks.any? ? "It was genuine, and the way to #{quoted_titles(tasks)}." : "It was genuine.")
+      end
+    elsif result.phish?
       result.compromises.each { |tab| story << compromise_sentence(tab) }
       result.near_misses.each { |tab| story << near_miss_sentence(tab) }
 
@@ -171,8 +182,7 @@ module DebriefsHelper
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "complete_task" then [ "Completed “#{task_title(scorecard, action.target_key)}”", :good ]
-      when "wait"
-        [ action.result["tasks_done"] ? "Your task list was clear, so the rest of the day's mail arrived" : "Waited for new mail", :neutral ]
+      when "wait" then [ "Waited for new mail", :neutral ]
       when "end_shift" then [ "Ended the shift", :neutral ]
       else [ action.kind.humanize, :neutral ]
       end
@@ -209,7 +219,9 @@ module DebriefsHelper
 
   private
     def compromise_sentence(tab)
-      if tab.landing == "credential_harvest"
+      if !tab.showable?
+        "You were compromised by a link or file in this message that has since been changed in the shift's content."
+      elsif tab.landing == "credential_harvest"
         "You entered a password on the fake sign-in page at #{tab.host}. In a real attack Red now has your password: " \
           "they could read your email and send phish to your colleagues from your account."
       elsif tab.attachment

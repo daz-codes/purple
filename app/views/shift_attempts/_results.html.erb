@@ -22,18 +22,18 @@
     <dl class="mt-6 grid gap-4 sm:grid-cols-3">
       <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">
         <dt class="text-sm text-ink-muted">Score</dt>
-        <dd><span class="text-4xl font-extrabold" data-testid="score"><%= attempt.score %></span>
+        <dd><span class="text-4xl font-extrabold" data-testid="score"><%= scorecard.total %></span>
           <span class="text-ink-muted">out of <%= scorecard.total_max %></span></dd>
       </div>
       <div class="rounded-xl border border-line p-4">
         <dt class="text-sm text-ink-muted">Productivity</dt>
-        <dd><span class="text-3xl font-bold" data-testid="productivity-score"><%= attempt.productivity_score %></span>
+        <dd><span class="text-3xl font-bold" data-testid="productivity-score"><%= scorecard.productivity %></span>
           <span class="text-ink-muted">out of <%= scorecard.productivity_max %></span></dd>
         <dd class="mt-1 text-xs text-ink-muted">Your tasks: full points on time, half if late, minus half if not done.</dd>
       </div>
       <div class="rounded-xl border border-line p-4">
         <dt class="text-sm text-ink-muted">Security</dt>
-        <dd><span class="text-3xl font-bold" data-testid="security-score"><%= attempt.security_score %></span>
+        <dd><span class="text-3xl font-bold" data-testid="security-score"><%= scorecard.security %></span>
           <span class="text-ink-muted">out of <%= scorecard.security_max %></span></dd>
         <dd class="mt-1 text-xs text-ink-muted">
           <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH) %> per phish reported,
