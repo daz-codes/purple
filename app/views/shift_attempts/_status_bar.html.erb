@@ -26,7 +26,8 @@
     <% if (next_arrival = attempt.next_arrival_minute) %>
       <%= shift_action_button attempt, "Wait for new mail", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
     <% end %>
-    <%= button_to "End shift", shift_attempt_completion_path(attempt), class: "btn-primary",
-          form: { data: { turbo_confirm: "End your shift now? Unfinished tasks count as missed." } } %>
+    <% confirm = "End your shift now? Unfinished tasks count as missed." %>
+    <% confirm += " More mail is due today: anything that arrives after you leave goes unhandled." if next_arrival %>
+    <%= button_to "End shift", shift_attempt_completion_path(attempt), class: "btn-primary", form: { data: { turbo_confirm: confirm } } %>
   </div>
 </header>

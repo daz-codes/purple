@@ -152,7 +152,13 @@ class Content::ImportTest < ActiveSupport::TestCase
                                            /from_address "PayPal" must be a fictional address/ ],
       "a repeated technique" => [ ->(s) { s["messages"].last["techniques"] = %w[ lookalike_domain lookalike_domain ] },
                                   /messages\[1\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
-      "an unknown action cost" => [ ->(s) { s["action_costs"] = { "teleport" => 1 } }, /unknown action: teleport/ ]
+      "an unknown action cost" => [ ->(s) { s["action_costs"] = { "teleport" => 1 } }, /unknown action: teleport/ ],
+      "a fake arriving after the message it imitates" => [ ->(s) { s["messages"].last["imitates"] = "pay_supplier" },
+                                                          /arrives at minute 3, after the genuine message \(minute 0\)/ ],
+      "a genuine message imitating a task" => [ ->(s) { s["messages"].first["imitates"] = "pay_supplier" },
+                                               /only phishing messages can imitate a task/ ],
+      "imitating an unknown task" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives_at_minute" => 0) },
+                                      /imitates "nope", which isn't in this shift's tasks/ ]
     }.each do |description, (mutate, message)|
       @shift = valid_shift
       mutate.call(@shift)
@@ -160,6 +166,11 @@ class Content::ImportTest < ActiveSupport::TestCase
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match message, error.message, "wrong error for #{description}"
     end
+  end
+
+  test "a fake may imitate a task if it arrives no later than the genuine message" do
+    @shift["messages"].last.merge!("imitates" => "pay_supplier", "arrives_at_minute" => 0)
+    assert_nothing_raised { import! }
   end
 
   test "a legitimate message may list an empty red_flags" do

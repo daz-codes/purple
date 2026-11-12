@@ -225,7 +225,7 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - Track page → shift briefing ("Red's campaign targets Larkhill Finance today…") → play screen.
 - Play screen: task list with deadlines (left), inbox list (middle), reading pane (right), and the clock and two meters in the header. Messages can arrive mid-shift (`arrives_at_minute`) via Turbo Stream after any action that advances the clock.
 - Actions: open message, expand headers, verify sender (shows a scripted result, e.g. "Finance confirms they sent this" or "No record of this invoice"), report phishing. Every action POSTs to its own resource controller (e.g. `ShiftAttempts::Messages::ReportsController`) → a `ShiftAttempt` method → Turbo Stream updates to the clock, meters and panes.
-- Shift ends when the clock runs out or the player presses "End shift". Once every task is resolved, the clock jumps to the last message's arrival so the rest of the day's mail lands at once: the player has to deal with everything before ending the shift.
+- Shift ends when the clock runs out or the player presses "End shift". Finishing the task list doesn't end the shift or change anything else on screen, so it never hints at which of the remaining messages matter. Mail keeps arriving on its schedule; a phish that arrives after the player ends the shift early still counts as not reported. A phish that `imitates` a task must arrive no later than the genuine message for that task, so the player has to decide between them rather than spotting the fake because the task is already done.
 - **Done when:** a system test plays a shift that mixes reporting a phish and leaving a legit email alone, and the engine unit tests cover the clock and deadlines.
 
 ### M4 — In-game browser & tasks

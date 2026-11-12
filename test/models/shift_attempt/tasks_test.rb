@@ -14,20 +14,6 @@ class ShiftAttempt::TasksTest < ActiveSupport::TestCase
     assert @attempt.task_overdue?(task)
   end
 
-  test "a task is resolved when every message that could complete it is reported" do
-    assert_not @attempt.all_tasks_resolved?
-
-    @attempt.attempt_actions.create!(kind: "report_message", target_key: "real_invoice", minute: 0)
-    assert @attempt.reload.all_tasks_resolved?
-  end
-
-  test "a task with no completing link doesn't count as resolved" do
-    links(:real_invoice_link).destroy!
-    @attempt.attempt_actions.create!(kind: "report_message", target_key: "real_invoice", minute: 0)
-
-    assert_not @attempt.reload.all_tasks_resolved?
-  end
-
   test "a task is completed from its portal page, costs two minutes and can only be done once" do
     @attempt.visit(links(:real_invoice_link))
     @attempt.complete_task
@@ -37,22 +23,15 @@ class ShiftAttempt::TasksTest < ActiveSupport::TestCase
     assert_equal [ "pay_supplier", 2 ], [ completion.target_key, completion.cost_minutes ]
   end
 
-  test "completing the last task brings the rest of the day's mail instead of ending the shift" do
+  # Anything more would tell the player the remaining mail doesn't matter for their tasks.
+  test "completing the last task doesn't end the shift, move the clock on or bring mail early" do
     @attempt.visit(links(:real_invoice_link))
     @attempt.complete_task
 
     assert @attempt.open?
-    assert_equal 3, @attempt.clock_minutes
-    assert_includes @attempt.arrived_messages, messages(:fake_invoice)
-  end
-
-  test "with every message already in, clearing the task list leaves the clock alone" do
-    @attempt.wait_for_mail # to minute 3: everything has arrived
-    @attempt.visit(links(:real_invoice_link))
-    @attempt.complete_task
-
-    assert_equal 5, @attempt.clock_minutes
-    assert_equal %w[ wait click_link complete_task ], @attempt.actions.map(&:kind)
+    assert_equal 2, @attempt.clock_minutes
+    assert_equal %w[ click_link complete_task ], @attempt.actions.map(&:kind)
+    assert_not_includes @attempt.arrived_messages, messages(:fake_invoice)
   end
 
   test "a task can't be completed from a page that isn't its portal" do

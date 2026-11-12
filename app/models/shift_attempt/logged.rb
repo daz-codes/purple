@@ -2,8 +2,8 @@
 # M5 it's replayed in the Purple debrief.
 #
 # Every move goes through #acting_on, which locks the attempt (so two tabs can't race the clock)
-# and checks the shift is still open, then #record, which logs the move, charges its minutes, ends
-# the shift if the time is up, and brings the rest of the day's mail once the task list is clear.
+# and checks the shift is still open, then #record, which logs the move, charges its minutes and
+# ends the shift if the time is up.
 module ShiftAttempt::Logged
   extend ActiveSupport::Concern
 
@@ -43,7 +43,6 @@ module ShiftAttempt::Logged
       advance_clock(cost)
       reload
       finish_if_over
-      deliver_remaining_mail if open? && kind.to_s != "end_shift" && all_tasks_resolved?
 
       action
     end

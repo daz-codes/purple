@@ -75,6 +75,8 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal 100, scorecard(action("report_message", "fake_invoice")).security_meter
     assert_equal 100, scorecard(action("report_message", "real_invoice")).security_meter
     assert_equal 50, scorecard(action("submit_credentials", "fake_invoice", result: { "link" => "l1" })).security_meter
+    assert_equal 50, scorecard(action("submit_credentials", "fake_invoice", result: { "link" => "l1" }),
+                               action("submit_credentials", "fake_invoice", result: { "link" => "l1" })).security_meter
   end
 
   test "the live security meter doesn't reveal that a closed page was a trap" do
@@ -90,11 +92,13 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal 70, card.total_max
   end
 
-  test "a phish that hadn't arrived when the shift ended isn't judged or counted in the maximum" do
-    card = scorecard(arrived_by: 2)
+  test "a phish that arrived after the shift ended still counts, as not reported" do
+    card = scorecard(clock_minutes: 2)
 
-    assert_equal [ "real_invoice" ], card.messages.map { |result| result.message.key }
-    assert_equal 0, card.security_max
+    assert_equal %w[ real_invoice fake_invoice ], card.messages.map { |result| result.message.key }
+    assert_equal [ true, false ], card.messages.map(&:arrived?)
+    assert_equal :arrived_after_shift, card.message_result_for("fake_invoice").outcome
+    assert_equal [ 0, 30 ], [ card.security, card.security_max ]
   end
 
   test "a perfect shift earns three stars, and anything less is judged against the maximum" do
@@ -147,7 +151,7 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
       AttemptAction.new(kind:, target_key:, minute:, cost_minutes: cost, result:)
     end
 
-    def scorecard(*actions, arrived_by: nil)
-      ShiftAttempt::Scorecard.new(shift: @shift, actions:, arrived_by:)
+    def scorecard(*actions, clock_minutes: nil)
+      ShiftAttempt::Scorecard.new(shift: @shift, actions:, clock_minutes:)
     end
 end

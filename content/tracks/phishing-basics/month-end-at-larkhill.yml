@@ -19,7 +19,7 @@ tasks:
 messages:
   - key: real_invoice
     channel: email
-    arrives_at_minute: 0
+    arrives_at_minute: 3
     legit: true
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark.example"
@@ -34,12 +34,13 @@ messages:
 
   - key: fake_invoice
     channel: email
-    arrives_at_minute: 3
+    arrives_at_minute: 0
     legit: false
+    imitates: pay_supplier
     techniques: [lookalike_domain, reply_to_mismatch, urgency_pretext, payment_change_pretext, malicious_link, credential_harvest]
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark-billing.example"
-    reply_to: "nw.payments@freemail.test"
+    reply_to: "tm.payments@freemail.test"
     to_address: "you@larkhill.example"
     subject: "URGENT: Invoice #4471, updated bank details"
     body_html: |

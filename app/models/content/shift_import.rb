@@ -6,7 +6,7 @@ module Content
     SHIFT_KEYS = %i[ slug title kind difficulty time_budget_minutes position published briefing
                      learning_summary action_costs tasks messages hints ].freeze
     TASK_KEYS = %i[ key title due_at_minute points ].freeze
-    MESSAGE_KEYS = %i[ key channel arrives_at_minute legit techniques from_name from_address reply_to
+    MESSAGE_KEYS = %i[ key channel arrives_at_minute legit imitates techniques from_name from_address reply_to
                        to_address subject body_html attachments links verify_result red_flags ].freeze
     LINK_KEYS = %i[ match outcome task landing ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
@@ -41,6 +41,7 @@ module Content
       @tasks = import_tasks
       import_messages
       check_every_task_is_completable
+      check_imitations_arrive_first
       import_hints
 
       @shift
@@ -92,6 +93,7 @@ module Content
       # --- Messages ------------------------------------------------------------------------
 
       def import_messages
+        @imitations = []
         messages = @node.each_item(:messages) { |message_node, index| import_message(message_node, index + 1) }
 
         keys = messages.map(&:key)
@@ -125,6 +127,7 @@ module Content
           )
         end
 
+        note_imitation(node, message)
         import_links(node, message, body.links)
         import_techniques(node, message)
         import_red_flags(node, message, anchors: available_anchors(message, body, attachments))
@@ -257,6 +260,14 @@ module Content
         message.red_flags.where.not(id: flags.map(&:id)).destroy_all
       end
 
+      # imitates: the task a phishing message pretends to be about. Only checked here, never stored.
+      def note_imitation(node, message)
+        task_key = node.optional(:imitates) or return
+        node.error!("only phishing messages can imitate a task") if message.legit?
+        task = @tasks.fetch(task_key) { node.error!("imitates \"#{task_key}\", which isn't in this shift's tasks (#{@tasks.keys.join(", ")})") }
+        @imitations << [ node, message, task ]
+      end
+
       # --- Whole-shift checks and hints ----------------------------------------------------
 
       def check_every_task_is_completable
@@ -266,6 +277,18 @@ module Content
 
           @node.error!("task \"#{task.key}\" must be completable by exactly one link in a legitimate message " \
                        "(found #{completing})")
+        end
+      end
+
+      # A fake that lands after the player has already done the task with the real message gives
+      # itself away, so it must arrive no later than the genuine one.
+      def check_imitations_arrive_first
+        @imitations.each do |node, message, task|
+          genuine = Link.joins(:message).where(task:, outcome: "completes_task").pick("messages.arrives_at_minute")
+          next if genuine.nil? || message.arrives_at_minute <= genuine
+
+          node.error!("imitates \"#{task.key}\" but arrives at minute #{message.arrives_at_minute}, after the genuine message " \
+                      "(minute #{genuine}): the fake must arrive first, or at the same time")
         end
       end
 

@@ -8,8 +8,9 @@
 # for), -50 for each compromise (a password entered or a download run). Total = productivity +
 # security, never below 0.
 #
-# arrived_by: the minute the shift ended. Messages that hadn't arrived by then can't be judged, so
-# they count neither way and aren't in the maximum.
+# clock_minutes: the minute the shift ended (or has reached). Every message in the shift is judged,
+# including any that arrived after the player ended the shift early: a phish they left behind still
+# counts as not reported, so ending early is never a way to dodge the rest of the day's mail.
 #
 # Red flags and hints arrive in M5.
 class ShiftAttempt::Scorecard
@@ -29,8 +30,9 @@ class ShiftAttempt::Scorecard
 
   # What the player did with one message, and what it scored. compromises and near_misses are the
   # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links.
-  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks) do
+  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks, :arrived) do
     def phish? = message.phish?
+    def arrived? = arrived
     def opened? = actions.any?(&:open_message?)
     def verified? = actions.any?(&:verify_sender?)
     def reported? = actions.any?(&:report_message?)
@@ -42,11 +44,12 @@ class ShiftAttempt::Scorecard
     end
 
     # The headline for the debrief.
-    #   phish:      :compromised, :reported, :near_miss or :not_reported
+    #   phish:      :compromised, :reported, :near_miss, :not_reported or :arrived_after_shift
     #   legitimate: :reported_wrongly, :used or :left_alone
     def outcome
       if phish?
-        if compromised? then :compromised
+        if !arrived? then :arrived_after_shift
+        elsif compromised? then :compromised
         elsif reported? then :reported
         elsif near_miss? then :near_miss
         else :not_reported
@@ -74,10 +77,10 @@ class ShiftAttempt::Scorecard
     end
   end
 
-  def initialize(shift:, actions:, arrived_by: nil)
+  def initialize(shift:, actions:, clock_minutes: nil)
     @shift = shift
     @actions = actions
-    @arrived_by = arrived_by
+    @clock_minutes = clock_minutes
   end
 
   def productivity
@@ -120,9 +123,9 @@ class ShiftAttempt::Scorecard
     @tasks ||= task_results(open: false)
   end
 
-  # Every message that arrived during the shift, in the order it arrived.
+  # Every message in the shift, in the order it arrives.
   def messages
-    @messages ||= arrived_messages.map { |message| message_result(message) }
+    @messages ||= shift_messages.map { |message| message_result(message) }
   end
 
   def phishes
@@ -143,7 +146,9 @@ class ShiftAttempt::Scorecard
   end
 
   def security_meter
-    (100 + messages.sum { |result| result.compromises.size } * COMPROMISED).clamp(0, 100)
+    compromises = @actions.select { |action| action.kind.in?(ShiftAttempt::Compromisable::COMPROMISING_KINDS) }
+      .uniq { |action| [ action.target_key, action.result ] }
+    (100 + compromises.size * COMPROMISED).clamp(0, 100)
   end
 
   private
@@ -165,10 +170,13 @@ class ShiftAttempt::Scorecard
     end
 
     # A message removed by a later content import no longer counts either way.
-    def arrived_messages
-      messages = @shift.messages.includes(:techniques, :red_flags, links: :task)
-      messages = messages.where(arrives_at_minute: ..@arrived_by) if @arrived_by
-      messages.sort_by { |message| [ message.arrives_at_minute, message.position ] }
+    def shift_messages
+      @shift.messages.includes(:techniques, :red_flags, links: :task)
+        .sort_by { |message| [ message.arrives_at_minute, message.position ] }
+    end
+
+    def arrived?(message)
+      @clock_minutes.nil? || message.arrives_at_minute <= @clock_minutes
     end
 
     def message_result(message)
@@ -178,7 +186,8 @@ class ShiftAttempt::Scorecard
       near_misses = tabs(message, actions, ShiftAttempt::Browsing::TAB_OPENERS).select(&:trap?)
         .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
 
-      MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message))
+      MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message),
+        arrived: arrived?(message))
     end
 
     # The pages or files the given kinds of action happened on, once each. Uses the same rules as
