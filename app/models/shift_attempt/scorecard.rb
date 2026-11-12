@@ -6,7 +6,7 @@
 # half. Security is judged message by message: +30 for reporting a phish, -15 for reporting a
 # legitimate message, -10 for each near miss (a bait page or malware download opened but not fallen
 # for), -50 for each compromise (a password entered or a download run), plus each red flag's points
-# when it's flagged and -5 for each flag on something that isn't one, so flagging everything costs
+# when it's flagged and -10 for each flag on something that isn't one, so flagging everything costs
 # more than it finds. Each hint takes its penalty_percent of the maximum score off the total. Total = productivity + security - hints, never below 0.
 #
 # clock_minutes: the minute the shift ended (or has reached). Every message in the shift is judged,
@@ -17,7 +17,7 @@ class ShiftAttempt::Scorecard
   REPORTED_LEGIT = -15
   NEAR_MISS = -10
   COMPROMISED = -50
-  FALSE_FLAG = -5
+  FALSE_FLAG = -10
 
   # Share of the maximum score needed for each star. Three stars also need no compromise.
   STAR_THRESHOLDS = [ 0.3, 0.6, 0.9 ].freeze

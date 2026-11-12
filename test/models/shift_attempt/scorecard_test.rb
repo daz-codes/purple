@@ -138,10 +138,10 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   end
 
   # Otherwise flagging every part of every message would find every red flag for free.
-  test "a wrong flag costs 5, even when it takes flagging below zero" do
-    assert_equal 5, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "p1")).security
-    assert_equal(-10, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security)
-    assert_equal 35, scorecard(action("report_message", "fake_invoice"), flag("fake_invoice", "from"), flag("real_invoice", "from")).security # 30 + 10 - 5
+  test "a wrong flag costs 10, even when it takes flagging below zero" do
+    assert_equal 0, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "p1")).security
+    assert_equal(-20, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security)
+    assert_equal 30, scorecard(action("report_message", "fake_invoice"), flag("fake_invoice", "from"), flag("real_invoice", "from")).security # 30 + 10 - 10
     assert_equal [ "p1" ], scorecard(flag("fake_invoice", "p1")).message_result_for("fake_invoice").false_flags
   end
 

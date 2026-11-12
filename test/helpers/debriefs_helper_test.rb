@@ -93,8 +93,8 @@ class DebriefsHelperTest < ActionView::TestCase
     result = result("fake_invoice", action("flag_element", "fake_invoice", result: { "anchor" => "p1" }))
 
     assert_equal [ [ "from", false ] ], debrief_red_flags(result).map { |flag, found| [ flag.anchor, found ] }
-    assert_equal "You also flagged paragraph 1, which wasn't a giveaway (−5).", debrief_false_flags(result)
-    assert_equal "You flagged the sender, but this email was genuine (−5).",
+    assert_equal "You also flagged paragraph 1, which wasn't a giveaway (−10).", debrief_false_flags(result)
+    assert_equal "You flagged the sender, but this email was genuine (−10).",
       debrief_false_flags(result("real_invoice", action("flag_element", "real_invoice", result: { "anchor" => "from" })))
   end
 
