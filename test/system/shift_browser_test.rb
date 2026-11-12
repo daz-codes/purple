@@ -19,9 +19,16 @@ class ShiftBrowserTest < ApplicationSystemTestCase
       click_on "Approve invoice (2 min)"
     end
 
-    # It was the only task, so the shift ends on time.
-    assert_text "You ended your shift at minute 2 of 30."
-    assert_text "On time (+40)"
+    # It was the only task, so the rest of the day's mail arrives, and the shift carries on.
+    within("#shift_tasks") { assert_selector "[data-testid=tasks-clear]" }
+    assert_selector "[data-testid=clock]", text: "Minute 3 of 30"
+    within("#shift_inbox") { assert_button "URGENT invoice" }
+    assert_no_answers
+
+    within("dialog") { click_on "Close tab" }
+    accept_confirm { click_on "End shift" }
+    assert_text "You ended your shift at minute 3 of 30."
+    within("[data-testid=debrief-task]") { assert_text "On time +40" }
   end
 
   test "a near miss: open the lookalike sign-in page, read the address bar and close the tab" do

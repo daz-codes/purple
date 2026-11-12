@@ -48,6 +48,16 @@ module ShiftAttempt::Inbox
     end
   end
 
+  # Once nothing is left on the task list, the rest of the day's mail arrives at once: the clock
+  # jumps to the last arrival, so the player still has to deal with everything before the shift can
+  # end. Moving the clock, rather than delivering mail early, keeps every arrival time true.
+  def deliver_remaining_mail
+    last_arrival = shift.messages.maximum(:arrives_at_minute)
+    return unless last_arrival && last_arrival > clock_minutes
+
+    record :wait, cost: [ last_arrival, time_budget ].min - clock_minutes, result: { "tasks_done" => true }
+  end
+
   def reload(*)
     @arrived_messages = nil
     super

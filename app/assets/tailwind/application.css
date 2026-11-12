@@ -19,6 +19,11 @@
   --color-blue-team-soft: #13284a;
   --color-purple-team: #b48cff;
   --color-purple-team-soft: #2a1f48;
+  /* Debrief outcomes: safe (well done) and warn (a close call). */
+  --color-safe: #3ecf8e;
+  --color-safe-soft: #10291e;
+  --color-warn: #f5b14c;
+  --color-warn-soft: #33260f;
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

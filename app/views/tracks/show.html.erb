@@ -15,8 +15,17 @@
           Shift <%= index + 1 %> · <%= shift.kind_inbox? ? "Inbox" : "Messages" %> · <%= shift.time_budget_minutes %> minutes
         </p>
         <h2 class="mt-1 text-xl font-bold"><%= shift.title %></h2>
+        <% if (best = @best_attempts[shift.id]) %>
+          <% scorecard = best.scorecard %>
+          <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="shift-progress">
+            <span class="rounded-full border px-2 py-0.5 font-semibold <%= debrief_tone_classes(:good) %>">Completed</span>
+            <span class="text-lg"><%= debrief_stars(scorecard.stars) %></span>
+            <span>Best score <strong><%= best.score %></strong> <span class="text-ink-muted">out of <%= scorecard.total_max %></span></span>
+            <%= link_to "See debrief", best, class: "text-purple-team underline" %>
+          </p>
+        <% end %>
       </div>
-      <%= link_to "Read the briefing", shift, class: "btn-blue" %>
+      <%= link_to best ? "Play again" : "Read the briefing", shift, class: best ? "btn-ghost" : "btn-blue" %>
     </li>
   <% end %>
 </ol>

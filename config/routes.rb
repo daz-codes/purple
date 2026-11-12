@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  # Development only: the emails the app has "sent".
+  mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
+
   # Authentication
   resource :session, only: %i[ new create destroy ]
   resource :registration, only: %i[ new create ]

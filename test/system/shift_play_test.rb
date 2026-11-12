@@ -32,6 +32,8 @@ class ShiftPlayTest < ApplicationSystemTestCase
 
     # Check it: the full headers show the real addresses, and the sender's call-back answer appears.
     within("#shift_reader") do
+      # Wait for the reader to show the phish, or the click could land on the previous message's button.
+      assert_selector "h2", text: "URGENT invoice"
       assert_no_text "accounts@tidemark-billing.example"
       click_on "Show full headers (1 min)"
       assert_text "accounts@tidemark-billing.example"
@@ -60,6 +62,7 @@ class ShiftPlayTest < ApplicationSystemTestCase
     assert_selector "[data-testid=security-score]", text: "30"
     assert_selector "[data-testid=productivity-score]", text: "-20"
     assert_selector "[data-testid=score]", text: "10"
+    assert_text "out of 70"
     assert ShiftAttempt.sole.completed?
   end
 end

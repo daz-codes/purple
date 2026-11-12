@@ -1,10 +1,15 @@
 # The score for a shift, worked out from its action log. A pure function of the shift's content and
 # the actions: it reads nothing else and changes nothing, so the same log always gives the same score.
+# The Purple debrief is rendered from it too, so the score and its explanation can't disagree.
 #
 # Productivity: a task completed on time earns its points, late earns half, never completed loses
-# half. Security: +30 for each phish reported, -15 for each legitimate message reported, -10 for each
-# near miss (a bait page or malware download opened but not fallen for), -50 for each compromise
-# (a password entered or a download run). Total = productivity + security, never below 0.
+# half. Security is judged message by message: +30 for reporting a phish, -15 for reporting a
+# legitimate message, -10 for each near miss (a bait page or malware download opened but not fallen
+# for), -50 for each compromise (a password entered or a download run). Total = productivity +
+# security, never below 0.
+#
+# arrived_by: the minute the shift ended. Messages that hadn't arrived by then can't be judged, so
+# they count neither way and aren't in the maximum.
 #
 # Red flags and hints arrive in M5.
 class ShiftAttempt::Scorecard
@@ -13,15 +18,66 @@ class ShiftAttempt::Scorecard
   NEAR_MISS = -10
   COMPROMISED = -50
 
-  TaskResult = Data.define(:task, :status, :points) do
+  # Share of the maximum score needed for each star.
+  STAR_THRESHOLDS = [ 0.3, 0.6, 0.9 ].freeze
+
+  TaskResult = Data.define(:task, :status, :points, :completed_at_minute) do
     def on_time? = status == :on_time
     def late? = status == :late
     def missed? = status == :missed
   end
 
-  def initialize(shift:, actions:)
+  # What the player did with one message, and what it scored. compromises and near_misses are the
+  # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links.
+  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks) do
+    def phish? = message.phish?
+    def opened? = actions.any?(&:open_message?)
+    def verified? = actions.any?(&:verify_sender?)
+    def reported? = actions.any?(&:report_message?)
+    def compromised? = compromises.any?
+    def near_miss? = near_misses.any?
+
+    def reported_at_minute
+      actions.find(&:report_message?)&.minute
+    end
+
+    # The headline for the debrief.
+    #   phish:      :compromised, :reported, :near_miss or :not_reported
+    #   legitimate: :reported_wrongly, :used or :left_alone
+    def outcome
+      if phish?
+        if compromised? then :compromised
+        elsif reported? then :reported
+        elsif near_miss? then :near_miss
+        else :not_reported
+        end
+      else
+        if reported? then :reported_wrongly
+        elsif completed_tasks.any? then :used
+        else :left_alone
+        end
+      end
+    end
+
+    def points
+      report_points + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED
+    end
+
+    def best_points
+      phish? ? REPORTED_PHISH : 0
+    end
+
+    def report_points
+      return 0 unless reported?
+
+      phish? ? REPORTED_PHISH : REPORTED_LEGIT
+    end
+  end
+
+  def initialize(shift:, actions:, arrived_by: nil)
     @shift = shift
     @actions = actions
+    @arrived_by = arrived_by
   end
 
   def productivity
@@ -29,15 +85,52 @@ class ShiftAttempt::Scorecard
   end
 
   def security
-    reports_score + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED
+    messages.sum(&:points)
   end
 
   def total
     [ productivity + security, 0 ].max
   end
 
+  def productivity_max
+    @shift.tasks.sum(&:points)
+  end
+
+  def security_max
+    messages.sum(&:best_points)
+  end
+
+  def total_max
+    productivity_max + security_max
+  end
+
+  def perfect?
+    productivity == productivity_max && security == security_max
+  end
+
+  # 0 to 3.
+  def stars
+    return 3 if perfect?
+    return 0 unless total_max.positive?
+
+    STAR_THRESHOLDS.count { |threshold| total >= total_max * threshold }.clamp(0, 2)
+  end
+
   def tasks
     @tasks ||= task_results(open: false)
+  end
+
+  # Every message that arrived during the shift, in the order it arrived.
+  def messages
+    @messages ||= arrived_messages.map { |message| message_result(message) }
+  end
+
+  def phishes
+    messages.select(&:phish?)
+  end
+
+  def message_result_for(key)
+    messages.find { |result| result.message.key == key }
   end
 
   # Meters shown in the header during a shift. They only reflect what the player already knows:
@@ -46,12 +139,11 @@ class ShiftAttempt::Scorecard
   # give the answer away.
   def productivity_meter
     earned = task_results(open: true).sum(&:points)
-    maximum = @shift.tasks.sum(&:points)
-    maximum.zero? ? 0 : (100 * earned / maximum).clamp(0, 100)
+    productivity_max.zero? ? 0 : (100 * earned / productivity_max).clamp(0, 100)
   end
 
   def security_meter
-    (100 + compromises.size * COMPROMISED).clamp(0, 100)
+    (100 + messages.sum { |result| result.compromises.size } * COMPROMISED).clamp(0, 100)
   end
 
   private
@@ -62,51 +154,47 @@ class ShiftAttempt::Scorecard
       @shift.tasks.map do |task|
         completion = completions[task.key]
         if completion.nil?
-          TaskResult.new(task:, status: :missed, points: open ? 0 : -(task.points / 2))
-        elsif completion.finished_at_minute <= task.due_at_minute
-          TaskResult.new(task:, status: :on_time, points: task.points)
+          TaskResult.new(task:, status: :missed, points: open ? 0 : -(task.points / 2), completed_at_minute: nil)
         else
-          TaskResult.new(task:, status: :late, points: task.points / 2)
+          finished = completion.finished_at_minute
+          on_time = finished <= task.due_at_minute
+          TaskResult.new(task:, status: on_time ? :on_time : :late, points: on_time ? task.points : task.points / 2,
+            completed_at_minute: finished)
         end
       end
     end
 
-    def reports_score
-      # A message removed by a later content import no longer counts either way.
-      first_actions(:report_message).keys.sum do |key|
-        message = messages[key]
-        next 0 unless message
-
-        message.legit? ? REPORTED_LEGIT : REPORTED_PHISH
-      end
+    # A message removed by a later content import no longer counts either way.
+    def arrived_messages
+      messages = @shift.messages.includes(:techniques, :red_flags, links: :task)
+      messages = messages.where(arrives_at_minute: ..@arrived_by) if @arrived_by
+      messages.sort_by { |message| [ message.arrives_at_minute, message.position ] }
     end
 
-    # Each trap the player fell for, once per page or file: [message key, source].
-    def compromises
-      @compromises ||= sources_of(ShiftAttempt::Compromisable::COMPROMISING_KINDS)
+    def message_result(message)
+      actions = @actions.select { |action| action.target_key == message.key }
+      compromises = tabs(message, actions, ShiftAttempt::Compromisable::COMPROMISING_KINDS)
+      # Each bait page or malware download the player opened without falling for it.
+      near_misses = tabs(message, actions, ShiftAttempt::Browsing::TAB_OPENERS).select(&:trap?)
+        .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
+
+      MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message))
     end
 
-    # Each bait page or malware download the player opened without falling for it.
-    def near_misses
-      @near_misses ||= sources_of(ShiftAttempt::Browsing::TAB_OPENERS).select { |source| trap?(*source) } - compromises
+    # The pages or files the given kinds of action happened on, once each. Uses the same rules as
+    # the page the browser showed, so scoring can't disagree with it.
+    def tabs(message, actions, kinds)
+      actions.select { |action| action.kind.in?(kinds) }.map(&:result).uniq
+        .map { |source| ShiftAttempt::Tab.new(message:, source:) }
     end
 
-    def sources_of(kinds)
-      @actions.select { |action| action.kind.in?(kinds) }.map { |action| [ action.target_key, action.result ] }.uniq
-    end
-
-    # Uses the same rules as the page the browser showed, so scoring can't disagree with it.
-    def trap?(message_key, source)
-      message = messages[message_key] or return false
-
-      ShiftAttempt::Tab.new(message:, source:).trap?
-    end
-
-    def messages
-      @messages ||= @shift.messages.includes(:links).index_by(&:key)
+    def completed_tasks(message)
+      done = first_actions(:complete_task)
+      message.links.select(&:outcome_completes_task?).map(&:task).select { |task| done.key?(task.key) }.uniq
     end
 
     def first_actions(kind)
-      @actions.select { |action| action.kind == kind.to_s }.uniq(&:target_key).index_by(&:target_key)
+      @first_actions ||= {}
+      @first_actions[kind] ||= @actions.select { |action| action.kind == kind.to_s }.uniq(&:target_key).index_by(&:target_key)
     end
 end

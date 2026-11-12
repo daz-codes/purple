@@ -28,7 +28,12 @@
   <div class="border-b border-purple-team/40 bg-purple-team-soft">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
       <p>Confirm your email address to start earning XP. Check your inbox for the link.</p>
-      <%= button_to "Resend email", email_confirmations_path, class: "underline cursor-pointer" %>
+      <div class="flex items-center gap-4">
+        <% if Rails.env.development? %>
+          <%= link_to "Open dev mailbox", "/letter_opener", target: "_blank", class: "underline" %>
+        <% end %>
+        <%= button_to "Resend email", email_confirmations_path, class: "underline cursor-pointer" %>
+      </div>
     </div>
   </div>
 <% end %>

@@ -1,0 +1,72 @@
+<% message = result.message %>
+<% verdict, tone = debrief_verdict(result) %>
+<li class="card space-y-4" data-testid="debrief-message">
+  <header class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="rounded-full border px-2 py-0.5 font-semibold <%= debrief_tone_classes(tone) %>" data-testid="debrief-verdict"><%= verdict %></span>
+        <span class="text-ink-muted">Arrived at minute <%= message.arrives_at_minute %></span>
+      </p>
+      <h3 class="mt-2 text-lg font-bold break-words"><%= message.subject.presence || "Message from #{message.from_name}" %></h3>
+      <p class="text-sm text-ink-muted break-words">
+        <%= message.from_name %> <span class="font-mono">&lt;<%= message.from_address %>&gt;</span>
+        <% if message.reply_to.present? %>
+          · replies go to <span class="font-mono"><%= message.reply_to %></span>
+        <% end %>
+      </p>
+    </div>
+    <p class="text-2xl font-extrabold tabular-nums <%= debrief_text_class(tone) %>" data-testid="debrief-points"
+       aria-label="<%= debrief_points(result.points) %> points"><%= debrief_points(result.points) %></p>
+  </header>
+
+  <div class="space-y-2" data-testid="debrief-story">
+    <% debrief_story(result).each do |sentence| %>
+      <p><%= sentence %></p>
+    <% end %>
+    <% if (verification = debrief_verification(result)) %>
+      <p class="text-sm text-ink-muted"><%= verification %></p>
+    <% end %>
+  </div>
+
+  <% if (lessons = debrief_lessons(result)).any? %>
+    <div class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3">
+      <p class="text-sm font-semibold text-purple-team">Next time</p>
+      <% lessons.each do |lesson| %>
+        <p class="mt-1"><%= lesson %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if result.phish? %>
+    <div class="grid gap-4 md:grid-cols-2">
+      <% if message.red_flags.any? %>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-red-team">The giveaways</h4>
+          <ul class="mt-2 space-y-2 text-sm">
+            <% message.red_flags.each do |flag| %>
+              <li><span class="font-semibold"><%= flag.label %>.</span> <%= flag.explanation %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <% if message.techniques.any? %>
+        <div>
+          <h4 class="text-sm font-semibold uppercase tracking-widest text-red-team">Red's playbook</h4>
+          <ul class="mt-2 space-y-2 text-sm">
+            <% message.techniques.sort_by(&:name).each do |technique| %>
+              <li>
+                <span class="font-semibold"><%= technique.name %></span>
+                <% if technique.attack_id %>
+                  <%= link_to technique.attack_id, technique.attack_url, target: "_blank", rel: "noopener noreferrer",
+                        class: "font-mono text-xs text-ink-muted underline", title: "MITRE ATT&CK #{technique.attack_id}" %>
+                <% end %>
+                <span class="block text-ink-muted"><%= technique.defence_tip %></span>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</li>

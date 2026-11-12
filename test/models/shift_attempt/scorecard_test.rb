@@ -82,12 +82,72 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
                                 action("close_landing", "fake_invoice", result: { "link" => "l1" })).security_meter
   end
 
+  test "the maximum is every task on time plus every phish that arrived, reported" do
+    card = scorecard
+
+    assert_equal 40, card.productivity_max
+    assert_equal 30, card.security_max
+    assert_equal 70, card.total_max
+  end
+
+  test "a phish that hadn't arrived when the shift ended isn't judged or counted in the maximum" do
+    card = scorecard(arrived_by: 2)
+
+    assert_equal [ "real_invoice" ], card.messages.map { |result| result.message.key }
+    assert_equal 0, card.security_max
+  end
+
+  test "a perfect shift earns three stars, and anything less is judged against the maximum" do
+    perfect = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"))
+    assert perfect.perfect?
+    assert_equal 3, perfect.stars
+
+    nearly = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"),
+                       action("open_attachment", "fake_invoice", result: { "attachment" => "a1" }))
+    assert_not nearly.perfect?
+    assert_equal 2, nearly.stars # 60 of 70
+
+    assert_equal 0, scorecard.stars
+  end
+
+  test "each message is judged on what the player did with it" do
+    file = { "attachment" => "a1" }
+
+    assert_equal :reported, outcome("fake_invoice", action("report_message", "fake_invoice"))
+    assert_equal :compromised, outcome("fake_invoice", action("open_attachment", "fake_invoice", result: file),
+                                       action("run_download", "fake_invoice", result: file), action("report_message", "fake_invoice"))
+    assert_equal :near_miss, outcome("fake_invoice", action("open_attachment", "fake_invoice", result: file))
+    assert_equal :not_reported, outcome("fake_invoice", action("open_message", "fake_invoice"))
+
+    assert_equal :reported_wrongly, outcome("real_invoice", action("report_message", "real_invoice"))
+    assert_equal :used, outcome("real_invoice", action("complete_task", "pay_supplier", minute: 5))
+    assert_equal :left_alone, outcome("real_invoice", action("open_message", "real_invoice"))
+  end
+
+  test "a message's points add up to the security score" do
+    file = { "attachment" => "a1" }
+    card = scorecard(action("open_attachment", "fake_invoice", result: file), action("report_message", "fake_invoice"))
+    result = card.message_result_for("fake_invoice")
+
+    assert_equal 20, result.points # reported, after a close call
+    assert_equal [ "Remittance_4471.pdf.exe" ], result.near_misses.map(&:file_name)
+    assert_equal card.security, card.messages.sum(&:points)
+  end
+
+  test "a completed task records the minute it was finished" do
+    assert_equal 7, scorecard(action("complete_task", "pay_supplier", minute: 5, cost: 2)).tasks.first.completed_at_minute
+  end
+
   private
+    def outcome(key, *actions)
+      scorecard(*actions).message_result_for(key).outcome
+    end
+
     def action(kind, target_key, minute: 0, cost: 0, result: {})
       AttemptAction.new(kind:, target_key:, minute:, cost_minutes: cost, result:)
     end
 
-    def scorecard(*actions)
-      ShiftAttempt::Scorecard.new(shift: @shift, actions:)
+    def scorecard(*actions, arrived_by: nil)
+      ShiftAttempt::Scorecard.new(shift: @shift, actions:, arrived_by:)
     end
 end
