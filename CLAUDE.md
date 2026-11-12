@@ -51,6 +51,9 @@ Rails connects over the default socket, so that doesn't matter for the app.
 - **Never send hidden answers to the browser** before the debrief: no `legit` flags, red-flag lists,
   link outcomes, task-to-link mappings or technique tags in HTML, data attributes, JSON or Turbo
   Streams. System tests assert this.
+- The browser refers to messages only by their neutral public ref (`m1`, `m2`…, from `position`), never
+  by their authored `key` (`fake_invoice` would give the answer away). Live meters show only what the
+  player already knows; whether a report was right waits for the debrief.
 - Anti-cheat: attempts are created server-side with a random token; actions must reference an open
   attempt owned by the current user; XP only for the first scored attempt per shift/target; actions
   after the clock runs out are rejected.

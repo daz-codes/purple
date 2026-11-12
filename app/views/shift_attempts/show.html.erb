@@ -1,0 +1,8 @@
+<% content_for :title, @attempt.shift.title %>
+
+<% if @attempt.open? %>
+  <% content_for :main_width, "max-w-[96rem]" %>
+  <%= render "shift_attempts/play", attempt: @attempt %>
+<% else %>
+  <%= render "shift_attempts/results", attempt: @attempt %>
+<% end %>

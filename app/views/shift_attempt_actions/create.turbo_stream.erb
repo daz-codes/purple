@@ -1,0 +1,5 @@
+<%= turbo_stream.replace "shift_status", partial: "shift_attempts/status_bar", locals: { attempt: @attempt } %>
+<%= turbo_stream.replace "shift_tasks", partial: "shift_attempts/tasks", locals: { attempt: @attempt } %>
+<%= turbo_stream.replace "shift_inbox", partial: "shift_attempts/inbox", locals: { attempt: @attempt } %>
+<%= turbo_stream.replace "shift_reader", partial: "shift_attempts/reader", locals: { attempt: @attempt } %>
+<%= turbo_stream.update "shift_notice", partial: "shift_attempts/notice", locals: { message: @notice, alert: false } %>

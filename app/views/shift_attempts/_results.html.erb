@@ -1,0 +1,49 @@
+<% result = attempt.scoring.call %>
+<% shift = attempt.shift %>
+
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
+  <%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= link_to shift.track.title, shift.track, class: "hover:text-ink" %>
+</nav>
+
+<section class="card border-purple-team/50" aria-labelledby="results-heading">
+  <p class="text-sm font-semibold uppercase tracking-widest text-purple-team">Shift over</p>
+  <h1 id="results-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= shift.title %></h1>
+  <p class="mt-2 text-ink-muted">
+    <%= attempt.timed_out? ? "Time's up: the clock reached minute #{attempt.clock_minutes}." : "You ended your shift at minute #{attempt.clock_minutes} of #{attempt.time_budget}." %>
+  </p>
+
+  <dl class="mt-6 grid gap-4 sm:grid-cols-3">
+    <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">
+      <dt class="text-sm text-ink-muted">Score</dt>
+      <dd class="text-4xl font-extrabold" data-testid="score"><%= attempt.score %></dd>
+    </div>
+    <div class="rounded-xl border border-line p-4">
+      <dt class="text-sm text-ink-muted">Productivity</dt>
+      <dd class="text-3xl font-bold" data-testid="productivity-score"><%= attempt.productivity_score %></dd>
+    </div>
+    <div class="rounded-xl border border-line p-4">
+      <dt class="text-sm text-ink-muted">Security</dt>
+      <dd class="text-3xl font-bold" data-testid="security-score"><%= attempt.security_score %></dd>
+    </div>
+  </dl>
+
+  <h2 class="mt-8 text-lg font-bold">Tasks</h2>
+  <ul class="mt-2 space-y-2">
+    <% result.tasks.each do |task_result| %>
+      <li class="flex flex-wrap justify-between gap-2 rounded-lg border border-line px-3 py-2">
+        <span><%= task_result.task.title %></span>
+        <span class="text-sm">
+          <%= { on_time: "On time", late: "Late", missed: "Missed" }.fetch(task_result.status) %>
+          (<%= task_result.points.positive? ? "+#{task_result.points}" : task_result.points %>)
+        </span>
+      </li>
+    <% end %>
+  </ul>
+
+  <p class="mt-6 text-ink-muted"><%= shift.learning_summary %></p>
+
+  <div class="mt-6 flex flex-wrap gap-3">
+    <%= button_to "Play again", shift_attempts_path(shift), class: "btn-blue" %>
+    <%= link_to "Back to #{shift.track.title}", shift.track, class: "btn-ghost" %>
+  </div>
+</section>

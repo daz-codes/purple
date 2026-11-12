@@ -1,0 +1,63 @@
+<% message = attempt.current_message %>
+<section id="shift_reader" class="card p-0 overflow-hidden min-h-[28rem]" aria-labelledby="reader-heading" data-controller="link-status">
+  <% if message %>
+    <% expanded = attempt.headers_expanded?(message) %>
+    <header class="p-5 border-b border-line">
+      <h2 id="reader-heading" class="text-xl font-bold"><%= message.subject.presence || "Message from #{message.from_name}" %></h2>
+
+      <dl class="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+        <dt class="text-ink-muted">From</dt>
+        <dd class="break-words"><strong><%= message.from_name %></strong><% if expanded %> <span class="font-mono">&lt;<%= message.from_address %>&gt;</span><% end %></dd>
+        <% if expanded %>
+          <% if message.reply_to.present? %>
+            <dt class="text-ink-muted">Reply-To</dt>
+            <dd class="font-mono break-words"><%= message.reply_to %></dd>
+          <% end %>
+          <% if message.to_address.present? %>
+            <dt class="text-ink-muted">To</dt>
+            <dd class="font-mono break-words"><%= message.to_address %></dd>
+          <% end %>
+        <% end %>
+        <dt class="text-ink-muted">Received</dt>
+        <dd>Minute <%= message.arrives_at_minute %></dd>
+      </dl>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <% unless expanded %>
+          <%= shift_action_button attempt, "expand_headers", "Show full headers", message: %>
+        <% end %>
+        <% unless attempt.sender_verified?(message) %>
+          <%= shift_action_button attempt, "verify_sender", "Call the sender back", message: %>
+        <% end %>
+        <%= shift_action_button attempt, "report_message", "Report phishing", message:, class: "btn-red" %>
+      </div>
+
+      <% if attempt.sender_verified?(message) %>
+        <% reply = attempt.actions.find { |action| action.verify_sender? && action.target_key == message.key }.result["reply"] %>
+        <p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm" data-testid="verify-result">
+          <span class="font-semibold">You called them on a number you already had.</span> <%= reply %>
+        </p>
+      <% end %>
+    </header>
+
+    <div class="message-body p-5"
+         data-action="mouseover->link-status#show mouseout->link-status#hide focusin->link-status#show focusout->link-status#hide">
+      <%= sanitize message.body_html, tags: Content::MessageBody::OUTPUT_TAGS, attributes: Content::MessageBody::OUTPUT_ATTRIBUTES %>
+    </div>
+
+    <% if message.visible_attachments.any? %>
+      <ul class="px-5 pb-5 flex flex-wrap gap-2" aria-label="Attachments">
+        <% message.visible_attachments.each do |attachment| %>
+          <li class="rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm" data-anchor="<%= attachment["id"] %>">
+            📎 <span class="font-medium"><%= attachment["name"] %></span> <span class="text-ink-muted"><%= attachment["size"] %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <p class="border-t border-line bg-surface-sunken px-5 py-2 font-mono text-xs text-ink-muted break-all" data-link-status-target="bar" hidden></p>
+  <% else %>
+    <h2 id="reader-heading" class="sr-only">Reading pane</h2>
+    <p class="p-8 text-center text-ink-muted">Pick a message from your inbox to read it.</p>
+  <% end %>
+</section>
