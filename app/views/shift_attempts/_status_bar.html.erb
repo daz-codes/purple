@@ -1,0 +1,32 @@
+<% scorecard = attempt.scorecard %>
+<% productivity = scorecard.productivity_meter %>
+<% security = scorecard.security_meter %>
+<header id="shift_status" class="card p-4 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_auto] md:items-center">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">On shift</p>
+    <h1 class="text-lg font-bold truncate"><%= attempt.shift.title %></h1>
+  </div>
+
+  <div>
+    <p class="flex justify-between text-sm"><span class="font-semibold">Clock</span><span data-testid="clock"><%= shift_clock_label(attempt) %></span></p>
+    <progress class="gauge gauge-clock mt-1" value="<%= attempt.clock_minutes %>" max="<%= attempt.time_budget %>" aria-label="Shift clock"><%= shift_clock_label(attempt) %></progress>
+  </div>
+
+  <div>
+    <p class="flex justify-between text-sm"><span class="font-semibold">Productivity</span><span data-testid="productivity"><%= productivity %>%</span></p>
+    <meter class="gauge gauge-productivity mt-1" min="0" max="100" value="<%= productivity %>" aria-label="Productivity"><%= productivity %>%</meter>
+  </div>
+
+  <div>
+    <p class="flex justify-between text-sm"><span class="font-semibold">Security</span><span data-testid="security"><%= security %>%</span></p>
+    <meter class="gauge gauge-security mt-1" min="0" max="100" value="<%= security %>" aria-label="Security"><%= security %>%</meter>
+  </div>
+
+  <div class="flex flex-wrap gap-2 md:justify-end">
+    <% if (next_arrival = attempt.next_arrival_minute) %>
+      <%= shift_action_button attempt, "Wait for new mail", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
+    <% end %>
+    <%= button_to "End shift", shift_attempt_completion_path(attempt), class: "btn-primary",
+          form: { data: { turbo_confirm: "End your shift now? Unfinished tasks count as missed." } } %>
+  </div>
+</header>

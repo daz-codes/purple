@@ -30,9 +30,21 @@ Rails connects over the default socket, so that doesn't matter for the app.
 
 ## Code conventions
 
-- Rails conventions throughout: RESTful controllers, models in `app/models`, and **plain Ruby objects**
-  for domain logic, namespaced under the model they serve (`Shift::Engine`, `Scoring::Calculator`,
-  `Workshop::Simulator`). No service-object framework or gem.
+- **37signals-style Rails. No service objects**: no `app/services`, no `*Service`/`*Engine`/`*Calculator`
+  doers, and no `.call` or `#perform` entry points.
+  - **Behaviour lives on the models, in concerns.** A model is a slim class that includes concerns named
+    for what they add, in `app/models/<model>/` (`ShiftAttempt::Clocked`, `::Inbox`, `::Reportable`,
+    `::Verifiable`, `::Finishable`). Moves are methods on the record:
+    `attempt.report(message)`, `attempt.wait_for_mail`, `attempt.end_shift`.
+  - **Plain objects are nouns** that answer questions, under the model they serve: e.g.
+    `ShiftAttempt::Scorecard` (`attempt.scorecard.total`), `Content::MessageBody.new(html).html`,
+    `Content::Import.new(root).run`. Later: `RedCampaign::Simulation` rather than `Workshop::Simulator`.
+- **Thin RESTful controllers.** Every move is its own resource with a `create` action of one line or
+  so (`ShiftAttempts::Messages::ReportsController` → `@attempt.report(@message)`). Shared behaviour
+  goes in controller concerns: `ShiftAttemptScoped`, `ShiftAttemptMessageScoped`, and `ShiftPlay`
+  (the Turbo Stream response, rejections and rate limit). No dispatching on a `kind` param.
+- Tests mirror the structure: one model test per concern (`test/models/shift_attempt/*_test.rb`) and
+  one controller test per controller.
 - Every feature ships with model/unit tests **and** at least one system test for the happy path.
 - DB constraints (NOT NULL, foreign keys, unique indexes) **as well as** model validations.
 - Enums are **string-backed** (`enum :status, { open: "open", ... }`), never integers.
@@ -51,6 +63,10 @@ Rails connects over the default socket, so that doesn't matter for the app.
 - **Never send hidden answers to the browser** before the debrief: no `legit` flags, red-flag lists,
   link outcomes, task-to-link mappings or technique tags in HTML, data attributes, JSON or Turbo
   Streams. System tests assert this.
+- The browser refers to messages only by `ShiftAttempt#message_ref`, an opaque HMAC of the attempt
+  token and message key that's stable across content re-imports and different in every attempt, never
+  by their authored `key` (`fake_invoice` would give the answer away). Live meters show only what the
+  player already knows; whether a report was right waits for the debrief.
 - Anti-cheat: attempts are created server-side with a random token; actions must reference an open
   attempt owned by the current user; XP only for the first scored attempt per shift/target; actions
   after the clock runs out are rejected.

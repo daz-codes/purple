@@ -16,6 +16,7 @@ class Shift < ApplicationRecord
   has_many :tasks, -> { order(:due_at_minute, :id) }, dependent: :destroy
   has_many :messages, -> { order(:position) }, dependent: :destroy
   has_many :hints, -> { order(:position) }, dependent: :destroy
+  has_many :shift_attempts, dependent: :restrict_with_exception
 
   scope :published, -> { where(published: true) }
 

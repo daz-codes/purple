@@ -1,0 +1,22 @@
+<% content_for :title, @track.title %>
+
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4"><%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= @track.title %></nav>
+
+<header class="mb-8">
+  <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight"><%= @track.title %></h1>
+  <p class="mt-3 max-w-2xl text-ink-muted"><%= @track.description %></p>
+</header>
+
+<ol class="space-y-4">
+  <% @shifts.each_with_index do |shift, index| %>
+    <li class="card flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">
+          Shift <%= index + 1 %> · <%= shift.kind_inbox? ? "Inbox" : "Messages" %> · <%= shift.time_budget_minutes %> minutes
+        </p>
+        <h2 class="mt-1 text-xl font-bold"><%= shift.title %></h2>
+      </div>
+      <%= link_to "Read the briefing", shift, class: "btn-blue" %>
+    </li>
+  <% end %>
+</ol>

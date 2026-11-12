@@ -1,0 +1,12 @@
+<%# SECRET-FREE ZONE: this screen is rendered mid-shift. Only show what the player can already see.
+    Never render a message's key, legit flag, links' outcomes or tasks, red flags, techniques or
+    attachment outcomes here (test/system/shift_play_test.rb checks the HTML). %>
+<div class="flex flex-col gap-4">
+  <%= render "shift_attempts/status_bar", attempt: %>
+  <div id="shift_notice" aria-live="polite"></div>
+  <div class="grid gap-4 lg:grid-cols-[16rem_22rem_minmax(0,1fr)] items-start">
+    <%= render "shift_attempts/tasks", attempt: %>
+    <%= render "shift_attempts/inbox", attempt: %>
+    <%= render "shift_attempts/reader", attempt: %>
+  </div>
+</div>

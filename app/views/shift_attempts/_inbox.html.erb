@@ -1,0 +1,43 @@
+<% inbox = attempt.inbox_messages %>
+<% current = attempt.current_message %>
+<section id="shift_inbox" class="card p-0 overflow-hidden" aria-labelledby="inbox-heading">
+  <h2 id="inbox-heading" class="px-4 py-3 border-b border-line text-lg font-bold">
+    Inbox <span class="text-sm font-normal text-ink-muted">(<%= inbox.size %>)</span>
+  </h2>
+
+  <% if inbox.empty? %>
+    <p class="px-4 py-6 text-sm text-ink-muted">Your inbox is empty.</p>
+  <% else %>
+    <ul class="divide-y divide-line">
+      <% inbox.each do |message| %>
+        <% unread = !attempt.opened?(message) %>
+        <li>
+          <%= button_to shift_attempt_message_reading_path(attempt, attempt.message_ref(message)),
+                class: "w-full text-left px-4 py-3 cursor-pointer hover:bg-surface #{"bg-surface-sunken" if message == current}",
+                aria: { current: message == current ? "true" : nil },
+                form: { class: "block" } do %>
+            <span class="flex items-baseline justify-between gap-2">
+              <span class="truncate <%= unread ? "font-bold" : "text-ink-muted" %>">
+                <% if unread %><span class="inline-block size-2 rounded-full bg-blue-team mr-1" aria-hidden="true"></span><span class="sr-only">Unread: </span><% end %><%= message.from_name %>
+              </span>
+              <span class="shrink-0 text-xs text-ink-muted">min <%= message.arrives_at_minute %></span>
+            </span>
+            <span class="block truncate text-sm <%= "font-semibold" if unread %>"><%= message.subject.presence || strip_tags(message.body_html).squish %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% reported = attempt.reported_messages %>
+  <% if reported.any? %>
+    <div class="border-t border-line px-4 py-3">
+      <h3 class="text-sm font-semibold text-ink-muted">Reported (<%= reported.size %>)</h3>
+      <ul class="mt-1 space-y-1 text-sm text-ink-muted">
+        <% reported.each do |message| %>
+          <li class="truncate line-through"><%= message.subject.presence || message.from_name %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+</section>

@@ -9,7 +9,7 @@ module Content
   # Everything is upserted by key or slug in a single transaction, so running it twice changes
   # nothing and any error leaves the database as it was. Tracks and shifts whose files have gone
   # are unpublished rather than deleted, so players' past attempts keep their history.
-  class Importer
+  class Import
     Summary = Data.define(:techniques, :badges, :tracks, :shifts, :messages) do
       def to_s
         "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{shifts} shifts and #{messages} messages."
@@ -21,15 +21,12 @@ module Content
     TRACK_KEYS = %i[ title description position difficulty published ].freeze
     TRACK_FILE = "_track.yml".freeze
 
-    def self.call(root = Rails.root.join("content"))
-      new(root).call
-    end
-
-    def initialize(root)
+    def initialize(root = Rails.root.join("content"))
       @root = Pathname(root)
     end
 
-    def call
+    # Imports everything and returns a Summary of what's now in the database.
+    def run
       ActiveRecord::Base.transaction do
         techniques = import_techniques
         badges = import_badges
@@ -93,7 +90,7 @@ module Content
               raise ImportError.new("a shift called #{clash.slug} already exists in the #{clash.track.slug} track",
                                     file: relative(file))
             end
-            shifts << ShiftImport.new(load(file), track:, techniques:).call
+            shifts << ShiftImport.new(load(file), track:, techniques:).run
           end
         end
 

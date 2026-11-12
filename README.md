@@ -36,6 +36,15 @@ bin/ci                   # rubocop, bundler-audit, importmap audit, brakeman and
 
 GitHub Actions runs the same checks on every push and pull request (`.github/workflows/ci.yml`).
 
+## Playing a shift
+
+Pick a track at `/tracks`, read a shift's briefing and start it. The play screen has the clock and
+two meters along the top, then your tasks, your inbox and the reading pane. Every move (reading a
+message, showing full headers, calling the sender back, reporting phishing, waiting for new mail,
+ending the shift) is a POST to its own small controller, which calls a method on the `ShiftAttempt`
+(`attempt.report(message)`). The attempt logs the move as an `AttemptAction`, moves the in-game clock
+on and the panes update by Turbo Stream. `ShiftAttempt::Scorecard` scores the log.
+
 ## Content authoring
 
 All game content is YAML in `content/`:

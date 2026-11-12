@@ -1,10 +1,10 @@
 require "test_helper"
 
-class Content::ImporterTest < ActiveSupport::TestCase
+class Content::ImportTest < ActiveSupport::TestCase
   # --- The content shipped in content/ ---------------------------------------------------
 
   test "the shipped content imports cleanly" do
-    summary = Content::Importer.call
+    summary = Content::Import.new.run
 
     assert_operator summary.techniques, :>=, 12
     assert_equal 9, summary.badges
@@ -13,16 +13,16 @@ class Content::ImporterTest < ActiveSupport::TestCase
   end
 
   test "importing twice changes nothing" do
-    Content::Importer.call
+    Content::Import.new.run
     before = snapshot
 
-    Content::Importer.call
+    Content::Import.new.run
 
     assert_equal before, snapshot
   end
 
   test "every shipped shift meets the starter content rules" do
-    Content::Importer.call
+    Content::Import.new.run
 
     Shift.where(slug: shipped_shift_slugs).each do |shift|
       assert_includes 4..8, shift.messages.count, "#{shift.slug} should have 4-8 messages"
@@ -76,7 +76,7 @@ class Content::ImporterTest < ActiveSupport::TestCase
     import!
     FileUtils.rm(@root.join("tracks/basics/month-end.yml"))
     write_yaml("tracks/basics/other.yml", valid_shift.merge("slug" => "other"))
-    Content::Importer.call(@root)
+    Content::Import.new(@root).run
 
     assert_not Shift.find_by!(slug: "month-end").published?
     assert Shift.find_by!(slug: "other").published?
@@ -173,7 +173,7 @@ class Content::ImporterTest < ActiveSupport::TestCase
     techniques["techniques"] << techniques["techniques"].first.merge("name" => "Another")
     write_yaml("techniques.yml", techniques)
     assert_raises(Content::ImportError, match: /techniques\.yml: technique keys must be unique \(lookalike_domain\)/) do
-      Content::Importer.call(@root)
+      Content::Import.new(@root).run
     end
 
     write_content
@@ -181,21 +181,21 @@ class Content::ImporterTest < ActiveSupport::TestCase
     badges["badges"] << badges["badges"].first.merge("name" => "Another")
     write_yaml("badges.yml", badges)
     assert_raises(Content::ImportError, match: /badges\.yml: badge keys must be unique \(first_catch\)/) do
-      Content::Importer.call(@root)
+      Content::Import.new(@root).run
     end
   end
 
   test "checks track, technique and badge text is fictional" do
     write_content
     write_yaml("tracks/basics/_track.yml", valid_track.merge("description" => "Phishing at realbank.com"))
-    assert_raises(Content::ImportError, match: %r{_track\.yml: description mentions names}) { Content::Importer.call(@root) }
+    assert_raises(Content::ImportError, match: %r{_track\.yml: description mentions names}) { Content::Import.new(@root).run }
 
     write_content
     write_yaml("badges.yml", "badges" => [
       { "key" => "first_catch", "name" => "Netflix Fan", "description" => "Report a phish.", "side" => "blue" }
     ])
     assert_raises(Content::ImportError, match: /badges\[0\] \(first_catch\): name mentions names .*Netflix/) do
-      Content::Importer.call(@root)
+      Content::Import.new(@root).run
     end
   end
 
@@ -203,7 +203,7 @@ class Content::ImporterTest < ActiveSupport::TestCase
     write_content
     FileUtils.rm_rf(@root.join("tracks"))
 
-    assert_raises(Content::ImportError, match: /no tracks folder found/) { Content::Importer.call(@root) }
+    assert_raises(Content::ImportError, match: /no tracks folder found/) { Content::Import.new(@root).run }
   end
 
   test "the summary counts messages across all shifts" do
@@ -214,14 +214,14 @@ class Content::ImporterTest < ActiveSupport::TestCase
     write_content
     @root.join("tracks/basics/month-end.yml").write("title: [unclosed")
 
-    assert_raises(Content::ImportError, match: %r{month-end\.yml: isn't valid YAML}) { Content::Importer.call(@root) }
+    assert_raises(Content::ImportError, match: %r{month-end\.yml: isn't valid YAML}) { Content::Import.new(@root).run }
   end
 
   test "rejects a track folder without _track.yml" do
     write_content
     @root.join("tracks/empty").mkpath
 
-    assert_raises(Content::ImportError, match: /tracks\/empty: is missing _track\.yml/) { Content::Importer.call(@root) }
+    assert_raises(Content::ImportError, match: /tracks\/empty: is missing _track\.yml/) { Content::Import.new(@root).run }
   end
 
   test "rejects the same shift slug in two tracks" do
@@ -230,7 +230,7 @@ class Content::ImporterTest < ActiveSupport::TestCase
     write_yaml("tracks/zzz/month-end.yml", valid_shift)
 
     assert_raises(Content::ImportError, match: /a shift called month-end already exists in the basics track/) do
-      Content::Importer.call(@root)
+      Content::Import.new(@root).run
     end
   end
 
@@ -238,13 +238,13 @@ class Content::ImporterTest < ActiveSupport::TestCase
     write_content
     @root.join("tracks/basics/_track.yml").write("base: &base\n  title: x\nother: *base\n")
 
-    assert_raises(Content::ImportError, match: /isn't valid YAML/) { Content::Importer.call(@root) }
+    assert_raises(Content::ImportError, match: /isn't valid YAML/) { Content::Import.new(@root).run }
   end
 
   private
     def import!
       write_content
-      Content::Importer.call(@root)
+      Content::Import.new(@root).run
     end
 
     def write_content

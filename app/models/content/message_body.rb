@@ -12,7 +12,6 @@ module Content
   # 4. Checks every URL, email address and host name is fictional (see ReservedNames).
   # 5. Runs the result through Rails' safe-list sanitizer as a second line of defence.
   class MessageBody
-    Result = Data.define(:html, :element_ids, :links)
     ExtractedLink = Data.define(:key, :href, :text)
 
     class Invalid < StandardError; end
@@ -26,26 +25,23 @@ module Content
       class role tabindex data-anchor data-controller data-action data-link-key data-display-url data-actual-url
     ].freeze
 
-    def self.call(html)
-      new(html).call
-    end
+    # html: the safe HTML to store and render. element_ids: every neutral anchor (p1…, l1…), for
+    # checking red flags. links: the extracted links, matched against the shift's link rules.
+    attr_reader :html, :element_ids, :links
 
-    def initialize(html)
-      @html = html.to_s
-    end
+    # Raises Invalid, naming the problem, if the authored body breaks any of the rules above.
+    def initialize(authored_html)
+      authored_html = authored_html.to_s
+      raise Invalid, "body is empty" if authored_html.strip.empty?
 
-    def call
-      raise Invalid, "body is empty" if @html.strip.empty?
-
-      fragment = Nokogiri::HTML5.fragment(@html)
+      fragment = Nokogiri::HTML5.fragment(authored_html)
       check_allowlist!(fragment)
       check_text_is_fictional!(fragment)
 
       anchors = assign_paragraph_anchors(fragment)
-      links = rewrite_links(fragment)
-      html = sanitize(fragment.to_html)
-
-      Result.new(html:, element_ids: anchors + links.map(&:key), links:)
+      @links = rewrite_links(fragment)
+      @element_ids = anchors + @links.map(&:key)
+      @html = sanitize(fragment.to_html)
     end
 
     private

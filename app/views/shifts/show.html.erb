@@ -1,0 +1,41 @@
+<% content_for :title, @shift.title %>
+
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
+  <%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= link_to @shift.track.title, @shift.track, class: "hover:text-ink" %>
+</nav>
+
+<div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start">
+  <section class="card border-red-team/50" aria-labelledby="briefing-heading">
+    <p class="text-sm font-semibold uppercase tracking-widest text-red-team">Briefing</p>
+    <h1 id="briefing-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= @shift.title %></h1>
+    <p class="mt-4 text-lg"><%= @shift.briefing %></p>
+    <p class="mt-4 text-ink-muted">
+      Red's campaign is somewhere in today's <%= @shift.kind_inbox? ? "inbox" : "messages" %>. Your job is still your job:
+      finish your tasks on time, and don't let the phishing through.
+    </p>
+  </section>
+
+  <aside class="card" aria-labelledby="day-heading">
+    <h2 id="day-heading" class="text-lg font-bold">Your day</h2>
+    <p class="mt-1 text-sm text-ink-muted"><%= @shift.time_budget_minutes %> in-game minutes. Reading is free; checking things costs time.</p>
+    <ul class="mt-4 space-y-2">
+      <% @shift.tasks.each do |task| %>
+        <li class="rounded-lg border border-line px-3 py-2">
+          <p class="font-medium"><%= task.title %></p>
+          <p class="text-sm text-ink-muted">Due by minute <%= task.due_at_minute %> · <%= task.points %> points</p>
+        </li>
+      <% end %>
+    </ul>
+
+    <div class="mt-6">
+      <% if @open_attempt %>
+        <%= link_to "Resume shift", @open_attempt, class: "btn-blue w-full" %>
+      <% elsif authenticated? %>
+        <%= button_to "Start shift", shift_attempts_path(@shift), class: "btn-blue w-full" %>
+      <% else %>
+        <%# Goes through a sign-in-only page, so signing in returns here without every briefing view setting return_to. %>
+        <%= link_to "Sign in to play", new_shift_attempt_path(@shift), class: "btn-blue w-full" %>
+      <% end %>
+    </div>
+  </aside>
+</div>
