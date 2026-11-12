@@ -42,6 +42,11 @@
         <% if reply["response"] %>
           <p class="max-w-[85%] rounded-2xl rounded-bl-sm bg-surface-raised px-4 py-2" data-testid="reply-response"><%= reply["response"] %></p>
         <% end %>
+        <% if reply["check"] %>
+          <p class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm" data-testid="reply-check">
+            <span class="font-semibold">You checked with someone you already trust.</span> <%= reply["check"] %>
+          </p>
+        <% end %>
       <% end %>
 
       <%= render "shift_attempts/reader/verification", attempt:, message: %>

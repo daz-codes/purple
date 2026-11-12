@@ -100,7 +100,7 @@ class DebriefsHelperTest < ActionView::TestCase
 
   test "handing over a code in a chat says what was sent, what it cost and what to do next time" do
     @shift = shifts(:site_visit)
-    sent = action("send_reply", "it_chat", minute: 4, result: { "reply" => "r1" })
+    sent = action("send_reply", "it_chat", minute: 4, result: messages(:it_chat).reply("r1"))
     result = result("it_chat", sent)
 
     assert_equal [ "Phish: you fell for it", :bad ], debrief_verdict(result)
@@ -111,10 +111,14 @@ class DebriefsHelperTest < ActionView::TestCase
 
   test "refusing, or checking with someone you trust, is called out as the right move" do
     @shift = shifts(:site_visit)
-    assert_includes story("it_chat", action("send_reply", "it_chat", result: { "reply" => "r2" })).join, "gave them nothing they could use"
+    assert_includes story("it_chat", action("send_reply", "it_chat", result: messages(:it_chat).reply("r2"))).join, "gave them nothing they could use"
 
-    checked = result("it_chat", action("send_reply", "it_chat", result: { "reply" => "r3" }), action("verify_sender", "it_chat"))
-    assert_equal "You checked with someone you already trust: “The IT service desk says that isn't them.”", debrief_verification(checked)
+    sent = action("send_reply", "it_chat", minute: 4,
+      result: messages(:it_chat).reply("r3").merge("check" => "The IT service desk says that isn't them."))
+    assert_equal "You checked with someone you already trust: “The IT service desk says that isn't them.”",
+      debrief_verification(result("it_chat", sent))
+    assert_equal [ 4, "Replied “I'll check with the service desk first.” to “IT Support (Larkhill)”, and checked with someone you trust", :good ],
+      debrief_timeline_entry(sent, scorecard(sent))
   end
 
   test "texts and chats are called what they are" do

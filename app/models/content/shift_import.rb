@@ -11,6 +11,9 @@ module Content
     LINK_KEYS = %i[ match outcome task landing ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
     REPLY_KEYS = %i[ text outcome response ].freeze
+    # An inbox shift is played in an email client and a messages shift on a phone, and each only shows
+    # its own kind of message.
+    CHANNELS = { "inbox" => %w[ email ], "messages" => %w[ sms chat ] }.freeze
     MAX_REPLIES = 4
     RED_FLAG_KEYS = %i[ key anchor points label explanation ].freeze
     HINT_KEYS = %i[ body penalty_percent ].freeze
@@ -106,7 +109,7 @@ module Content
 
       def import_message(node, position)
         node.allow_only!(*MESSAGE_KEYS)
-        channel = one_of(node, :channel, Message.channels.keys)
+        channel = one_of(node, :channel, CHANNELS.fetch(@shift.kind), hint: "#{@shift.kind} shifts")
         legit = node.required(:legit, Node::BOOLEAN)
         arrives = node.optional(:arrives_at_minute, Integer, default: 0)
         node.error!("arrives_at_minute (#{arrives}) must be from 0 to before the shift ends (#{time_budget})") unless arrives.between?(0, time_budget - 1)

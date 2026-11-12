@@ -159,20 +159,27 @@ class Content::ImportTest < ActiveSupport::TestCase
                                                /only phishing messages can imitate a task/ ],
       "imitating an unknown task" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives_at_minute" => 0) },
                                       /imitates "nope", which isn't in this shift's tasks/ ],
-      "an attachment on a text" => [ ->(s) { textify(s["messages"].last)["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
+      "an attachment on a text" => [ ->(s) { phone(s)["messages"].last["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
                                      /attachments are only for emails/ ],
       "replies on an email" => [ ->(s) { s["messages"].last["replies"] = chat_replies }, /replies are only for sms and chat messages/ ],
-      "a single reply" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
-      "five replies" => [ ->(s) { textify(s["messages"].last)["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
+      "a single reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
+      "five replies" => [ ->(s) { phone(s)["messages"].last["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
                           /from 2 to 4 options/ ],
       "a reply that hands over on a genuine message" => [
-        ->(s) { textify(s["messages"].first)["replies"] = chat_replies },
+        ->(s) { phone(s)["messages"].first["replies"] = chat_replies },
         /outcome must be one of safe, verify for legitimate messages \(got compromise\)/ ],
-      "an unknown reply outcome" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
+      "an unknown reply outcome" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
                                       /outcome must be one of safe, compromise, verify/ ],
-      "a repeated reply" => [ ->(s) { textify(s["messages"].last)["replies"] = [ chat_replies.first, chat_replies.first ] },
+      "a repeated reply" => [ ->(s) { phone(s)["messages"].last["replies"] = [ chat_replies.first, chat_replies.first ] },
                               /each reply needs different text/ ],
-      "a real brand in a reply" => [ ->(s) { textify(s["messages"].last)["replies"] = chat_replies.each { |r| r["response"] = "Sent from PayPal" } },
+      "a chat in an inbox shift" => [ ->(s) { s["messages"].last["channel"] = "chat" },
+                                      /channel must be one of email for inbox shifts \(got chat\)/ ],
+      "an email in a messages shift" => [ ->(s) { phone(s)["messages"].last.merge!("channel" => "email", "subject" => "Hi", "to_address" => "you@larkhill.example") },
+                                          /channel must be one of sms, chat for messages shifts \(got email\)/ ],
+      "a red flag on a text's reply_to, which the phone never shows" => [
+        ->(s) { phone(s)["messages"].last.merge!("reply_to" => "x@freemail.test")["red_flags"].first["anchor"] = "reply_to" },
+        /anchor "reply_to" doesn't exist/ ],
+      "a real brand in a reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["response"] = "Sent from PayPal" } },
                                      /response mentions names outside the reserved fictional set: PayPal/ ]
     }.each do |description, (mutate, message)|
       @shift = valid_shift
@@ -189,7 +196,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "a text or chat can offer canned replies, with neutral ids and outcomes kept on the server" do
-    textify(@shift["messages"].last)["replies"] = chat_replies
+    phone(@shift)["messages"].last["replies"] = chat_replies
     import!
 
     fake = Message.find_by!(key: "fake_invoice")
@@ -334,9 +341,11 @@ class Content::ImportTest < ActiveSupport::TestCase
       }
     end
 
-    # Turns a message from the valid shift into a chat message.
-    def textify(message)
-      message.merge!("channel" => "chat").except!("to_address", "subject")
+    # Turns the valid shift into a messages shift, played on a phone, with chats instead of emails.
+    def phone(shift)
+      shift["kind"] = "messages"
+      shift["messages"].each { |message| message.merge!("channel" => "chat").except!("to_address", "subject") }
+      shift
     end
 
     def chat_replies

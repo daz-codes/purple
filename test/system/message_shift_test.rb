@@ -32,10 +32,10 @@ class MessageShiftTest < ApplicationSystemTestCase
 
       click_on "I'll check with the service desk first. (1 min)"
       assert_selector "[data-testid=sent-reply]", text: "I'll check with the service desk first."
-      assert_selector "[data-testid=verify-result]", text: "The IT service desk says that isn't them."
+      assert_selector "[data-testid=reply-check]", text: "The IT service desk says that isn't them."
       assert_no_selector "[aria-label='Reply with']"
     end
-    assert_selector "[data-testid=clock]", text: "Minute 8 of 30" # 2 + 1 for the reply + 5 for the check
+    assert_selector "[data-testid=clock]", text: "Minute 3 of 30" # 2 + 1 for the reply: every reply costs the same
     assert_no_answers
 
     within("#shift_reader") { click_on "Report phishing (1 min)" }

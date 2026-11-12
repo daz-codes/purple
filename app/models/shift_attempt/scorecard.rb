@@ -33,7 +33,8 @@ class ShiftAttempt::Scorecard
 
   # What the player did with one message, and what it scored. compromises and near_misses are the
   # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links;
-  # flagged are the anchors the player left flagged; reply is the canned reply they sent, if any;
+  # flagged are the anchors the player left flagged; reply is the canned reply they sent, if any, as
+  # stored when it was sent (see ShiftAttempt::Replyable);
   # arrived is false for a message that came after the shift ended.
   MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks, :flagged, :reply,
     :arrived) do
@@ -41,8 +42,9 @@ class ShiftAttempt::Scorecard
     def arrived? = arrived
     def opened? = actions.any?(&:open_message?)
     def verified? = actions.any?(&:verify_sender?)
+    def checked_first? = reply&.dig("outcome") == "verify"
     def reported? = actions.any?(&:report_message?)
-    def gave_in? = reply&.fetch("outcome") == "compromise"
+    def gave_in? = ShiftAttempt::Replyable.gave_in?(reply)
     def compromised? = compromises.any? || gave_in?
     def near_miss? = near_misses.any?
 
@@ -189,18 +191,11 @@ class ShiftAttempt::Scorecard
   def security_meter
     compromises = @actions.select { |action| action.kind.in?(ShiftAttempt::Compromisable::COMPROMISING_KINDS) }
       .uniq { |action| [ action.target_key, action.result ] }
-    (100 + (compromises.size + compromising_replies) * COMPROMISED).clamp(0, 100)
+    replies = ShiftAttempt::Replyable.sent(@actions).values.count { |reply| ShiftAttempt::Replyable.gave_in?(reply) }
+    (100 + (compromises.size + replies) * COMPROMISED).clamp(0, 100)
   end
 
   private
-    # Replies that handed something over. Only looks up the messages when the player has replied.
-    def compromising_replies
-      replies = @actions.select(&:send_reply?)
-      return 0 if replies.empty?
-
-      messages = @shift.messages.where(key: replies.map(&:target_key)).index_by(&:key)
-      replies.count { |action| messages[action.target_key]&.reply(action.result["reply"])&.fetch("outcome") == "compromise" }
-    end
 
     # While the shift is open, a task that isn't done yet hasn't been missed.
     def task_results(open:)
@@ -237,7 +232,7 @@ class ShiftAttempt::Scorecard
         .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
 
       MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message),
-        flagged: ShiftAttempt::Flaggable.standing_anchors(actions), reply: sent_reply(message, actions),
+        flagged: ShiftAttempt::Flaggable.standing_anchors(actions), reply: ShiftAttempt::Replyable.sent(actions)[message.key],
         arrived: arrived?(message))
     end
 
@@ -246,10 +241,6 @@ class ShiftAttempt::Scorecard
     def tabs(message, actions, kinds)
       actions.select { |action| action.kind.in?(kinds) }.map(&:result).uniq
         .map { |source| ShiftAttempt::Tab.new(message:, source:) }
-    end
-
-    def sent_reply(message, actions)
-      message.reply(actions.find(&:send_reply?)&.result&.dig("reply"))
     end
 
     def completed_tasks(message)

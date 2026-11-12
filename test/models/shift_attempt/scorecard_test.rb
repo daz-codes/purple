@@ -184,7 +184,7 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
 
   test "handing over a code in a chat is a compromise" do
     @shift = shifts(:site_visit) # no tasks; it_chat is the phish, with one red flag worth 15
-    card = scorecard(action("send_reply", "it_chat", result: { "reply" => "r1" }), flag("it_chat", "p2"),
+    card = scorecard(reply("it_chat", "r1"), flag("it_chat", "p2"),
       action("report_message", "it_chat"))
 
     result = card.message_result_for("it_chat")
@@ -197,7 +197,7 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
 
   test "a safe reply, or checking first, costs nothing" do
     @shift = shifts(:site_visit)
-    card = scorecard(action("send_reply", "it_chat", result: { "reply" => "r3" }), action("send_reply", "sam_text", result: { "reply" => "r1" }))
+    card = scorecard(reply("it_chat", "r3"), reply("sam_text", "r1"))
 
     assert_not card.compromised?
     assert_equal({ "id" => "r1", "text" => "Sure, see you there", "outcome" => "safe", "response" => "Legend, thanks!" },
@@ -206,6 +206,11 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   end
 
   private
+    # A send_reply action as the game records it: a copy of the reply.
+    def reply(key, id)
+      action("send_reply", key, result: messages(key.to_sym).reply(id))
+    end
+
     def outcome(key, *actions)
       scorecard(*actions).message_result_for(key).outcome
     end

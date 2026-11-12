@@ -23,13 +23,19 @@ class Message < ApplicationRecord
 
   # The parts of the message a player can flag, by their neutral ids: the headers, then every
   # paragraph, link and attachment. Everything is flaggable, so this says nothing about which parts
-  # are red flags.
+  # are red flags. A text or chat on the phone shows only its sender and body, so those are all it has.
   #
   # The importer checks red flags against this list too, so the two can't disagree.
   def anchors
-    @anchors ||= [ "from", ("to" if to_address.present?), ("reply_to" if reply_to.present?), ("subject" if subject.present?) ].compact +
+    @anchors ||= header_anchors +
       Nokogiri::HTML5.fragment(body_html).css("[data-anchor]").map { |node| node["data-anchor"] } +
       attachments.map { |attachment| attachment["id"] }
+  end
+
+  def header_anchors
+    return [ "from" ] unless email?
+
+    [ "from", ("to" if to_address.present?), ("reply_to" if reply_to.present?), ("subject" if subject.present?) ].compact
   end
 
   # Header anchors only shown once the player has expanded the full headers.

@@ -6,11 +6,12 @@ class ShiftAttempt::ReplyableTest < ActiveSupport::TestCase
     @attempt.wait_for_mail
   end
 
-  test "sending a reply logs only its neutral id and shows the player what they said and what came back" do
+  test "sending a reply keeps a copy of it, and shows the player only what they said and what came back" do
     @attempt.send_reply(messages(:sam_text), "r1")
 
     action = @attempt.actions.last
-    assert_equal [ "send_reply", "sam_text", { "reply" => "r1" }, 1 ], [ action.kind, action.target_key, action.result, action.cost_minutes ]
+    assert_equal [ "send_reply", "sam_text", 1 ], [ action.kind, action.target_key, action.cost_minutes ]
+    assert_equal({ "id" => "r1", "text" => "Sure, see you there", "outcome" => "safe", "response" => "Legend, thanks!" }, action.result)
     assert @attempt.replied?(messages(:sam_text))
     assert_equal({ "text" => "Sure, see you there", "response" => "Legend, thanks!" }, @attempt.sent_reply(messages(:sam_text)))
     assert_equal 100, @attempt.scorecard.security_meter
@@ -31,21 +32,23 @@ class ShiftAttempt::ReplyableTest < ActiveSupport::TestCase
     assert_not @attempt.sender_verified?(messages(:it_chat))
   end
 
-  test "checking with the service desk is the same move as calling the sender back, and takes as long" do
+  test "checking with the service desk is one reply, costs what every reply costs, and gets the trusted answer" do
     @attempt.send_reply(messages(:it_chat), "r3")
 
-    assert_equal %w[ send_reply verify_sender ], @attempt.actions.last(2).map(&:kind)
-    assert @attempt.sender_verified?(messages(:it_chat))
-    assert_equal "The IT service desk says that isn't them.", @attempt.verification_reply(messages(:it_chat))
-    assert_equal 2 + 1 + 5, @attempt.clock_minutes
+    assert_equal [ "send_reply" ], @attempt.actions.last(1).map(&:kind)
+    assert_equal 2 + 1, @attempt.clock_minutes
+    assert_equal "The IT service desk says that isn't them.", @attempt.sent_reply(messages(:it_chat))["check"]
+    assert_not @attempt.sender_verified?(messages(:it_chat)), "it isn't calling the sender back"
   end
 
-  test "checking after you've already called them back only costs the reply" do
-    @attempt.verify_sender(messages(:it_chat))
-    @attempt.send_reply(messages(:it_chat), "r3")
+  test "a reply's score doesn't change when the content is re-imported" do
+    @attempt.send_reply(messages(:it_chat), "r1")
+    messages(:it_chat).update!(replies: messages(:it_chat).replies.reverse.each_with_index.map { |reply, i| reply.merge("id" => "r#{i + 1}") })
 
-    assert_equal 2 + 5 + 1, @attempt.clock_minutes
-    assert_equal 1, @attempt.actions.count(&:verify_sender?)
+    attempt = ShiftAttempt.find(@attempt.id)
+    assert attempt.handed_over?(messages(:it_chat))
+    assert_equal "Here it is: 482 913", attempt.sent_reply(messages(:it_chat))["text"]
+    assert_equal 50, attempt.scorecard.security_meter
   end
 
   test "one reply per message, and only one of its own options" do
@@ -56,11 +59,19 @@ class ShiftAttempt::ReplyableTest < ActiveSupport::TestCase
     assert_raises(ShiftAttempt::Rejected, match: /already replied/) { @attempt.send_reply(messages(:it_chat), "r1") }
   end
 
-  test "a check that won't fit in the time left sends nothing" do
-    @attempt.update!(clock_minutes: 25)
+  test "a reply that won't fit in the time left sends nothing" do
+    @attempt.update!(clock_minutes: 30)
 
-    assert_raises(ShiftAttempt::Rejected, match: /takes 6 min and you have 5/) { @attempt.send_reply(messages(:it_chat), "r3") }
+    assert_raises(ShiftAttempt::Rejected) { @attempt.send_reply(messages(:it_chat), "r3") }
     assert_not @attempt.reload.replied?(messages(:it_chat))
+  end
+
+  test "a reply that runs the clock out ends the shift with nothing logged after it" do
+    @attempt.update!(clock_minutes: 29)
+    @attempt.send_reply(messages(:it_chat), "r3")
+
+    assert @attempt.reload.timed_out?
+    assert_equal "send_reply", @attempt.actions.last.kind
   end
 
   test "you can't reply to a reported message" do

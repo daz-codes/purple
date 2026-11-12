@@ -145,8 +145,8 @@ module DebriefsHelper
   def debrief_verification(result)
     reply = result.message.verify_result.presence or return
 
-    if result.verified? && result.reply&.fetch("outcome") == "verify"
-      "You checked with someone you already trust: “#{reply}”"
+    if result.checked_first?
+      "You checked with someone you already trust: “#{result.reply["check"]}”"
     elsif result.verified?
       "You called the sender back: “#{reply}”"
     elsif result.outcome.in?(%i[ compromised near_miss not_reported reported_wrongly ])
@@ -183,12 +183,13 @@ module DebriefsHelper
         part = result ? anchor_label(result.message, action.result["anchor"]) : "part"
         [ "#{unflag ? "Took the flag off" : "Flagged"} #{part} in #{subject}", :neutral ]
       when "send_reply"
-        reply = result&.message&.reply(action.result["reply"])
-        [ "Replied “#{reply ? reply["text"] : "…"}” to #{subject}", reply&.fetch("outcome") == "compromise" ? :bad : :neutral ]
+        reply = action.result
+        tone = { "compromise" => :bad, "verify" => :good }.fetch(reply["outcome"], :neutral)
+        [ "Replied “#{reply["text"]}” to #{subject}#{", and checked with someone you trust" if reply["check"]}", tone ]
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "complete_task" then [ "Completed “#{task_title(scorecard, action.target_key)}”", :good ]
-      when "wait" then [ "Waited for new mail", :neutral ]
+      when "wait" then [ "Waited for new messages", :neutral ]
       when "end_shift" then [ "Ended the shift", :neutral ]
       else [ action.kind.humanize, :neutral ]
       end
@@ -225,7 +226,7 @@ module DebriefsHelper
 
   # What to call a message in a sentence: an email, a text or a chat message.
   def message_noun(message)
-    { "email" => "email", "sms" => "text", "chat" => "chat message" }.fetch(message.channel)
+    ShiftAttemptsHelper::CHANNEL_NAMES.fetch(message.channel).fetch(:noun)
   end
 
   private

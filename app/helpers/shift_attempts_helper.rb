@@ -20,9 +20,16 @@ module ShiftAttemptsHelper
     PANE_PARTIALS.fetch(attempt.shift.kind).fetch(pane)
   end
 
-  # What a text or chat app calls the channel. Chats come through the company's work chat app.
+  # Each channel's name: the label a phone app shows, and the noun for it in a sentence. Chats come
+  # through the company's work chat app.
+  CHANNEL_NAMES = {
+    "email" => { label: "Email", noun: "email" },
+    "sms" => { label: "Text message", noun: "text" },
+    "chat" => { label: "Workchat", noun: "chat message" }
+  }.freeze
+
   def channel_label(message)
-    { "sms" => "Text message", "chat" => "Workchat", "email" => "Email" }.fetch(message.channel)
+    CHANNEL_NAMES.fetch(message.channel).fetch(:label)
   end
 
   # The letter on a conversation's avatar: the sender's initial, or # for a bare number.
