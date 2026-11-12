@@ -1,0 +1,122 @@
+slug: first-day-at-contoso
+title: "First day at Contoso Finance"
+kind: inbox
+difficulty: beginner
+time_budget_minutes: 30
+position: 1
+briefing: >
+  Welcome to Contoso Finance! Before lunch you need to set your account password and fill in
+  your HR onboarding form. Red knows new starters are eager to please and don't yet know what
+  normal looks like. Expect your inbox to be busy.
+learning_summary: >
+  New starters are a favourite target because everything is unfamiliar. Check the domain after
+  the @ sign, see where a link really goes before clicking, and be wary of attachments you
+  weren't expecting.
+
+tasks:
+  - { key: set_password, title: "Set your account password on the IT portal", due_at_minute: 15, points: 30 }
+  - { key: onboarding_form, title: "Complete your HR onboarding form", due_at_minute: 25, points: 30 }
+
+messages:
+  - key: it_welcome
+    channel: email
+    arrives_at_minute: 0
+    legit: true
+    from_name: "Contoso IT Service Desk"
+    from_address: "servicedesk@contoso.example"
+    to_address: "you@contoso.example"
+    subject: "Welcome to Contoso: set up your account"
+    body_html: |
+      <p>Hi, and welcome to Contoso Finance.</p>
+      <p>Please set your account password on the IT portal this morning. You'll need your staff number, which is on your contract.</p>
+      <p><a href="https://itportal.contoso.example/setup/88213">Set up my account</a></p>
+      <p>Contoso IT Service Desk</p>
+    links:
+      - { match: "itportal.contoso.example", outcome: completes_task, task: set_password }
+    verify_result: "The IT service desk confirms they sent your welcome email."
+
+  - key: password_expiry
+    channel: email
+    arrives_at_minute: 2
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Contoso IT Support"
+    from_address: "it-support@contoso-helpdesk.example.net"
+    to_address: "you@contoso.example"
+    subject: "Action required: your password expires in 30 minutes"
+    body_html: |
+      <p>Your password will expire in 30 minutes and your account will be locked.</p>
+      <p>To keep access, confirm your current password now:</p>
+      <p><a href="https://itportal-contoso.example.net/reset">https://itportal.contoso.example/reset</a></p>
+      <p>IT Support Team</p>
+    links:
+      - { match: "itportal-contoso.example.net", outcome: bait_landing }
+    verify_result: "The IT service desk: \"That's not from us. New accounts don't have a password to expire yet.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "contoso-helpdesk.example.net is not contoso.example. Anyone can register a domain with a company's name in it." }
+      - { key: deadline, anchor: p1, points: 10, label: "Urgency or pressure",
+          explanation: "A 30-minute deadline and a threat to lock you out are there to stop you thinking." }
+      - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
+          explanation: "The text shows itportal.contoso.example, but the link goes to itportal-contoso.example.net." }
+
+  - key: hr_onboarding
+    channel: email
+    arrives_at_minute: 4
+    legit: true
+    from_name: "Contoso HR"
+    from_address: "hr@contoso.example"
+    to_address: "you@contoso.example"
+    subject: "Your onboarding form"
+    body_html: |
+      <p>Hello and welcome aboard!</p>
+      <p>Please complete your onboarding form today so we can set up your payroll and pension.</p>
+      <p><a href="https://hr.contoso.example/onboarding/5521">Open my onboarding form</a></p>
+      <p>You might also like to read the <a href="https://intranet.contoso.example/handbook">staff handbook</a> when you get a moment.</p>
+    links:
+      - { match: "hr.contoso.example", outcome: completes_task, task: onboarding_form }
+      - { match: "intranet.contoso.example", outcome: harmless }
+    verify_result: "HR confirms they sent your onboarding form."
+
+  - key: missed_delivery
+    channel: email
+    arrives_at_minute: 8
+    legit: false
+    techniques: [malicious_attachment, malware_download, urgency_pretext]
+    from_name: "ParcelPoint Deliveries"
+    from_address: "no-reply@parcelpoint-tracking.test"
+    to_address: "you@contoso.example"
+    subject: "We missed you: delivery note attached"
+    body_html: |
+      <p>Dear Customer,</p>
+      <p>We tried to deliver your parcel today but nobody was available to sign for it.</p>
+      <p>Open the attached delivery note to rebook within 24 hours, or your parcel will be returned to the sender.</p>
+    attachments:
+      - { name: "Delivery_Note_4471.pdf.exe", type: "application/x-msdownload", size: "312 KB", outcome: malware }
+    verify_result: "You haven't ordered anything, and your new desk address isn't on any delivery system yet."
+    red_flags:
+      - { key: generic_greeting, anchor: p1, points: 5, label: "Generic greeting",
+          explanation: "\"Dear Customer\" means they don't know who you are. It's your first day; who would be sending you parcels?" }
+      - { key: double_extension, anchor: a1, points: 15, label: "Disguised attachment",
+          explanation: "Delivery_Note_4471.pdf.exe ends in .exe: it's a program pretending to be a PDF." }
+      - { key: rebook_deadline, anchor: p3, points: 5, label: "Urgency or pressure",
+          explanation: "The 24-hour threat is there to make you open the file without thinking." }
+
+  - key: social_club
+    channel: email
+    arrives_at_minute: 12
+    legit: true
+    from_name: "Contoso Social Club"
+    from_address: "social@contoso.example"
+    to_address: "you@contoso.example"
+    subject: "Welcome drinks on Friday"
+    body_html: |
+      <p>We're having welcome drinks for this month's new starters on Friday at 5pm in the atrium.</p>
+      <p>Details are on the <a href="https://intranet.contoso.example/events/welcome-drinks">events page</a>. See you there!</p>
+    links:
+      - { match: "intranet.contoso.example", outcome: harmless }
+    verify_result: "The social club confirms Friday's drinks are happening."
+
+hints:
+  - { body: "Two emails talk about your password. Compare the domains after the @ sign very carefully.", penalty_percent: 20 }
+  - { body: "Look closely at the attachment's full file name, right to the end.", penalty_percent: 20 }

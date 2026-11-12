@@ -1,0 +1,7 @@
+basics:
+  slug: basics
+  title: Basics
+  description: The basics.
+  position: 1
+  difficulty: beginner
+  published: true

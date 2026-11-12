@@ -1,0 +1,48 @@
+# Badges players can earn. The rules that award them arrive in M8.
+# side: blue | red | purple (needs both) | any
+
+badges:
+  - key: first_catch
+    name: First Catch
+    description: Report your first phishing message.
+    side: blue
+
+  - key: eagle_eye
+    name: Eagle Eye
+    description: Flag every red flag in a shift without using a hint.
+    side: blue
+
+  - key: clean_shift
+    name: Clean Shift
+    description: Finish a shift with three stars.
+    side: blue
+
+  - key: productive_paranoid
+    name: Productive Paranoid
+    description: Complete every task and report every phish in a single shift.
+    side: blue
+
+  - key: near_miss_ninja
+    name: Near Miss Ninja
+    description: Spot and close three bait pages before entering anything.
+    side: blue
+
+  - key: seven_day_streak
+    name: 7-Day Streak
+    description: Play on seven days in a row.
+    side: any
+
+  - key: fooled_carol
+    name: Fooled Carol
+    description: Get a campaign past Careful Carol.
+    side: red
+
+  - key: budget_hacker
+    name: Budget Hacker
+    description: Earn three stars in the Workshop with half your budget left.
+    side: red
+
+  - key: purple_belt
+    name: Purple Belt
+    description: Earn three stars on a shift and on its matching Workshop target.
+    side: purple

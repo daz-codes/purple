@@ -1,0 +1,171 @@
+# The shared vocabulary of the Red and Blue sides. Each phishing message lists the techniques
+# it uses; Red's Workshop (M7) builds its cards from them.
+#
+# category:   pretext | sender | lure | payload | timing (one Workshop slot each)
+# attack_id:  MITRE ATT&CK technique, where one fits (timing tricks have none)
+# red_cost:   Workshop budget cost; stealth: 1 (obvious) to 10 (very hard to spot)
+
+techniques:
+  # --- Pretext: the story ---------------------------------------------------------------
+  - key: urgency_pretext
+    name: Urgency and pressure
+    attack_id: T1566
+    category: pretext
+    description: Invents a deadline or a threat so you act before you think.
+    defence_tip: Real deadlines survive a two-minute check. Slow down when a message rushes you.
+    red_cost: 1
+    stealth: 3
+    red_flag_label: Urgency or pressure
+
+  - key: authority_pretext
+    name: Authority impersonation
+    attack_id: T1656
+    category: pretext
+    description: Pretends to be a boss, executive or official so you don't question the request.
+    defence_tip: Senior people can be verified too. Use a channel you already trust, not the one in the message.
+    red_cost: 2
+    stealth: 5
+    red_flag_label: Impersonates a boss or authority
+
+  - key: payment_change_pretext
+    name: Changed payment details
+    attack_id: T1656
+    category: pretext
+    description: Claims a supplier's bank details have changed so the next payment goes to the attacker.
+    defence_tip: Always confirm bank detail changes by phone, using the number you already hold for the supplier.
+    red_cost: 3
+    stealth: 6
+    red_flag_label: Changed bank or payment details
+
+  - key: it_support_pretext
+    name: Fake IT support
+    attack_id: T1656
+    category: pretext
+    description: Poses as the helpdesk reporting a problem with your account, then asks you to "help fix it".
+    defence_tip: IT will never ask for your password or a one-time code. Contact the helpdesk through the IT portal.
+    red_cost: 2
+    stealth: 5
+    red_flag_label: Unexpected contact from "IT support"
+
+  # --- Sender: who it seems to come from ------------------------------------------------
+  - key: lookalike_domain
+    name: Lookalike domain
+    attack_id: T1583.001
+    category: sender
+    description: Registers a domain that looks like the real one, e.g. with an extra word or a swapped letter.
+    defence_tip: Read the domain after the @ (or in the link) from right to left. One character matters.
+    red_cost: 3
+    stealth: 6
+    red_flag_label: Lookalike sender domain
+
+  - key: display_name_spoof
+    name: Display name spoofing
+    attack_id: T1672
+    category: sender
+    description: Puts a trusted name in the "From" field while the real address is something else entirely.
+    defence_tip: Expand the sender to see the actual address. The display name proves nothing.
+    red_cost: 1
+    stealth: 3
+    red_flag_label: Display name doesn't match the address
+
+  - key: reply_to_mismatch
+    name: Reply-to redirect
+    attack_id: T1672
+    category: sender
+    description: Sets a different reply-to address so your answer goes straight to the attacker.
+    defence_tip: Check the full headers. If replies would go somewhere else, don't reply.
+    red_cost: 1
+    stealth: 5
+    red_flag_label: Replies go to a different address
+
+  - key: compromised_supplier
+    name: Compromised supplier account
+    attack_id: T1586.002
+    category: sender
+    description: Sends from a real supplier mailbox the attacker has broken into, so every header looks right.
+    defence_tip: A genuine address doesn't make a strange request genuine. Verify unusual requests out of band.
+    red_cost: 8
+    stealth: 9
+    red_flag_label: Unusual request from a known contact
+
+  # --- Lure: how you're hooked ----------------------------------------------------------
+  - key: malicious_link
+    name: Disguised link
+    attack_id: T1566.002
+    category: lure
+    description: Shows one address in the link text but sends you somewhere else.
+    defence_tip: Hover over (or long-press) links to see where they really go before you click.
+    red_cost: 1
+    stealth: 4
+    red_flag_label: Link text doesn't match its destination
+
+  - key: malicious_attachment
+    name: Malicious attachment
+    attack_id: T1566.001
+    category: lure
+    description: Attaches a file dressed up as an invoice or delivery note, often with a hidden double extension.
+    defence_tip: Don't open attachments you weren't expecting. Watch for names like .pdf.exe.
+    red_cost: 3
+    stealth: 5
+    red_flag_label: Unexpected or disguised attachment
+
+  - key: qr_lure
+    name: QR code lure
+    attack_id: T1566.002
+    category: lure
+    description: Hides the link in a QR code so email filters and hovering can't reveal it.
+    defence_tip: Treat QR codes in emails like links. Check the address your camera shows before opening it.
+    red_cost: 3
+    stealth: 7
+    red_flag_label: QR code instead of a link
+
+  - key: smishing
+    name: Smishing
+    attack_id: T1660
+    category: lure
+    description: Sends the lure by text message, where links are short and there's no hover.
+    defence_tip: Don't tap links in unexpected texts. Go to the organisation's app or website yourself.
+    red_cost: 2
+    stealth: 6
+    red_flag_label: Unexpected text with a link
+
+  # --- Payload: what the attacker gets --------------------------------------------------
+  - key: credential_harvest
+    name: Credential harvesting page
+    attack_id: T1056.003
+    category: payload
+    description: A fake sign-in page that captures whatever you type.
+    defence_tip: Check the address bar before typing a password. A padlock only means the connection is encrypted, not that the site is real.
+    red_cost: 2
+    stealth: 5
+    red_flag_label: Asks you to sign in from a link
+
+  - key: malware_download
+    name: Malware download
+    attack_id: T1204.002
+    category: payload
+    description: Gets you to open or run a file that installs malware.
+    defence_tip: Never enable content or run files from unexpected messages. Ask IT if you're unsure.
+    red_cost: 3
+    stealth: 4
+    red_flag_label: Asks you to download or open a file
+
+  - key: mfa_code_theft
+    name: One-time code theft
+    attack_id: T1111
+    category: payload
+    description: Tricks you into reading out a multi-factor code so the attacker can sign in as you.
+    defence_tip: Never share a one-time code with anyone, however official they seem.
+    red_cost: 4
+    stealth: 6
+    red_flag_label: Asks for a one-time code
+
+  # --- Timing: when it lands ------------------------------------------------------------
+  - key: end_of_day_rush
+    name: End-of-day rush
+    category: timing
+    description: Lands just before a deadline or home time, when people skim and click.
+    defence_tip: Notice when you're rushed. That's exactly when to take an extra look.
+    red_cost: 1
+    stealth: 5
+    red_flag_label: Arrives when you're busy
