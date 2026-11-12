@@ -1,3 +1,4 @@
+<%# The Purple debrief. Only rendered once the shift is over: it names the answers. %>
 <% scorecard = attempt.scorecard %>
 <% shift = attempt.shift %>
 
@@ -5,45 +6,98 @@
   <%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= link_to shift.track.title, shift.track, class: "hover:text-ink" %>
 </nav>
 
-<section class="card border-purple-team/50" aria-labelledby="results-heading">
-  <p class="text-sm font-semibold uppercase tracking-widest text-purple-team">Shift over</p>
-  <h1 id="results-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= shift.title %></h1>
-  <p class="mt-2 text-ink-muted">
-    <%= attempt.timed_out? ? "Time's up: the clock reached minute #{attempt.clock_minutes}." : "You ended your shift at minute #{attempt.clock_minutes} of #{attempt.time_budget}." %>
-  </p>
+<div class="space-y-6">
+  <section class="card border-purple-team/50" aria-labelledby="results-heading">
+    <p class="text-sm font-semibold uppercase tracking-widest text-purple-team">Purple debrief</p>
+    <h1 id="results-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= shift.title %></h1>
+    <p class="mt-2 text-ink-muted">
+      <%= attempt.timed_out? ? "Time's up: the clock reached minute #{attempt.clock_minutes}." : "You ended your shift at minute #{attempt.clock_minutes} of #{attempt.time_budget}." %>
+    </p>
 
-  <dl class="mt-6 grid gap-4 sm:grid-cols-3">
-    <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">
-      <dt class="text-sm text-ink-muted">Score</dt>
-      <dd class="text-4xl font-extrabold" data-testid="score"><%= attempt.score %></dd>
+    <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span class="text-3xl"><%= debrief_stars(scorecard.stars) %></span>
+      <p class="font-semibold" data-testid="debrief-headline"><%= debrief_headline(scorecard) %></p>
     </div>
-    <div class="rounded-xl border border-line p-4">
-      <dt class="text-sm text-ink-muted">Productivity</dt>
-      <dd class="text-3xl font-bold" data-testid="productivity-score"><%= attempt.productivity_score %></dd>
+
+    <dl class="mt-6 grid gap-4 sm:grid-cols-3">
+      <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">
+        <dt class="text-sm text-ink-muted">Score</dt>
+        <dd><span class="text-4xl font-extrabold" data-testid="score"><%= attempt.score %></span>
+          <span class="text-ink-muted">out of <%= scorecard.total_max %></span></dd>
+      </div>
+      <div class="rounded-xl border border-line p-4">
+        <dt class="text-sm text-ink-muted">Productivity</dt>
+        <dd><span class="text-3xl font-bold" data-testid="productivity-score"><%= attempt.productivity_score %></span>
+          <span class="text-ink-muted">out of <%= scorecard.productivity_max %></span></dd>
+        <dd class="mt-1 text-xs text-ink-muted">Your tasks: full points on time, half if late, minus half if not done.</dd>
+      </div>
+      <div class="rounded-xl border border-line p-4">
+        <dt class="text-sm text-ink-muted">Security</dt>
+        <dd><span class="text-3xl font-bold" data-testid="security-score"><%= attempt.security_score %></span>
+          <span class="text-ink-muted">out of <%= scorecard.security_max %></span></dd>
+        <dd class="mt-1 text-xs text-ink-muted">
+          <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH) %> per phish reported,
+          <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_LEGIT) %> per genuine email reported,
+          <%= debrief_points(ShiftAttempt::Scorecard::NEAR_MISS) %> per close call,
+          <%= debrief_points(ShiftAttempt::Scorecard::COMPROMISED) %> each time you fell for one.
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="messages-heading">
+    <h2 id="messages-heading" class="text-xl font-bold">Message by message</h2>
+    <p class="mt-1 text-sm text-ink-muted">Everything that landed in your inbox, in the order it arrived.</p>
+    <ol class="mt-4 space-y-4">
+      <% scorecard.messages.each do |result| %>
+        <%= render "shift_attempts/debrief/message", result: %>
+      <% end %>
+    </ol>
+  </section>
+
+  <section class="card" aria-labelledby="tasks-heading">
+    <h2 id="tasks-heading" class="text-xl font-bold">Your tasks</h2>
+    <ul class="mt-3 space-y-2">
+      <% scorecard.tasks.each do |task_result| %>
+        <% tone = { on_time: :good, late: :warn, missed: :bad }.fetch(task_result.status) %>
+        <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2" data-testid="debrief-task">
+          <span>
+            <span class="font-medium"><%= task_result.task.title %></span>
+            <span class="block text-sm text-ink-muted"><%= debrief_task_timing(task_result) %></span>
+          </span>
+          <span class="rounded-full border px-2 py-0.5 text-sm font-semibold <%= debrief_tone_classes(tone) %>">
+            <%= { on_time: "On time", late: "Late", missed: "Missed" }.fetch(task_result.status) %>
+            <%= debrief_points(task_result.points) %>
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="timeline-heading">
+    <details>
+      <summary class="cursor-pointer">
+        <h2 id="timeline-heading" class="inline text-xl font-bold">Your shift, minute by minute</h2>
+      </summary>
+      <ol class="mt-4 space-y-1 text-sm" data-testid="debrief-timeline">
+        <% attempt.actions.each do |action| %>
+          <% minute, description, tone = debrief_timeline_entry(action, scorecard) %>
+          <li class="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
+            <span class="text-ink-muted tabular-nums">Min <%= minute %></span>
+            <span class="<%= debrief_text_class(tone) %>"><%= description %></span>
+          </li>
+        <% end %>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card border-purple-team/50" aria-labelledby="takeaway-heading">
+    <h2 id="takeaway-heading" class="text-xl font-bold">Take this with you</h2>
+    <p class="mt-2"><%= shift.learning_summary %></p>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      <%= button_to "Play again", shift_attempts_path(shift), class: "btn-blue" %>
+      <%= link_to "Back to #{shift.track.title}", shift.track, class: "btn-ghost" %>
     </div>
-    <div class="rounded-xl border border-line p-4">
-      <dt class="text-sm text-ink-muted">Security</dt>
-      <dd class="text-3xl font-bold" data-testid="security-score"><%= attempt.security_score %></dd>
-    </div>
-  </dl>
-
-  <h2 class="mt-8 text-lg font-bold">Tasks</h2>
-  <ul class="mt-2 space-y-2">
-    <% scorecard.tasks.each do |task_result| %>
-      <li class="flex flex-wrap justify-between gap-2 rounded-lg border border-line px-3 py-2">
-        <span><%= task_result.task.title %></span>
-        <span class="text-sm">
-          <%= { on_time: "On time", late: "Late", missed: "Missed" }.fetch(task_result.status) %>
-          (<%= task_result.points.positive? ? "+#{task_result.points}" : task_result.points %>)
-        </span>
-      </li>
-    <% end %>
-  </ul>
-
-  <p class="mt-6 text-ink-muted"><%= shift.learning_summary %></p>
-
-  <div class="mt-6 flex flex-wrap gap-3">
-    <%= button_to "Play again", shift_attempts_path(shift), class: "btn-blue" %>
-    <%= link_to "Back to #{shift.track.title}", shift.track, class: "btn-ghost" %>
-  </div>
-</section>
+  </section>
+</div>

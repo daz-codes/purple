@@ -21,7 +21,7 @@ class ShiftBrowserTest < ApplicationSystemTestCase
 
     # It was the only task, so the shift ends on time.
     assert_text "You ended your shift at minute 2 of 30."
-    assert_text "On time (+40)"
+    within("[data-testid=debrief-task]") { assert_text "On time +40" }
   end
 
   test "a near miss: open the lookalike sign-in page, read the address bar and close the tab" do
