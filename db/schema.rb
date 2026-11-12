@@ -10,10 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_12_100000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_12_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
+
+  create_table "attempt_actions", force: :cascade do |t|
+    t.bigint "shift_attempt_id", null: false
+    t.string "kind", null: false
+    t.string "target_key"
+    t.integer "minute", null: false
+    t.integer "cost_minutes", default: 0, null: false
+    t.jsonb "result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
+    t.index ["shift_attempt_id"], name: "index_attempt_actions_on_shift_attempt_id"
+    t.check_constraint "cost_minutes >= 0", name: "attempt_actions_cost_non_negative"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'hover_link'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'report_message'::character varying, 'flag_element'::character varying, 'complete_task'::character varying, 'use_hint'::character varying, 'wait'::character varying, 'end_shift'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "minute >= 0", name: "attempt_actions_minute_non_negative"
+  end
 
   create_table "badges", force: :cascade do |t|
     t.string "key", null: false
@@ -111,6 +126,34 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_100000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "shift_attempts", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "shift_id", null: false
+    t.string "token", null: false
+    t.string "status", default: "open", null: false
+    t.integer "clock_minutes", default: 0, null: false
+    t.integer "productivity_score"
+    t.integer "security_score"
+    t.integer "score"
+    t.integer "hints_used", default: 0, null: false
+    t.datetime "started_at", null: false
+    t.datetime "completed_at"
+    t.boolean "scored", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
+    t.index ["token"], name: "index_shift_attempts_on_token", unique: true
+    t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"
+    t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_scored_per_shift", unique: true, where: "scored"
+    t.index ["user_id"], name: "index_shift_attempts_on_user_id"
+    t.check_constraint "(status::text = 'open'::text) = (completed_at IS NULL)", name: "shift_attempts_completed_at_when_finished"
+    t.check_constraint "(status::text = 'open'::text) = (score IS NULL)", name: "shift_attempts_score_when_finished"
+    t.check_constraint "NOT scored OR status::text <> 'open'::text", name: "shift_attempts_scored_only_when_finished"
+    t.check_constraint "clock_minutes >= 0", name: "shift_attempts_clock_non_negative"
+    t.check_constraint "hints_used >= 0", name: "shift_attempts_hints_used_non_negative"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'timed_out'::character varying]::text[])", name: "shift_attempts_status"
+  end
+
   create_table "shifts", force: :cascade do |t|
     t.bigint "track_id", null: false
     t.string "slug", null: false
@@ -203,6 +246,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_100000) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "attempt_actions", "shift_attempts"
   add_foreign_key "hints", "shifts"
   add_foreign_key "links", "messages"
   add_foreign_key "links", "tasks"
@@ -211,6 +255,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_12_100000) do
   add_foreign_key "messages", "shifts"
   add_foreign_key "red_flags", "messages"
   add_foreign_key "sessions", "users"
+  add_foreign_key "shift_attempts", "shifts"
+  add_foreign_key "shift_attempts", "users"
   add_foreign_key "shifts", "tracks"
   add_foreign_key "tasks", "shifts"
   add_foreign_key "user_badges", "badges"
