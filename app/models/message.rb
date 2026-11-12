@@ -17,21 +17,8 @@ class Message < ApplicationRecord
   validates :position, numericality: { only_integer: true }
   validates :arrives_at_minute, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
-  PUBLIC_REF_FORMAT = /\Am(\d+)\z/
-
-  def self.find_by_public_ref(ref)
-    position = ref.to_s[PUBLIC_REF_FORMAT, 1]
-    find_by(position: position.to_i) if position
-  end
-
   def phish?
     !legit?
-  end
-
-  # The only identifier the browser sees. Keys are authored and descriptive ("fake_invoice"), so
-  # they'd give the answer away; the position in the shift doesn't.
-  def public_ref
-    "m#{position}"
   end
 
   # Attachment details that are safe to show. Each attachment's outcome stays on the server.

@@ -65,8 +65,11 @@ module Scoring
       def reports_score
         messages = @shift.messages.index_by(&:key)
 
+        # A message removed by a later content import no longer counts either way.
         first_actions(:report_message).keys.sum do |key|
-          message = messages.fetch(key)
+          message = messages[key]
+          next 0 unless message
+
           message.legit? ? REPORTED_LEGIT : REPORTED_PHISH
         end
       end

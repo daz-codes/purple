@@ -33,7 +33,8 @@
       <% elsif authenticated? %>
         <%= button_to "Start shift", shift_attempts_path(@shift), class: "btn-blue w-full" %>
       <% else %>
-        <%= link_to "Sign in to play", new_session_path, class: "btn-blue w-full" %>
+        <%# Goes through a sign-in-only page, so signing in returns here without every briefing view setting return_to. %>
+        <%= link_to "Sign in to play", new_shift_attempt_path(@shift), class: "btn-blue w-full" %>
       <% end %>
     </div>
   </aside>

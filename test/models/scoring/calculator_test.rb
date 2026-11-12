@@ -37,6 +37,10 @@ class Scoring::CalculatorTest < ActiveSupport::TestCase
     assert_equal(-15, score(action("report_message", "real_invoice")).security)
   end
 
+  test "a report of a message that no longer exists counts for nothing" do
+    assert_equal 0, score(action("report_message", "deleted_by_reimport")).security
+  end
+
   test "a compromise costs 50" do
     assert_equal(-50, score(action("submit_credentials", "fake_invoice")).security)
   end

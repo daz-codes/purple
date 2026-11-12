@@ -7,7 +7,7 @@ class ShiftAttemptActionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "an action updates the clock, meters and panes with Turbo Streams" do
-    post shift_attempt_actions_path(@attempt), params: { kind: "expand_headers", message: "m1" }, as: :turbo_stream
+    post shift_attempt_actions_path(@attempt), params: { kind: "expand_headers", message: ref(:real_invoice) }, as: :turbo_stream
 
     assert_response :success
     assert_equal 1, @attempt.reload.clock_minutes
@@ -23,7 +23,7 @@ class ShiftAttemptActionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a rejected action changes nothing and says why" do
-    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: "m2" }, as: :turbo_stream
+    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: ref(:fake_invoice) }, as: :turbo_stream
 
     assert_response :unprocessable_content
     assert_select "turbo-stream[target=shift_notice] template", text: "That message isn't in your inbox."
@@ -31,14 +31,14 @@ class ShiftAttemptActionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "without Turbo the player is sent back to the play screen" do
-    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: "m1" }
+    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: ref(:real_invoice) }
 
     assert_redirected_to shift_attempt_path(@attempt)
   end
 
   test "an action that ends the shift goes to the results" do
     @attempt.update!(clock_minutes: 29)
-    post shift_attempt_actions_path(@attempt), params: { kind: "expand_headers", message: "m1" }, as: :turbo_stream
+    post shift_attempt_actions_path(@attempt), params: { kind: "expand_headers", message: ref(:real_invoice) }, as: :turbo_stream
 
     assert_redirected_to shift_attempt_path(@attempt)
     assert @attempt.reload.timed_out?
@@ -46,7 +46,7 @@ class ShiftAttemptActionsControllerTest < ActionDispatch::IntegrationTest
 
   test "players can't act on someone else's attempt" do
     sign_in_as users(:two)
-    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: "m1" }
+    post shift_attempt_actions_path(@attempt), params: { kind: "open_message", message: ref(:real_invoice) }
 
     assert_response :not_found
     assert_empty @attempt.attempt_actions
@@ -62,4 +62,9 @@ class ShiftAttemptActionsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=score]", "0"
     assert_select "h1", "Month-end"
   end
+
+  private
+    def ref(message)
+      @attempt.message_ref(messages(message))
+    end
 end

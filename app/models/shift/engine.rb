@@ -18,7 +18,7 @@ class Shift
       @attempt = attempt
     end
 
-    # kind: one of PLAYER_ACTIONS. message_ref: the message's public ref (m1, m2…) for message actions.
+    # kind: one of PLAYER_ACTIONS. message_ref: ShiftAttempt#message_ref of the message, for message actions.
     # Returns the recorded AttemptAction.
     def perform(kind, message_ref: nil)
       kind = kind.to_s
@@ -46,7 +46,7 @@ class Shift
       attempt.with_lock do
         ensure_open!
         record("end_shift", cost: 0)
-        finish!(:completed)
+        finish!(:completed) # does nothing if recording the action already ended the shift
       end
     end
 
@@ -107,15 +107,21 @@ class Shift
         action
       end
 
+      # A task is resolved when it's done, or when every message that could complete it has been
+      # reported. A task with no completing link at all isn't resolved: that's broken content, and
+      # it mustn't end the shift.
       def all_tasks_resolved?
         tasks = attempt.shift.tasks.includes(links: :message)
         tasks.any? && tasks.all? do |task|
+          completing = task.links.select(&:outcome_completes_task?)
           attempt.task_completed?(task) ||
-            task.links.select(&:outcome_completes_task?).all? { |link| attempt.reported?(link.message) }
+            (completing.any? && completing.all? { |link| attempt.reported?(link.message) })
         end
       end
 
       def finish!(status)
+        return unless attempt.open?
+
         result = attempt.scoring.call
         attempt.update!(status:, completed_at: Time.current, productivity_score: result.productivity,
                         security_score: result.security, score: result.total, scored: first_scored_attempt?)
@@ -123,7 +129,8 @@ class Shift
 
       # XP (from M8) is only for confirmed players' first finished attempt at each shift.
       def first_scored_attempt?
-        attempt.user.earns_xp? && !attempt.user.shift_attempts.scored.exists?(shift_id: attempt.shift_id)
+        attempt.user.earns_xp? &&
+          !attempt.user.shift_attempts.scored.where.not(id: attempt.id).exists?(shift_id: attempt.shift_id)
       end
   end
 end

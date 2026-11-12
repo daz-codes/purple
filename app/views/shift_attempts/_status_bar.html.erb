@@ -1,4 +1,6 @@
 <% scoring = attempt.scoring %>
+<% productivity = scoring.productivity_meter %>
+<% security = scoring.security_meter %>
 <header id="shift_status" class="card p-4 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_auto] md:items-center">
   <div class="min-w-0">
     <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">On shift</p>
@@ -11,13 +13,13 @@
   </div>
 
   <div>
-    <p class="flex justify-between text-sm"><span class="font-semibold">Productivity</span><span data-testid="productivity"><%= scoring.productivity_meter %>%</span></p>
-    <meter class="gauge gauge-productivity mt-1" min="0" max="100" value="<%= scoring.productivity_meter %>" aria-label="Productivity"><%= scoring.productivity_meter %>%</meter>
+    <p class="flex justify-between text-sm"><span class="font-semibold">Productivity</span><span data-testid="productivity"><%= productivity %>%</span></p>
+    <meter class="gauge gauge-productivity mt-1" min="0" max="100" value="<%= productivity %>" aria-label="Productivity"><%= productivity %>%</meter>
   </div>
 
   <div>
-    <p class="flex justify-between text-sm"><span class="font-semibold">Security</span><span data-testid="security"><%= scoring.security_meter %>%</span></p>
-    <meter class="gauge gauge-security mt-1" min="0" max="100" value="<%= scoring.security_meter %>" aria-label="Security"><%= scoring.security_meter %>%</meter>
+    <p class="flex justify-between text-sm"><span class="font-semibold">Security</span><span data-testid="security"><%= security %>%</span></p>
+    <meter class="gauge gauge-security mt-1" min="0" max="100" value="<%= security %>" aria-label="Security"><%= security %>%</meter>
   </div>
 
   <div class="flex flex-wrap gap-2 md:justify-end">

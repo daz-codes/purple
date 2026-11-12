@@ -13,7 +13,7 @@ Rails.application.routes.draw do
   # Blue: tracks of shifts, and the attempts that play them.
   resources :tracks, only: %i[ index show ]
   resources :shifts, only: :show do
-    resources :attempts, only: :create, controller: "shift_attempts"
+    resources :attempts, only: %i[ new create ], controller: "shift_attempts"
   end
   resources :shift_attempts, path: "attempts", param: :token, only: :show do
     resources :actions, only: :create, controller: "shift_attempt_actions"

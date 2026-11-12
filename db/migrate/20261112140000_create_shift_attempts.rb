@@ -13,6 +13,8 @@ class CreateShiftAttempts < ActiveRecord::Migration[8.2]
       t.string :token, null: false
       t.string :status, null: false, default: "open"
       t.integer :clock_minutes, null: false, default: 0
+      # Copied from the shift at the start, so re-imported content can't move the end of the day.
+      t.integer :time_budget_minutes, null: false
       # Scores stay NULL until the shift ends, so nothing about them can leak mid-shift.
       t.integer :productivity_score
       t.integer :security_score
@@ -30,6 +32,8 @@ class CreateShiftAttempts < ActiveRecord::Migration[8.2]
       t.index %i[ user_id shift_id ], unique: true, where: "status = 'open'", name: "index_shift_attempts_one_open_per_shift"
       t.check_constraint "status IN ('open', 'completed', 'timed_out')", name: "shift_attempts_status"
       t.check_constraint "clock_minutes >= 0", name: "shift_attempts_clock_non_negative"
+      t.check_constraint "time_budget_minutes > 0", name: "shift_attempts_time_budget_positive"
+      t.check_constraint "clock_minutes <= time_budget_minutes", name: "shift_attempts_clock_within_budget"
       t.check_constraint "hints_used >= 0", name: "shift_attempts_hints_used_non_negative"
       t.check_constraint "(status = 'open') = (completed_at IS NULL)", name: "shift_attempts_completed_at_when_finished"
       t.check_constraint "(status = 'open') = (score IS NULL)", name: "shift_attempts_score_when_finished"
@@ -37,7 +41,8 @@ class CreateShiftAttempts < ActiveRecord::Migration[8.2]
     end
 
     create_table :attempt_actions do |t|
-      t.references :shift_attempt, null: false, foreign_key: true
+      # No single-column index: the [shift_attempt_id, id] index below covers lookups by attempt.
+      t.references :shift_attempt, null: false, foreign_key: true, index: false
       t.string :kind, null: false
       t.string :target_key
       t.integer :minute, null: false

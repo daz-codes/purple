@@ -6,11 +6,11 @@ class ShiftAttemptActionsController < ApplicationController
     with: -> { reject "You're clicking too fast. Wait a moment and try again." }
 
   def create
-    arrived_before = @attempt.arrived_messages.count
+    arrived_before = @attempt.arrived_messages.size
     Shift::Engine.new(@attempt).perform(params[:kind], message_ref: params[:message])
     return redirect_to(@attempt, status: :see_other) if @attempt.finished?
 
-    @notice = new_mail_notice(@attempt.arrived_messages.count - arrived_before)
+    @notice = new_mail_notice(@attempt.arrived_messages.size - arrived_before)
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to @attempt, notice: @notice }

@@ -16,9 +16,10 @@ class ShiftAttempt < ApplicationRecord
   scope :finished, -> { where.not(status: :open) }
   scope :scored, -> { where(scored: true) }
 
-  before_validation -> { self.started_at ||= Time.current }, on: :create
+  before_validation :set_defaults, on: :create
 
   validates :clock_minutes, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
+  validates :time_budget_minutes, numericality: { only_integer: true, greater_than: 0 }
   validate :clock_within_time_budget
 
   def self.start(user:, shift:)
@@ -35,8 +36,10 @@ class ShiftAttempt < ApplicationRecord
     !open?
   end
 
+  # Fixed when the attempt starts, so re-importing the shift with a shorter day can't strand an
+  # attempt that's already past the new end.
   def time_budget
-    shift.time_budget_minutes
+    time_budget_minutes
   end
 
   def minutes_left
@@ -45,15 +48,33 @@ class ShiftAttempt < ApplicationRecord
 
   # Messages that have landed in the inbox so far, newest first, as a mail client shows them.
   def arrived_messages
-    shift.messages.where(arrives_at_minute: ..clock_minutes).reorder(arrives_at_minute: :desc, position: :desc)
+    @arrived_messages ||= shift.messages.where(arrives_at_minute: ..clock_minutes)
+      .reorder(arrives_at_minute: :desc, position: :desc).to_a
   end
 
   def inbox_messages
     arrived_messages.reject { |message| reported?(message) }
   end
 
-  def find_arrived_message(public_ref)
-    arrived_messages.find_by_public_ref(public_ref)
+  def reported_messages
+    arrived_messages.select { |message| reported?(message) }
+  end
+
+  # The only identifier for a message that the browser sees. Authored keys are descriptive
+  # ("fake_invoice") and positions change when content is re-imported, so the ref is an HMAC of
+  # the attempt's token and the message's key: opaque, stable for the whole attempt, and
+  # different in every attempt, so players can't share "m3 is the phish".
+  def message_ref(message)
+    OpenSSL::HMAC.hexdigest("SHA256", self.class.message_ref_secret, "#{token}:#{message.key}").first(16)
+  end
+
+  def find_arrived_message(ref)
+    ref = ref.to_s
+    arrived_messages.find { |message| ActiveSupport::SecurityUtils.secure_compare(message_ref(message), ref) }
+  end
+
+  def self.message_ref_secret
+    @message_ref_secret ||= Rails.application.key_generator.generate_key("shift_attempt/message_ref", 32)
   end
 
   def next_arrival_minute
@@ -62,9 +83,11 @@ class ShiftAttempt < ApplicationRecord
 
   # The message in the reading pane: the last one opened, unless it has since been reported.
   def current_message
+    return @current_message if defined?(@current_message)
+
     key = actions.reverse_each.find(&:open_message?)&.target_key
-    message = shift.messages.find_by(key:) if key
-    message unless message.nil? || reported?(message)
+    message = arrived_messages.find { |arrived| arrived.key == key } if key
+    @current_message = message unless message.nil? || reported?(message)
   end
 
   def opened?(message) = done?(:open_message, message.key)
@@ -86,18 +109,23 @@ class ShiftAttempt < ApplicationRecord
   end
 
   def reload(*)
-    @actions = nil
-    @done = nil
+    @actions = @done = @arrived_messages = nil
+    remove_instance_variable(:@current_message) if defined?(@current_message)
     super
   end
 
   private
+    def set_defaults
+      self.started_at ||= Time.current
+      self.time_budget_minutes ||= shift&.time_budget_minutes
+    end
+
     def done?(kind, target_key)
       @done ||= actions.each_with_object(Set.new) { |action, done| done << [ action.kind, action.target_key ] }
       @done.include?([ kind.to_s, target_key ])
     end
 
     def clock_within_time_budget
-      errors.add(:clock_minutes, "can't run past the end of the shift") if shift && clock_minutes.to_i > time_budget
+      errors.add(:clock_minutes, "can't run past the end of the shift") if time_budget && clock_minutes.to_i > time_budget
     end
 end

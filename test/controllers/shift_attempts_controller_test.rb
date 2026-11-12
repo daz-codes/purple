@@ -31,7 +31,7 @@ class ShiftAttemptsControllerTest < ActionDispatch::IntegrationTest
   test "the play screen contains no answers" do
     attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
     Shift::Engine.new(attempt).perform("wait")
-    Shift::Engine.new(attempt).perform("open_message", message_ref: "m2")
+    Shift::Engine.new(attempt).perform("open_message", message_ref: attempt.message_ref(messages(:fake_invoice)))
     sign_in_as users(:one)
 
     get shift_attempt_path(attempt)
