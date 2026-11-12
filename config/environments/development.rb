@@ -31,8 +31,9 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Open sent emails in the browser instead of delivering them.
-  config.action_mailer.delivery_method = :letter_opener
+  # Keep sent emails in tmp/letter_opener and read them in the app at /letter_opener, instead of
+  # delivering them or opening files (which macOS may hand to an editor rather than a browser).
+  config.action_mailer.delivery_method = :letter_opener_web
   config.action_mailer.perform_deliveries = true
 
   # Don't care if the mailer can't send.
