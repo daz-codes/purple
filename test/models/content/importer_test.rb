@@ -143,6 +143,15 @@ class Content::ImporterTest < ActiveSupport::TestCase
       "an unknown kind" => [ ->(s) { s["kind"] = "voice" }, /kind must be one of inbox, messages/ ],
       "an email without a subject" => [ ->(s) { s["messages"].first.delete("subject") }, /subject is required for emails/ ],
       "duplicate message keys" => [ ->(s) { s["messages"].last["key"] = "real_invoice" }, /message keys must be unique/ ],
+      "a real domain on an uncommon TLD" => [ ->(s) { s["briefing"] = "Log in at realbank.co.za" },
+                                              /briefing mentions names outside the reserved fictional set: realbank\.co\.za/ ],
+      "a real domain in the shift title" => [ ->(s) { s["title"] = "Month-end at realbank.com" }, /title mentions names/ ],
+      "a real brand in a red flag label" => [ ->(s) { s["messages"].last["red_flags"].first["label"] = "Not really PayPal" },
+                                              /label mentions names outside the reserved fictional set: PayPal/ ],
+      "a real brand as an SMS sender" => [ ->(s) { s["messages"].first["from_address"] = "PayPal" },
+                                           /from_address "PayPal" must be a fictional address/ ],
+      "a repeated technique" => [ ->(s) { s["messages"].last["techniques"] = %w[ lookalike_domain lookalike_domain ] },
+                                  /messages\[1\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
       "an unknown action cost" => [ ->(s) { s["action_costs"] = { "teleport" => 1 } }, /unknown action: teleport/ ]
     }.each do |description, (mutate, message)|
       @shift = valid_shift
@@ -151,6 +160,54 @@ class Content::ImporterTest < ActiveSupport::TestCase
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match message, error.message, "wrong error for #{description}"
     end
+  end
+
+  test "a legitimate message may list an empty red_flags" do
+    @shift["messages"].first["red_flags"] = []
+    assert_nothing_raised { import! }
+  end
+
+  test "rejects duplicate technique and badge keys" do
+    write_content
+    techniques = YAML.load_file(@root.join("techniques.yml"))
+    techniques["techniques"] << techniques["techniques"].first.merge("name" => "Another")
+    write_yaml("techniques.yml", techniques)
+    assert_raises(Content::ImportError, match: /techniques\.yml: technique keys must be unique \(lookalike_domain\)/) do
+      Content::Importer.call(@root)
+    end
+
+    write_content
+    badges = YAML.load_file(@root.join("badges.yml"))
+    badges["badges"] << badges["badges"].first.merge("name" => "Another")
+    write_yaml("badges.yml", badges)
+    assert_raises(Content::ImportError, match: /badges\.yml: badge keys must be unique \(first_catch\)/) do
+      Content::Importer.call(@root)
+    end
+  end
+
+  test "checks track, technique and badge text is fictional" do
+    write_content
+    write_yaml("tracks/basics/_track.yml", valid_track.merge("description" => "Phishing at realbank.com"))
+    assert_raises(Content::ImportError, match: %r{_track\.yml: description mentions names}) { Content::Importer.call(@root) }
+
+    write_content
+    write_yaml("badges.yml", "badges" => [
+      { "key" => "first_catch", "name" => "Netflix Fan", "description" => "Report a phish.", "side" => "blue" }
+    ])
+    assert_raises(Content::ImportError, match: /badges\[0\] \(first_catch\): name mentions names .*Netflix/) do
+      Content::Importer.call(@root)
+    end
+  end
+
+  test "a missing tracks folder is a friendly error" do
+    write_content
+    FileUtils.rm_rf(@root.join("tracks"))
+
+    assert_raises(Content::ImportError, match: /no tracks folder found/) { Content::Importer.call(@root) }
+  end
+
+  test "the summary counts messages across all shifts" do
+    assert_equal 2, import!.messages
   end
 
   test "rejects invalid YAML with the file name" do

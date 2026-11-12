@@ -36,42 +36,51 @@ module Content
         tracks, shifts = import_tracks(techniques)
 
         Summary.new(techniques: techniques.size, badges: badges.size, tracks: tracks.size, shifts: shifts.size,
-                    messages: shifts.sum { |shift| shift.messages.count })
+                    messages: Message.where(shift: shifts).count)
       end
     end
 
     private
       def import_techniques
-        load(@root.join("techniques.yml")).each_item(:techniques) do |node|
+        file = load(@root.join("techniques.yml"))
+        techniques = file.each_item(:techniques) do |node|
           node.allow_only!(*TECHNIQUE_KEYS)
           technique = Technique.find_or_initialize_by(key: node.required(:key))
           node.saving do
             technique.update!(
-              name: node.required(:name), attack_id: node.optional(:attack_id),
-              category: node.required(:category), description: node.required(:description),
-              defence_tip: node.required(:defence_tip), red_cost: node.required(:red_cost, Integer),
-              stealth: node.required(:stealth, Integer), red_flag_label: node.required(:red_flag_label)
+              name: fictional_text(node, :name), attack_id: node.optional(:attack_id),
+              category: node.required(:category), description: fictional_text(node, :description),
+              defence_tip: fictional_text(node, :defence_tip), red_cost: node.required(:red_cost, Integer),
+              stealth: node.required(:stealth, Integer), red_flag_label: fictional_text(node, :red_flag_label)
             )
           end
           technique
-        end.index_by(&:key)
+        end
+        file.check_unique!("technique", techniques.map(&:key))
+        techniques.index_by(&:key)
       end
 
       def import_badges
-        load(@root.join("badges.yml")).each_item(:badges) do |node, index|
+        file = load(@root.join("badges.yml"))
+        badges = file.each_item(:badges) do |node, index|
           node.allow_only!(*BADGE_KEYS)
           badge = Badge.find_or_initialize_by(key: node.required(:key))
           node.saving do
-            badge.update!(name: node.required(:name), description: node.required(:description),
+            badge.update!(name: fictional_text(node, :name), description: fictional_text(node, :description),
                           side: node.required(:side), position: index + 1)
           end
           badge
         end
+        file.check_unique!("badge", badges.map(&:key))
+        badges
       end
 
       def import_tracks(techniques)
-        track_dirs = @root.join("tracks").children.select(&:directory?).sort
-        raise ImportError.new("no track folders found in #{@root.join("tracks")}") if track_dirs.empty?
+        tracks_dir = @root.join("tracks")
+        raise ImportError.new("no tracks folder found at #{relative(tracks_dir)}") unless tracks_dir.directory?
+
+        track_dirs = tracks_dir.children.select(&:directory?).sort
+        raise ImportError.new("no track folders found in #{relative(tracks_dir)}") if track_dirs.empty?
 
         tracks = []
         shifts = []
@@ -101,12 +110,16 @@ module Content
         node.allow_only!(*TRACK_KEYS)
         track = Track.find_or_initialize_by(slug: dir.basename.to_s)
         node.saving do
-          track.update!(title: node.required(:title), description: node.required(:description),
+          track.update!(title: fictional_text(node, :title), description: fictional_text(node, :description),
                         position: node.optional(:position, Integer, default: 0),
                         difficulty: node.required(:difficulty),
                         published: node.optional(:published, Node::BOOLEAN, default: true))
         end
         track
+      end
+
+      def fictional_text(node, key)
+        node.check_fictional!(key, node.required(key))
       end
 
       def load(file)

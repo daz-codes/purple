@@ -55,6 +55,18 @@ module Content
       end
     end
 
+    # Fails unless text is fiction only: no real or unreserved URLs, addresses, host names or brands.
+    def check_fictional!(key, text)
+      unreserved = ReservedNames.unreserved_names_in(text)
+      error!("#{key} mentions names outside the reserved fictional set: #{unreserved.join(", ")}") if unreserved.any?
+      text
+    end
+
+    def check_unique!(label, keys)
+      repeated = keys.tally.select { |_, count| count > 1 }.keys
+      error!("#{label} keys must be unique (#{repeated.join(", ")})") if repeated.any?
+    end
+
     def error!(message, path: self.path)
       raise ImportError.new(message, file:, location: path.join(" → "))
     end

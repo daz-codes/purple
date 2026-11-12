@@ -49,7 +49,7 @@ module Content
       def shift_attributes
         {
           track: @track,
-          title: @node.required(:title),
+          title: fictional(@node, :title, @node.required(:title)),
           kind: one_of(@node, :kind, Shift.kinds.keys),
           difficulty: one_of(@node, :difficulty, Shift.difficulties.keys),
           time_budget_minutes: positive(@node, :time_budget_minutes),
@@ -83,7 +83,7 @@ module Content
           task
         end
 
-        @node.error!("task keys must be unique (#{duplicates(tasks.map(&:key)).join(", ")})") if duplicates(tasks.map(&:key)).any?
+        @node.check_unique!("task", tasks.map(&:key))
         @shift.tasks.where.not(id: tasks.map(&:id)).each { |stale| stale.links.destroy_all && stale.destroy! }
         tasks.index_by(&:key)
       end
@@ -94,7 +94,7 @@ module Content
         messages = @node.each_item(:messages) { |message_node, index| import_message(message_node, index + 1) }
 
         keys = messages.map(&:key)
-        @node.error!("message keys must be unique (#{duplicates(keys).join(", ")})") if duplicates(keys).any?
+        @node.check_unique!("message", keys)
         @node.error!("needs at least one phishing message (legit: false)") if messages.all?(&:legit?)
         @shift.messages.where.not(id: messages.map(&:id)).destroy_all
       end
@@ -215,9 +215,12 @@ module Content
           node.error!("phishing messages need at least one technique") if keys.empty?
         end
 
-        message.techniques = keys.map do |key|
+        node.check_unique!("technique", keys.map(&:to_s))
+
+        techniques = keys.map do |key|
           @techniques.fetch(key.to_s) { node.error!("unknown technique \"#{key}\" (known: #{@techniques.keys.sort.join(", ")})") }
         end
+        node.saving { message.techniques = techniques }
       end
 
       def available_anchors(message, body, attachments)
@@ -229,7 +232,7 @@ module Content
       end
 
       def import_red_flags(node, message, anchors:)
-        has_flags = node.key?(:red_flags)
+        has_flags = node.optional(:red_flags, Array, default: []).any?
         node.error!("legitimate messages can't have red flags") if message.legit? && has_flags
         node.error!("phishing messages need at least one red flag") if message.phish? && !has_flags
 
@@ -243,13 +246,13 @@ module Content
           flag = message.red_flags.find_or_initialize_by(key: flag_node.required(:key))
           flag_node.saving do
             flag.update!(anchor:, points: positive(flag_node, :points),
-                         label: flag_node.required(:label),
+                         label: fictional(flag_node, :label, flag_node.required(:label)),
                          explanation: fictional(flag_node, :explanation, flag_node.required(:explanation)))
           end
           flag
         end
 
-        node.error!("red flag keys must be unique") if duplicates(flags.map(&:key)).any?
+        node.check_unique!("red flag", flags.map(&:key))
         message.red_flags.where.not(id: flags.map(&:id)).destroy_all
       end
 
@@ -304,13 +307,7 @@ module Content
       end
 
       def fictional(node, key, text)
-        unreserved = ReservedNames.unreserved_names_in(text)
-        node.error!("#{key} mentions names outside the reserved fictional set: #{unreserved.join(", ")}") if unreserved.any?
-        text
-      end
-
-      def duplicates(values)
-        values.tally.select { |_, count| count > 1 }.keys
+        node.check_fictional!(key, text)
       end
   end
 end

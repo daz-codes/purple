@@ -7,17 +7,21 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
     <p><a href="https://contoso-portal.example.net/login">https://portal.contoso.example/invoices/4471</a></p>
   HTML
 
-  test "assigns neutral ids to every paragraph, list item and link" do
+  test "assigns neutral anchors to every paragraph, list item and link" do
     result = Content::MessageBody.call(BODY)
 
     assert_equal %w[ p1 p2 p3 l1 ], result.element_ids
     html = Nokogiri::HTML5.fragment(result.html)
-    assert_equal %w[ p1 p2 p3 ], html.css("p, li").map { |node| node["id"] }
+    assert_equal %w[ p1 p2 p3 ], html.css("p, li").map { |node| node["data-anchor"] }
+  end
+
+  test "uses no DOM ids, so two message bodies on one page can't clash" do
+    assert_empty Nokogiri::HTML5.fragment(Content::MessageBody.call(BODY).html).css("[id]")
   end
 
   test "replaces links with spans that carry no real href" do
     result = Content::MessageBody.call(BODY)
-    span = Nokogiri::HTML5.fragment(result.html).at_css("span#l1")
+    span = Nokogiri::HTML5.fragment(result.html).at_css(%(span[data-anchor="l1"]))
 
     assert_not_includes result.html, "<a"
     assert_not_includes result.html, "href"
@@ -70,6 +74,19 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
 
   test "rejects real names in the text" do
     assert_raises(Content::MessageBody::Invalid, match: /realbank\.com/) { Content::MessageBody.call("<p>Log in at realbank.com</p>") }
+  end
+
+  test "reads separate block elements as separate words" do
+    assert_nothing_raised { Content::MessageBody.call("<ul><li>Contoso</li><li>example.com</li></ul>") }
+    assert_nothing_raised { Content::MessageBody.call("<p>Contoso</p><p>example.com</p>") }
+  end
+
+  test "reads inline elements as joined, as they render" do
+    assert_raises(Content::MessageBody::Invalid, match: /realbank\.com/) { Content::MessageBody.call("<p>real<b>bank.com</b></p>") }
+  end
+
+  test "rejects real brands in the text" do
+    assert_raises(Content::MessageBody::Invalid, match: /PayPal/) { Content::MessageBody.call("<p>Your PayPal account is locked</p>") }
   end
 
   test "rejects an empty body" do

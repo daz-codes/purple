@@ -9,7 +9,7 @@ real_invoice:
   from_address: accounts@northwind.example
   to_address: you@contoso.example
   subject: Invoice ready
-  body_html: <p id="p1"><span id="l1" class="fake-link" data-link-key="l1">Review</span></p>
+  body_html: <p data-anchor="p1"><span data-anchor="l1" class="fake-link" data-link-key="l1">Review</span></p>
 
 fake_invoice:
   shift: month_end
@@ -22,4 +22,4 @@ fake_invoice:
   from_address: accounts@northwind-billing.example
   to_address: you@contoso.example
   subject: URGENT invoice
-  body_html: <p id="p1"><span id="l1" class="fake-link" data-link-key="l1">Pay now</span></p>
+  body_html: <p data-anchor="p1"><span data-anchor="l1" class="fake-link" data-link-key="l1">Pay now</span></p>

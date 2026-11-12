@@ -75,12 +75,16 @@ The importer enforces these rules:
 
 - **Fiction only.** Every URL, email address and host name, in links, addresses and text, must be on
   `example.com`, `example.net`, `example.org` or under `.example`, `.test` or `.invalid`. Phone numbers
-  must be Ofcom drama numbers (`07700 900000`–`07700 900999`). No real brands.
+  must be Ofcom drama numbers (`07700 900000`–`07700 900999`). Any dotted name counts as a host
+  except file names such as `Invoice.pdf` (but not `.zip` or `.mov`, which are real top-level domains).
+  No real brands: names in `Content::ReservedNames::REAL_BRANDS` are rejected anywhere players can
+  see them, including SMS sender IDs. The list can't be complete, so reviewers still check.
 - **Safe HTML only:** `p br strong em b i u ul ol li blockquote h3 h4 hr small` and `<a href>`. No
   scripts, styles, images, comments or other attributes. In particular, **don't add `id` or `data-*`
-  attributes**: the importer gives every paragraph-like element a neutral id (`p1`, `p2`…), every link
-  `l1`, `l2`… and every attachment `a1`, `a2`…, so nothing in the page hints at the answer.
-- **Red flag anchors** use those neutral ids, or `from`, `to`, `reply_to` and `subject`.
+  attributes**: the importer gives every paragraph-like element a neutral anchor (`p1`, `p2`…), every
+  link `l1`, `l2`… and every attachment `a1`, `a2`…, so nothing in the page hints at the answer. Body
+  anchors are stored as `data-anchor` attributes rather than DOM ids, since every message has a `p1`.
+- **Red flag anchors** use those neutral anchors, or `from`, `to`, `reply_to` and `subject`.
 - **Links never navigate.** Each `<a>` becomes a `<span>` carrying its key and URLs; the outcome
   (`completes_task`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match
   exactly one rule, and every rule at least one link.

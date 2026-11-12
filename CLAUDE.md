@@ -58,12 +58,13 @@ Rails connects over the default socket, so that doesn't matter for the app.
 ## Security (this is a security product — be exemplary)
 
 1. Authored email bodies are sanitized **on import** with a strict allowlist
-   (`Rails::HTML5::SafeListSanitizer`: basic formatting, `id`, `data-*`; no scripts, styles, event
+   (`Rails::HTML5::SafeListSanitizer`: basic formatting, `data-*`; no scripts, styles, event
    handlers or external images) and rendered inline in a scoped container (no iframe).
 2. Fake links never navigate: on import every `<a>` becomes a
    `<span data-controller="fake-link" data-link-key=… data-display-url=… data-actual-url=…>`.
    No real `href` reaches the browser. Clicking POSTs the link key; the server decides what happens.
-3. The importer assigns **neutral ids** (`p1`, `l1`, `a1`…) to every paragraph, link and attachment;
+3. The importer assigns **neutral ids** (`p1`, `l1`, `a1`…) to every paragraph, link and attachment
+   (as `data-anchor`, not DOM `id`, because they repeat across messages);
    descriptive ids are rejected.
 4. **Fiction only:** reserved domains (`example.com`, `.example`, `.test`, `.invalid`) and invented
    companies. The importer rejects any other URL. No real brands.
