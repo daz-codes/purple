@@ -15,9 +15,20 @@ Rails.application.routes.draw do
   resources :shifts, only: :show do
     resources :attempts, only: %i[ new create ], controller: "shift_attempts"
   end
+  # Each move in a shift is its own resource. Messages are addressed by their opaque per-attempt ref.
   resources :shift_attempts, path: "attempts", param: :token, only: :show do
-    resources :actions, only: :create, controller: "shift_attempt_actions"
-    resource :completion, only: :create, controller: "shift_attempt_completions"
+    scope module: :shift_attempts do
+      resources :messages, param: :ref, only: [] do
+        scope module: :messages do
+          resource :reading, only: :create
+          resource :headers, only: :create
+          resource :verification, only: :create
+          resource :report, only: :create
+        end
+      end
+      resource :wait, only: :create
+      resource :completion, only: :create
+    end
   end
 
   # Health check for load balancers and uptime monitors.

@@ -12,7 +12,7 @@
       <% inbox.each do |message| %>
         <% unread = !attempt.opened?(message) %>
         <li>
-          <%= button_to shift_attempt_actions_path(attempt), params: { kind: "open_message", message: attempt.message_ref(message) },
+          <%= button_to shift_attempt_message_reading_path(attempt, attempt.message_ref(message)),
                 class: "w-full text-left px-4 py-3 cursor-pointer hover:bg-surface #{"bg-surface-sunken" if message == current}",
                 aria: { current: message == current ? "true" : nil },
                 form: { class: "block" } do %>

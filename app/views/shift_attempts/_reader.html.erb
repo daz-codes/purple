@@ -2,6 +2,7 @@
 <section id="shift_reader" class="card p-0 overflow-hidden min-h-[28rem]" aria-labelledby="reader-heading" data-controller="link-status">
   <% if message %>
     <% expanded = attempt.headers_expanded?(message) %>
+    <% ref = attempt.message_ref(message) %>
     <header class="p-5 border-b border-line">
       <h2 id="reader-heading" class="text-xl font-bold"><%= message.subject.presence || "Message from #{message.from_name}" %></h2>
 
@@ -24,18 +25,20 @@
 
       <div class="mt-4 flex flex-wrap gap-2">
         <% unless expanded %>
-          <%= shift_action_button attempt, "expand_headers", "Show full headers", message: %>
+          <%= shift_action_button attempt, "Show full headers", shift_attempt_message_headers_path(attempt, ref),
+                cost: attempt.action_cost(:expand_headers) %>
         <% end %>
         <% unless attempt.sender_verified?(message) %>
-          <%= shift_action_button attempt, "verify_sender", "Call the sender back", message: %>
+          <%= shift_action_button attempt, "Call the sender back", shift_attempt_message_verification_path(attempt, ref),
+                cost: attempt.action_cost(:verify_sender) %>
         <% end %>
-        <%= shift_action_button attempt, "report_message", "Report phishing", message:, class: "btn-red" %>
+        <%= shift_action_button attempt, "Report phishing", shift_attempt_message_report_path(attempt, ref),
+              cost: attempt.action_cost(:report_message), class: "btn-red" %>
       </div>
 
       <% if attempt.sender_verified?(message) %>
-        <% reply = attempt.actions.find { |action| action.verify_sender? && action.target_key == message.key }.result["reply"] %>
         <p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm" data-testid="verify-result">
-          <span class="font-semibold">You called them on a number you already had.</span> <%= reply %>
+          <span class="font-semibold">You called them on a number you already had.</span> <%= attempt.verification_reply(message) %>
         </p>
       <% end %>
     </header>

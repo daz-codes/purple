@@ -9,7 +9,6 @@ module ShiftAttemptScoped
 
   private
     def set_attempt
-      token = params[:shift_attempt_token] || params[:token]
-      @attempt = Current.user.shift_attempts.includes(shift: :track).find_by!(token:)
+      @attempt = Current.user.shift_attempts.includes(shift: :track).find_by!(token: params[:shift_attempt_token] || params[:token])
     end
 end

@@ -1,4 +1,4 @@
-<% result = attempt.scoring.call %>
+<% scorecard = attempt.scorecard %>
 <% shift = attempt.shift %>
 
 <nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
@@ -29,7 +29,7 @@
 
   <h2 class="mt-8 text-lg font-bold">Tasks</h2>
   <ul class="mt-2 space-y-2">
-    <% result.tasks.each do |task_result| %>
+    <% scorecard.tasks.each do |task_result| %>
       <li class="flex flex-wrap justify-between gap-2 rounded-lg border border-line px-3 py-2">
         <span><%= task_result.task.title %></span>
         <span class="text-sm">

@@ -30,9 +30,21 @@ Rails connects over the default socket, so that doesn't matter for the app.
 
 ## Code conventions
 
-- Rails conventions throughout: RESTful controllers, models in `app/models`, and **plain Ruby objects**
-  for domain logic, namespaced under the model they serve (`Shift::Engine`, `Scoring::Calculator`,
-  `Workshop::Simulator`). No service-object framework or gem.
+- **37signals-style Rails. No service objects**: no `app/services`, no `*Service`/`*Engine`/`*Calculator`
+  doers, and no `.call` or `#perform` entry points.
+  - **Behaviour lives on the models, in concerns.** A model is a slim class that includes concerns named
+    for what they add, in `app/models/<model>/` (`ShiftAttempt::Clocked`, `::Inbox`, `::Reportable`,
+    `::Verifiable`, `::Finishable`). Moves are methods on the record:
+    `attempt.report(message)`, `attempt.wait_for_mail`, `attempt.end_shift`.
+  - **Plain objects are nouns** that answer questions, under the model they serve: e.g.
+    `ShiftAttempt::Scorecard` (`attempt.scorecard.total`), `Content::MessageBody.new(html).html`,
+    `Content::Import.new(root).run`. Later: `RedCampaign::Simulation` rather than `Workshop::Simulator`.
+- **Thin RESTful controllers.** Every move is its own resource with a `create` action of one line or
+  so (`ShiftAttempts::Messages::ReportsController` → `@attempt.report(@message)`). Shared behaviour
+  goes in controller concerns: `ShiftAttemptScoped`, `ShiftAttemptMessageScoped`, and `ShiftPlay`
+  (the Turbo Stream response, rejections and rate limit). No dispatching on a `kind` param.
+- Tests mirror the structure: one model test per concern (`test/models/shift_attempt/*_test.rb`) and
+  one controller test per controller.
 - Every feature ships with model/unit tests **and** at least one system test for the happy path.
 - DB constraints (NOT NULL, foreign keys, unique indexes) **as well as** model validations.
 - Enums are **string-backed** (`enum :status, { open: "open", ... }`), never integers.

@@ -1,6 +1,6 @@
-<% scoring = attempt.scoring %>
-<% productivity = scoring.productivity_meter %>
-<% security = scoring.security_meter %>
+<% scorecard = attempt.scorecard %>
+<% productivity = scorecard.productivity_meter %>
+<% security = scorecard.security_meter %>
 <header id="shift_status" class="card p-4 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_auto] md:items-center">
   <div class="min-w-0">
     <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">On shift</p>
@@ -24,7 +24,7 @@
 
   <div class="flex flex-wrap gap-2 md:justify-end">
     <% if (next_arrival = attempt.next_arrival_minute) %>
-      <%= shift_action_button attempt, "wait", "Wait for new mail", cost: next_arrival - attempt.clock_minutes %>
+      <%= shift_action_button attempt, "Wait for new mail", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
     <% end %>
     <%= button_to "End shift", shift_attempt_completion_path(attempt), class: "btn-primary",
           form: { data: { turbo_confirm: "End your shift now? Unfinished tasks count as missed." } } %>

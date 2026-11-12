@@ -39,10 +39,11 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 ## Playing a shift
 
 Pick a track at `/tracks`, read a shift's briefing and start it. The play screen has the clock and
-two meters along the top, then your tasks, your inbox and the reading pane. Every move (opening a
-message, showing full headers, calling the sender back, reporting phishing, waiting for new mail) is a
-POST to the server, which logs it as an `AttemptAction`, moves the in-game clock on and sends back
-Turbo Stream updates. `Shift::Engine` applies the rules; `Scoring::Calculator` scores the log.
+two meters along the top, then your tasks, your inbox and the reading pane. Every move (reading a
+message, showing full headers, calling the sender back, reporting phishing, waiting for new mail,
+ending the shift) is a POST to its own small controller, which calls a method on the `ShiftAttempt`
+(`attempt.report(message)`). The attempt logs the move as an `AttemptAction`, moves the in-game clock
+on and the panes update by Turbo Stream. `ShiftAttempt::Scorecard` scores the log.
 
 ## Content authoring
 

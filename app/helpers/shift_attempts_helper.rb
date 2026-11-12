@@ -1,13 +1,11 @@
 module ShiftAttemptsHelper
-  # A button that POSTs one game action. Only the action kind and the message's opaque ref
-  # (ShiftAttempt#message_ref) go in the form; the server works out everything else.
-  def shift_action_button(attempt, kind, label, message: nil, cost: attempt.shift.action_cost(kind), **options)
-    text = cost.positive? ? "#{label} (#{cost} min)" : label
-    button_to text, shift_attempt_actions_path(attempt),
-      params: { kind:, message: (attempt.message_ref(message) if message) }.compact,
-      disabled: cost > attempt.minutes_left,
+  # A button for one move in a shift, labelled with what it costs and disabled when it won't fit in
+  # the time left. The URL names the move and, for message moves, only the message's opaque ref.
+  def shift_action_button(attempt, label, path, cost: 0, **options)
+    button_to cost.positive? ? "#{label} (#{cost} min)" : label, path,
+      disabled: !attempt.affordable?(cost),
       class: options.fetch(:class, "btn-ghost"),
-      form: { class: options.fetch(:form_class, "contents") }
+      form: { class: "contents" }
   end
 
   def shift_clock_label(attempt)

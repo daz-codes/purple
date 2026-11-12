@@ -52,7 +52,7 @@ Free-form Red campaigns, multiplayer, AI-generated attacks, organisations and te
 
 ## 3. Conventions for Claude Code
 
-- Keep to Rails conventions: RESTful controllers, models in `app/models`, plain Ruby objects for domain logic (e.g. `Shift::Engine`, `Scoring::Calculator`). No service-object framework.
+- Keep to Rails conventions, 37signals style: RESTful controllers (each game move is its own resource), and behaviour on the models in concerns (`ShiftAttempt::Reportable`, `ShiftAttempt::Clocked`…). No service objects; plain Ruby objects are nouns under their model (e.g. `ShiftAttempt::Scorecard`). *(Changed during M3: originally `Shift::Engine` and `Scoring::Calculator`.)*
 - Every feature ships with model and unit tests plus at least one system test for the happy path.
 - **The server is the single source of truth.** Every game action (open email, expand headers, verify, click link, submit credentials, report, complete task) is a POST that the server records and applies to the clock. The client never computes the score, the clock or the outcome.
 - **Never send hidden answers to the browser:** no `legit` flags, red-flag lists, task-to-link mappings or technique tags before the debrief.
@@ -160,7 +160,7 @@ Badge / UserBadge          (as before)
 
 ## 6. Shift engine & scoring
 
-Implement as `Shift::Engine` (applies an action to an attempt, advances the clock, returns the result) and `Scoring::Calculator` (pure function over the action log). Both must be fully unit-tested.
+Implement as concerns on `ShiftAttempt` (each move is a method that checks it's allowed, logs it, advances the clock and returns the logged action) and `ShiftAttempt::Scorecard` (pure function over the action log). Both must be fully unit-tested.
 
 **Action costs (configurable per shift):** open message 0, hover link 0, expand headers 1, verify sender 5, report message 1, complete task 2, hint 0 (score penalty instead).
 
@@ -186,7 +186,7 @@ Implement as `Shift::Engine` (applies an action to an attempt, advances the cloc
 1. **Recon.** Red reads the target brief, e.g. "Contoso Finance pays Northwind invoices at month-end. Staff: Bob (busy, approves payments), Carol (security-minded), Nia (started last week)."
 2. **Build.** Red picks one card per slot: **pretext** (subject and story), **sender** (lookalike domain, display-name spoof, compromised supplier), **lure** (link, attachment, QR code), **payload** (credential page, malware download) and **timing** (Monday 9am, Friday 4:55pm). Each card costs budget, and stealthier cards cost more. There's no free text: the email is assembled from the chosen cards' pre-written `rendered_value`s, so the Workshop can't produce a usable real-world phish.
 3. **Preview.** Red sees the finished email exactly as Blue would.
-4. **Launch.** `Workshop::Simulator` runs the email against each `BotPersona`. Each bot's chance of spotting each technique uses its `vigilance`, the technique's `stealth`, its `detects` bonuses and the pretext's `relevance` to the target's real tasks. The result is deterministic for the stored `seed`, so it can be replayed and tested.
+4. **Launch.** `RedCampaign::Simulation` runs the email against each `BotPersona`. Each bot's chance of spotting each technique uses its `vigilance`, the technique's `stealth`, its `detects` bonuses and the pretext's `relevance` to the target's real tasks. The result is deterministic for the stored `seed`, so it can be replayed and tested.
 5. **Purple debrief.** Per bot: fooled, suspicious (verified first) or reported, and **which red flag gave it away**. Each technique's `defence_tip` is shown so Red learns the defence too.
 
 **Red scoring:** +40 per bot fooled, +15 per bot that clicked but closed the page (a near miss for them), 0 for reports, and +1 for each unit of budget left unspent. Spending everything isn't optimal. Red XP is awarded for the first scored campaign per target only. 1–3 stars by thresholds.
@@ -224,7 +224,7 @@ Implement as `Shift::Engine` (applies an action to an attempt, advances the cloc
 ### M3 — Inbox shift: core play
 - Track page → shift briefing ("Red's campaign targets Contoso Finance today…") → play screen.
 - Play screen: task list with deadlines (left), inbox list (middle), reading pane (right), and the clock and two meters in the header. Messages can arrive mid-shift (`arrives_at_minute`) via Turbo Stream after any action that advances the clock.
-- Actions: open message, expand headers, verify sender (shows a scripted result, e.g. "Finance confirms they sent this" or "No record of this invoice"), report phishing. Every action POSTs to `ShiftAttemptActionsController` → `Shift::Engine` → Turbo Stream updates to the clock, meters and panes.
+- Actions: open message, expand headers, verify sender (shows a scripted result, e.g. "Finance confirms they sent this" or "No record of this invoice"), report phishing. Every action POSTs to its own resource controller (e.g. `ShiftAttempts::Messages::ReportsController`) → a `ShiftAttempt` method → Turbo Stream updates to the clock, meters and panes.
 - Shift ends when every task is resolved or the clock runs out. "End shift" is also available.
 - **Done when:** a system test plays a shift that mixes reporting a phish and leaving a legit email alone, and the engine unit tests cover the clock and deadlines.
 
@@ -258,7 +258,7 @@ Implement as `Shift::Engine` (applies an action to an attempt, advances the cloc
 ### M7 — Red's Workshop
 - Models from section 5 (Target, TargetOption, BotPersona, RedCampaign). Seed 3 bot personas. Extend the importer for `content/targets/*.yml`.
 - Workshop flow: target list → recon brief → card builder (slots, budget bar, live email preview via Turbo Frame) → launch → animated bot results → Purple debrief.
-- `Workshop::Simulator` is a pure, seeded, fully unit-tested class, and the balance rules from 6b are written as tests.
+- `RedCampaign::Simulation` is a pure, seeded, fully unit-tested class, and the balance rules from 6b are written as tests.
 - Write **3 targets**, each linked to an existing Blue shift's company so both sides share a world.
 - **Done when:** the system test builds and launches a campaign, and the simulator and balance tests pass.
 

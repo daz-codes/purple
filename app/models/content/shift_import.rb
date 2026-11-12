@@ -28,7 +28,8 @@ module Content
       @techniques = techniques
     end
 
-    def call
+    # Validates and saves the shift, returning it.
+    def run
       @node.allow_only!(*SHIFT_KEYS)
       expected_slug = File.basename(@node.file, ".yml")
       slug = @node.required(:slug)
@@ -131,7 +132,7 @@ module Content
       end
 
       def processed_body(node)
-        MessageBody.call(node.required(:body_html))
+        MessageBody.new(node.required(:body_html))
       rescue MessageBody::Invalid => invalid
         node.error!("body_html: #{invalid.message}")
       end
