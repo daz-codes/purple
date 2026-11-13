@@ -33,9 +33,9 @@ Rails connects over the default socket, so that doesn't matter for the app.
 - **37signals-style Rails. No service objects**: no `app/services`, no `*Service`/`*Engine`/`*Calculator`
   doers, and no `.call` or `#perform` entry points.
   - **Behaviour lives on the models, in concerns.** A model is a slim class that includes concerns named
-    for what they add, in `app/models/<model>/` (`ShiftAttempt::Clocked`, `::Inbox`, `::Reportable`,
-    `::Verifiable`, `::Finishable`). Moves are methods on the record:
-    `attempt.report(message)`, `attempt.wait_for_mail`, `attempt.end_shift`.
+    for what they add, in `app/models/<model>/` (`ShiftAttempt::Timed`, `::Inbox`, `::Reportable`,
+    `::Archivable`, `::Finishable`). Moves are methods on the record:
+    `attempt.report(message)`, `attempt.archive(message)`, `attempt.clock_off`.
   - **Plain objects are nouns** that answer questions, under the model they serve: e.g.
     `ShiftAttempt::Scorecard` (`attempt.scorecard.total`), `Content::MessageBody.new(html).html`,
     `Content::Import.new(root).run`. Later: `RedCampaign::Simulation` rather than `Workshop::Simulator`.
@@ -56,20 +56,21 @@ Rails connects over the default socket, so that doesn't matter for the app.
 
 ## Game rules that must never be broken
 
-- **The server is the single source of truth.** Every game action (open email, expand headers, verify,
-  click link, submit credentials, report, flag, complete task, use hint) is a POST that the server
-  records as an `AttemptAction` and applies to the clock. The client never computes the score, the
-  clock or the outcome.
-- **Never send hidden answers to the browser** before the debrief: no `legit` flags, red-flag lists,
-  link outcomes, task-to-link mappings or technique tags in HTML, data attributes, JSON or Turbo
-  Streams. System tests assert this.
+- **The server is the single source of truth.** Every game action (open message, expand headers,
+  verify, click link, use a portal, submit credentials, reply, flag, report, archive, use hint, clock
+  off) is a POST that the server records as an `AttemptAction`, stamped with the attempt's elapsed time
+  (real time plus penalties, measured only on the server). The client never computes the score, the
+  time, what arrives next or the outcome.
+- **Never send hidden answers to the browser** before the debrief: no `legit` flags, what a message
+  expects or is worth, arrival triggers, red flags or their quotes, link, attachment or reply outcomes,
+  or technique tags in HTML, data attributes, JSON or Turbo Streams. System tests assert this.
 - The browser refers to messages only by `ShiftAttempt#message_ref`, an opaque HMAC of the attempt
   token and message key that's stable across content re-imports and different in every attempt, never
-  by their authored `key` (`fake_invoice` would give the answer away). Live meters show only what the
-  player already knows; whether a report was right waits for the debrief.
+  by their authored `key` (`fake_invoice` would give the answer away). Nothing on the play screen says
+  how the player is doing: no meters, no clock, no compromise alerts. It all waits for the debrief.
 - Anti-cheat: attempts are created server-side with a random token; actions must reference an open
-  attempt owned by the current user; XP only for the first scored attempt per shift/target; actions
-  after the clock runs out are rejected.
+  attempt owned by the current user; XP only for the first scored attempt per shift/target; actions on
+  a finished or expired attempt are rejected.
 
 ## Security (this is a security product — be exemplary)
 
