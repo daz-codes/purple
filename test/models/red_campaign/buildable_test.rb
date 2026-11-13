@@ -16,11 +16,11 @@ class RedCampaign::BuildableTest < ActiveSupport::TestCase
 
   test "choosing a card spends its cost, and choosing another in the same slot swaps it" do
     @campaign.choose(target_options(:lookalike))
-    assert_equal [ 3, 6 ], [ @campaign.budget_spent, @campaign.budget_left ]
+    assert_equal [ 3, 6 ], [ @campaign.spent, @campaign.budget_left ]
 
     @campaign.choose(target_options(:spoof))
     assert_equal [ target_options(:spoof) ], @campaign.chosen_options
-    assert_equal 1, @campaign.reload.budget_spent
+    assert_equal 1, @campaign.reload.spent
   end
 
   test "a card that would go over budget is refused, and spending it exactly is fine" do
@@ -32,7 +32,19 @@ class RedCampaign::BuildableTest < ActiveSupport::TestCase
     assert_raises(RedCampaign::Rejected, match: /Not enough budget: that card costs 1 and you'd go 1 over/) do
       @campaign.choose(target_options(:friday))
     end
-    assert_equal 9, @campaign.reload.budget_spent
+    assert_equal 9, @campaign.reload.spent
+  end
+
+  test "a draft's spend follows the cards as they are now, so a content change is reflected at once" do
+    @campaign.choose(target_options(:lookalike))
+    @campaign.choose(target_options(:bank_change)) # 6 of 9
+
+    techniques(:lookalike_domain).update!(red_cost: 1)
+    assert_equal 4, @campaign.reload.spent
+
+    target_options(:bank_change).destroy!
+    assert_equal 1, @campaign.reload.spent
+    assert_nothing_raised { @campaign.choose(target_options(:overdue)) } # 1 + 3, well within 9
   end
 
   test "taking a card back refunds it" do
@@ -40,7 +52,7 @@ class RedCampaign::BuildableTest < ActiveSupport::TestCase
     @campaign.unchoose(target_options(:lookalike))
 
     assert_empty @campaign.chosen_options
-    assert_equal 0, @campaign.budget_spent
+    assert_equal 0, @campaign.spent
   end
 
   test "cards are listed in slot order, and the campaign knows which slots are still empty" do
@@ -57,7 +69,7 @@ class RedCampaign::BuildableTest < ActiveSupport::TestCase
     card = other.options.create!(technique: techniques(:malicious_link), key: "x", category: "lure", label: "x", rendered_value: "x")
     assert_raises(RedCampaign::Rejected, match: /isn't for this target/) { @campaign.choose(card) }
 
-    @campaign.update_columns(status: "launched", launched_at: Time.current, score: 0)
+    @campaign.update_columns(status: "launched", launched_at: Time.current, score: 0, budget: 9, max_score: 81)
     assert_raises(RedCampaign::Rejected, match: /already been launched/) { @campaign.choose(target_options(:link)) }
   end
 end

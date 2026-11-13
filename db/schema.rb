@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_090000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -118,8 +118,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_090000) do
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
     t.check_constraint "(answer_in_key IS NULL) = (answer_in_quote IS NULL)", name: "messages_answer_in_complete"
-    t.check_constraint "answer_in_key IS NULL OR legit AND expects::text = 'reply'::text", name: "messages_answer_in_only_when_asking"
     t.check_constraint "\nCASE\n    WHEN legit THEN points > 0\n    ELSE points = 0\nEND", name: "messages_points_only_when_genuine"
+    t.check_constraint "answer_in_key IS NULL OR legit AND expects::text = 'reply'::text", name: "messages_answer_in_only_when_asking"
     t.check_constraint "arrives_after_handled > 0", name: "messages_arrives_after_handled_positive"
     t.check_constraint "arrives_after_handled IS NULL OR arrives_after IS NULL", name: "messages_one_arrival_trigger"
     t.check_constraint "channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'chat'::character varying]::text[])", name: "messages_channel"
@@ -145,11 +145,14 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_090000) do
     t.datetime "launched_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "budget"
+    t.integer "max_score"
     t.index ["target_id"], name: "index_red_campaigns_on_target_id"
     t.index ["token"], name: "index_red_campaigns_on_token", unique: true
     t.index ["user_id", "target_id"], name: "index_red_campaigns_one_draft_per_target", unique: true, where: "((status)::text = 'draft'::text)"
     t.index ["user_id", "target_id"], name: "index_red_campaigns_one_scored_per_target", unique: true, where: "scored"
     t.index ["user_id"], name: "index_red_campaigns_on_user_id"
+    t.check_constraint "(status::text = 'launched'::text) = (budget IS NOT NULL AND max_score IS NOT NULL)", name: "red_campaigns_snapshot_when_launched"
     t.check_constraint "(status::text = 'launched'::text) = (launched_at IS NOT NULL)", name: "red_campaigns_launched_at_when_launched"
     t.check_constraint "(status::text = 'launched'::text) = (score IS NOT NULL)", name: "red_campaigns_score_when_launched"
     t.check_constraint "NOT scored OR status::text = 'launched'::text", name: "red_campaigns_scored_only_when_launched"

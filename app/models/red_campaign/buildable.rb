@@ -1,5 +1,7 @@
 # Building a campaign: one card per slot, within the target's budget. Picking a card in a slot that
-# already has one swaps it.
+# already has one swaps it. While it's a draft, what's been spent is worked out from the cards as they
+# are now, so a content import that changes a card's cost (or removes it) is reflected at once. At
+# launch the spend is stored with the result.
 module RedCampaign::Buildable
   extend ActiveSupport::Concern
 
@@ -9,10 +11,10 @@ module RedCampaign::Buildable
       reject "That card isn't for this target." unless option.target_id == target_id
 
       replaced = chosen_options.find { |chosen| chosen.category == option.category }
-      spent = budget_spent - (replaced&.cost || 0) + option.cost
+      spent = spent_on(chosen_options.excluding(replaced) + [ option ])
       reject "Not enough budget: that card costs #{option.cost} and you'd go #{spent - target.budget} over." if spent > target.budget
 
-      update!(chosen_option_ids: chosen_options.excluding(replaced).map(&:id) + [ option.id ], budget_spent: spent)
+      update!(chosen_option_ids: chosen_options.excluding(replaced).map(&:id) + [ option.id ])
       @chosen_options = nil
     end
   end
@@ -22,7 +24,7 @@ module RedCampaign::Buildable
       reject "This campaign has already been launched." unless draft?
       return unless chosen_option_ids.include?(option.id)
 
-      update!(chosen_option_ids: chosen_option_ids - [ option.id ], budget_spent: budget_spent - option.cost)
+      update!(chosen_option_ids: chosen_option_ids - [ option.id ])
       @chosen_options = nil
     end
   end
@@ -41,8 +43,17 @@ module RedCampaign::Buildable
     chosen_option_ids.include?(option.id)
   end
 
+  # What the cards cost: as they are now for a draft, as it was at launch afterwards.
+  def spent
+    draft? ? spent_on(chosen_options) : budget_spent
+  end
+
+  def total_budget
+    draft? ? target.budget : budget
+  end
+
   def budget_left
-    target.budget - budget_spent
+    total_budget - spent
   end
 
   def missing_slots
@@ -59,6 +70,10 @@ module RedCampaign::Buildable
   end
 
   private
+    def spent_on(options)
+      options.sum(&:cost)
+    end
+
     def reject(message)
       raise RedCampaign::Rejected, message
     end

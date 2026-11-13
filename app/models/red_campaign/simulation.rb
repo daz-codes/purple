@@ -10,7 +10,7 @@
 # The chance of spotting a technique grows with the bot's vigilance and its detects bonus for that
 # technique, and shrinks with the technique's stealth. A pretext that fits what the target is really
 # expecting (its relevance, 0-3) makes everything in the email less likely to be spotted. Every
-# chance stays between 3% and 90%, so nothing is ever certain.
+# chance stays between 5% and 90%, so nothing is ever certain.
 class RedCampaign::Simulation
   Result = Data.define(:bot, :outcome, :gave_away) do
     def fooled? = outcome == :fooled

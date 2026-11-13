@@ -19,7 +19,7 @@ class RedCampaign::BalanceTest < ActiveSupport::TestCase
     @targets.each do |target|
       affordable_sets(target).each do |cards|
         fooled_everyone = SEEDS.count { |seed| simulate(cards, seed:).all?(&:fooled?) }
-        assert_operator fooled_everyone, :<, SEEDS.size / 2, "#{target.slug}: #{cards.map(&:key).join(", ")}"
+        assert_operator fooled_everyone, :<, SEEDS.size / 5, "#{target.slug}: #{cards.map(&:key).join(", ")}"
       end
     end
   end
