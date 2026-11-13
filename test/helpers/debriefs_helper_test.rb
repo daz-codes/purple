@@ -69,6 +69,22 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_includes debrief_story(poor).join, "your reply, “Sorry, no time today”, didn't do what it asked"
   end
 
+  test "a question says where its answer was, whether or not the player found it" do
+    @shift = shifts(:site_visit)
+    right = result("sam_text", reply("sam_text", "safe", "Sure, see you there"), archive("sam_text"))
+    assert_equal "You'd read carefully: the answer was in Larkhill IT's text: “ready to collect on Thursday”.", debrief_answer_source(right)
+
+    wrong = result("sam_text", reply("sam_text", "poor", "Sorry, no time today"), archive("sam_text"))
+    assert_match(/\AThe answer was in Larkhill IT's text: “ready to collect on Thursday”\. Messages often hold details/, debrief_answer_source(wrong))
+
+    assert_nil debrief_answer_source(result("laptop_text", archive("laptop_text")))
+  end
+
+  test "a red flag that contradicts an earlier message quotes it" do
+    assert_equal "Earlier, Larkhill IT told you: “We never ask for codes”", debrief_contradiction(red_flags(:code_request))
+    assert_nil debrief_contradiction(red_flags(:pay_today))
+  end
+
   test "the headline sums up the shift" do
     assert_equal "You reported 0 of 1 phish, dealt with 0 of 3 genuine messages, and spotted 0 of 2 red flags.", debrief_headline(scorecard)
   end

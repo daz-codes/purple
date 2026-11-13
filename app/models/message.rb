@@ -6,9 +6,12 @@
 # its points when handled that way. urgent_within_minutes, if set, is how soon after it arrives it
 # must be handled for full points.
 #
-# SECRET: legit, expects, points, urgency, links' outcomes, red flags, techniques, attachment outcomes
-# and reply outcomes are answers. They must never reach the browser before the debrief. So are the
-# arrival triggers: they'd tell the player how many messages are still to come.
+# A message that asks a question can say where its answer was: answer_in_key names an earlier message
+# in the shift, and answer_in_quote the words in it that answer the question.
+#
+# SECRET: legit, expects, points, urgency, links' outcomes, red flags, techniques, attachment outcomes,
+# reply outcomes and where an answer was are answers. They must never reach the browser before the
+# debrief. So are the arrival triggers: they'd tell the player how many messages are still to come.
 class Message < ApplicationRecord
   enum :channel, { email: "email", sms: "sms", chat: "chat" }, validate: true
   enum :expects, { reply: "reply", act: "act", archive: "archive" }, prefix: true, validate: { allow_nil: true }
@@ -29,6 +32,11 @@ class Message < ApplicationRecord
 
   def phish?
     !legit?
+  end
+
+  # The earlier message that held the answer to the question this one asks. Debrief only.
+  def answer_source
+    shift.messages.find_by(key: answer_in_key) if answer_in_key
   end
 
   def arrives_at_start?

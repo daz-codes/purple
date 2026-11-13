@@ -24,7 +24,7 @@ messages:
     to_address: "you@larkhill.example"
     subject: "Before I fly"
     body_html: |
-      <p>Morning! I'm offline from 9am until Friday.</p>
+      <p>Morning! I'm offline from 9am until Friday. Anything urgent, please check with Mo first.</p>
       <p>Could you approve Priya's expense claim from the conference? It's waiting for me in the expenses system.</p>
       <p><a href="https://expenses.larkhill.example/claims/3310">Priya's claim</a></p>
       <p>Thanks, Jordan</p>
@@ -67,7 +67,7 @@ messages:
     subject: "Room bookings have moved: please rebook"
     body_html: |
       <p>From today, all meeting rooms are booked through the new rooms portal. Bookings in the old system have been cancelled.</p>
-      <p>If you look after the boardroom diary, please rebook Thursday's board meeting today.</p>
+      <p>If you look after the boardroom diary, please rebook Thursday's board meeting (10am to midday) today.</p>
       <p><a href="https://rooms.larkhill.example/book?room=boardroom">Rebook the boardroom</a></p>
     links:
       - { match: "rooms.larkhill.example", outcome: portal, action: "Book the boardroom for Thursday" }
@@ -95,7 +95,8 @@ messages:
       - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
           explanation: "It says Jordan Hale, but the address is a free webmail account, not larkhill.example." }
       - { key: secrecy, quote: "keep this between us", points: 10, label: "Asks for secrecy",
-          explanation: "\"Keep this between us\" is there to stop you checking with anyone." }
+          explanation: "\"Keep this between us\" is there to stop you checking with anyone.",
+          contradicts: { message: ceo_handover, quote: "Anything urgent, please check with Mo first" } }
       - { key: gift_card_codes, quote: "buy ten £100 gift cards", points: 15, label: "Gift cards",
           explanation: "Gift card codes are untraceable cash. No legitimate boss pays for things this way." }
 
@@ -116,7 +117,8 @@ messages:
       - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
           explanation: "Still the free webmail account, not larkhill.example." }
       - { key: boarding, quote: "I'm boarding in 5 minutes", points: 10, label: "Urgency",
-          explanation: "A ticking clock so you don't stop to check. Jordan's flight left at 9am." }
+          explanation: "A ticking clock so you don't stop to check. Jordan's flight left at 9am.",
+          contradicts: { message: ceo_handover, quote: "I'm offline from 9am until Friday" } }
 
   - key: pellowclarke_contract
     channel: email
@@ -174,9 +176,11 @@ messages:
     subject: "Jordan's week"
     body_html: |
       <p>Hi, I'm Jordan's assistant. Jordan asked me to keep track of what's been covered while they're away.</p>
-      <p>Could you reply to let me know you're on top of the inbox?</p>
+      <p>I'm sending out the papers for Thursday's board meeting. What time is it booked for?</p>
+    answer_in: { message: boardroom_portal, quote: "10am to midday" }
     replies:
-      - { text: "Yes, I'm on it. I'll flag anything that needs Jordan.", outcome: safe, response: "Perfect, thank you!" }
+      - { text: "10am to midday, in the boardroom. I'll make sure it's rebooked.", outcome: safe, response: "Perfect, thank you!" }
+      - { text: "2pm, I think?", outcome: poor, response: "Are you sure? That's not what I had." }
       - { text: "Not really my job, to be honest.", outcome: poor, response: "Oh. I'll let Jordan know." }
     verify_result: "Mo is listed as Jordan's assistant in the staff directory."
 

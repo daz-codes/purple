@@ -24,6 +24,9 @@
     <% debrief_story(result).each do |sentence| %>
       <p><%= sentence %></p>
     <% end %>
+    <% if (answer = debrief_answer_source(result)) %>
+      <p class="text-sm text-purple-team" data-testid="debrief-answer-source"><%= answer %></p>
+    <% end %>
     <% if (verification = debrief_verification(result)) %>
       <p class="text-sm text-ink-muted"><%= verification %></p>
     <% end %>
@@ -71,6 +74,9 @@
                 <span class="font-semibold"><%= flag.label %>.</span>
                 <% if flag.quote? %><span class="italic">“<%= flag.quote %>”</span><% end %>
                 <%= flag.explanation %>
+                <% if (contradiction = debrief_contradiction(flag)) %>
+                  <span class="mt-1 block text-purple-team" data-testid="debrief-contradiction"><%= contradiction %></span>
+                <% end %>
               </li>
             <% end %>
           </ul>

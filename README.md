@@ -120,6 +120,17 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
   duplicate.
 - Optional `replies:` (2 to 4, each `text`, `outcome`: `safe`, `poor` (genuine only), `compromise`
   (phishing only) or `verify`, and an optional `response`).
+- **Read it, you'll need it later.** Facts set up early should pay off later, so the player has to
+  read everything:
+  - A red flag can say which genuine message it contradicts:
+    `contradicts: { message: it_welcome, quote: "we will never ask for your current password by email" }`.
+  - A genuine message that asks a question can say where its answer was:
+    `answer_in: { message: hr_onboarding, quote: "2pm in the Harbour Room" }`. It must expect a reply and
+    offer a wrong answer (`poor`) among its replies.
+  - The quote must appear exactly once in the other message, and that message must always be in the
+    inbox first (at the start, or the dependent message arrives `after:` it). `contradicts` must name a
+    genuine message. `answer_in` may name a phish only if the question arrives last
+    (`after_handled:` every other message). The debrief shows both; neither reaches the page mid-shift.
 
 The importer enforces these rules:
 

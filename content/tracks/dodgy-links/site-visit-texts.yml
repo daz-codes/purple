@@ -48,6 +48,9 @@ messages:
           explanation: "The fee is tiny so you don't think twice, but the page wants your full card details." }
       - { key: deadline, quote: "Pay within 12 hours", points: 5, label: "Urgency or pressure",
           explanation: "The deadline is there to make you pay before you think." }
+      - { key: wrong_courier, quote: "ParcelPoint", points: 10, label: "Not the courier you're expecting",
+          explanation: "Your only delivery today is the laptops, and Tidemark is bringing them.",
+          contradicts: { message: courier_slot, quote: "your Larkhill delivery (3 laptops) is ready" } }
 
   - key: colleague_text
     channel: sms
@@ -155,14 +158,19 @@ messages:
 
   - key: sam_followup
     channel: sms
-    arrives: { after: colleague_text }
+    arrives: { after: laptop_ready }
     legit: true
-    expects: archive
-    points: 5
+    expects: reply
+    points: 15
+    answer_in: { message: laptop_ready, quote: "Thursday afternoon" }
     from_name: "Sam (Ops)"
     from_address: "07700 900118"
     body_html: |
-      <p>Btw the client has moved us to meeting room 3B. See you in a bit!</p>
+      <p>Btw the client wants to know when we'll have the new laptops. Have you heard?</p>
+    replies:
+      - { text: "IT says Thursday afternoon, from the IT desk.", outcome: safe, response: "Great, I'll tell them." }
+      - { text: "They're being delivered today, I think.", outcome: poor, response: "Today? OK... I'll tell them." }
+      - { text: "No idea, sorry.", outcome: poor, response: "No worries, I'll ask IT." }
     verify_result: "Sam is in your contacts."
 
 hints:

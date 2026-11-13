@@ -30,6 +30,8 @@ class Content::ImportTest < ActiveSupport::TestCase
       assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
       assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
       assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
+      assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
+      assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
     end
     assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
     assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
@@ -79,6 +81,71 @@ class Content::ImportTest < ActiveSupport::TestCase
     @shift["messages"].first["arrives"] = { "after_handled" => 1 }
     @shift["messages"].last["arrives"] = { "after_handled" => 1 }
     assert_nothing_raised { import! }
+  end
+
+  test "a red flag can contradict an earlier genuine message, and a question can say where its answer was" do
+    with_story(@shift)
+    import!
+
+    flag = Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today")
+    assert_equal [ "canteen_news", "Tidemark invoices only ever come through the portal" ], [ flag.contradicts_key, flag.contradicts_quote ]
+    assert_equal "canteen_news", flag.contradicted_message.key
+
+    question = Message.find_by!(key: "lunch_question")
+    assert_equal [ "canteen_news", "Room 4B" ], [ question.answer_in_key, question.answer_in_quote ]
+    assert_equal "canteen_news", question.answer_source.key
+    assert_not_includes question.body_html, "canteen_news"
+  end
+
+  test "a question can follow its answer through a chain of after: triggers, or be answered by a phish if it comes last" do
+    with_story(@shift)
+    @shift["messages"][1]["arrives"] = { "after" => "real_invoice" }
+    @shift["messages"].last["arrives"] = { "after" => "canteen_news" }
+    @shift["messages"][2]["red_flags"].last.delete("contradicts")
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    assert_nothing_raised { import! }
+
+    with_story(@shift = valid_shift)
+    @shift["messages"].last.merge!("answer_in" => { "message" => "fake_invoice", "quote" => "Our bank details have changed" },
+                                   "arrives" => { "after_handled" => 3 })
+    assert_nothing_raised { import! }
+  end
+
+  test "rejects broken story links" do
+    {
+      "an answer in a message that isn't there" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "nope" },
+                                                     /answer_in: message "nope" isn't another message in this shift/ ],
+      "an answer in the question itself" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "lunch_question" },
+                                              /message "lunch_question" isn't another message/ ],
+      "a quote the source doesn't have" => [ ->(s) { s["messages"].last["answer_in"]["quote"] = "Room 9Z" },
+                                             /quote "Room 9Z" must appear exactly once in canteen_news \(found 0\)/ ],
+      "a question that could come before its answer" => [
+        ->(s) { s["messages"][1]["arrives"] = { "after_handled" => 1 }; s["messages"].last["arrives"] = "start"
+                s["messages"][2]["red_flags"].last.delete("contradicts") },
+        /lunch_question could arrive before canteen_news/ ],
+      "a contradiction that could come first" => [
+        ->(s) { s["messages"][1]["arrives"] = { "after_handled" => 1 }; s["messages"][2]["arrives"] = "start" },
+        /fake_invoice could arrive before canteen_news/ ],
+      "an answer in a phish, asked mid-shift" => [ ->(s) { s["messages"].last["answer_in"] = { "message" => "fake_invoice", "quote" => "Please pay today" } },
+                                                    /the answer is in a phish, so lunch_question must arrive last \(arrives: \{ after_handled: 3 \}\)/ ],
+      "contradicting a phish" => [
+        ->(s) { s["messages"] << s["messages"][2].deep_dup.merge("key" => "fake_two", "arrives" => "start")
+                s["messages"].last["red_flags"].last["contradicts"] = { "message" => "fake_invoice", "quote" => "Our bank details have changed" } },
+        /contradicts must point at a genuine message/ ],
+      "a question on a phish" => [ ->(s) { s["messages"][2]["answer_in"] = { "message" => "canteen_news", "quote" => "Room 4B" } },
+                                   /answer_in is only for genuine messages that expect a reply/ ],
+      "a question with no wrong answer" => [ ->(s) { s["messages"].last["replies"].last["outcome"] = "safe" },
+                                             /answer_in needs a wrong answer among the replies \(outcome: poor\)/ ],
+      "a story link that isn't a hash" => [ ->(s) { s["messages"].last["answer_in"] = "canteen_news" },
+                                            /answer_in must be \{ message: other_key, quote: "the words" \}/ ],
+      "an unknown story link key" => [ ->(s) { s["messages"].last["answer_in"]["line"] = 2 }, /unknown key line/ ]
+    }.each do |description, (mutate, message)|
+      @shift = with_story(valid_shift)
+      mutate.call(@shift)
+
+      error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
+      assert_match message, error.message, "wrong error for #{description}"
+    end
   end
 
   test "quotes are matched on the text as the player sees it: whitespace runs count as one space" do
@@ -478,6 +545,19 @@ class Content::ImportTest < ActiveSupport::TestCase
         ],
         "hints" => [ { "body" => "Compare the domains." } ]
       }
+    end
+
+    # The canteen news sets up two facts: a later phish contradicts one, and a colleague's question is
+    # answered by the other.
+    def with_story(shift)
+      shift["messages"][1]["body_html"] = "<p>Soup of the day is back, in Room 4B. Tidemark invoices only ever come through the portal.</p>"
+      shift["messages"][2]["red_flags"].last["contradicts"] = { "message" => "canteen_news", "quote" => "Tidemark invoices only ever come through the portal" }
+      shift["messages"] << newsletter.merge(
+        "key" => "lunch_question", "expects" => "reply", "from_name" => "Alex Morgan", "from_address" => "alex.morgan@larkhill.example",
+        "subject" => "Lunch?", "body_html" => "<p>Which room is the soup in today?</p>", "arrives" => { "after_handled" => 1 },
+        "replies" => [ { "text" => "Room 4B", "outcome" => "safe" }, { "text" => "Room 2A", "outcome" => "poor" } ],
+        "answer_in" => { "message" => "canteen_news", "quote" => "Room 4B" })
+      shift
     end
 
     def newsletter

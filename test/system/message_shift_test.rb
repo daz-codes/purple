@@ -52,6 +52,27 @@ class MessageShiftTest < ApplicationSystemTestCase
     within(sam) { assert_selector "[data-testid=debrief-verdict]", text: "Genuine: dealt with" }
   end
 
+  test "the answer to Sam's question was in IT's text, and the fake chat contradicted it: the debrief says so" do
+    within("#shift_inbox") { click_on "Sam (Ops)" }
+    within("#shift_reader") do
+      click_on "Sorry, no time today"
+      click_on "Archive"
+    end
+    assert_no_text "ready to collect on Thursday”" # nothing points back to IT's text mid-shift
+    within("#shift_inbox") { click_on "IT Support (Larkhill)" }
+    within("#shift_reader") { click_on "Report phishing" }
+    within("#shift_inbox") { click_on "Larkhill IT" }
+    within("#shift_reader") { click_on "Archive" }
+
+    sam = all("[data-testid=debrief-message]").find { |card| card.has_text?("Sam (Ops)") }
+    within(sam) do
+      assert_selector "[data-testid=debrief-verdict]", text: "Genuine: not dealt with"
+      assert_selector "[data-testid=debrief-answer-source]", text: "The answer was in Larkhill IT's text: “ready to collect on Thursday”."
+    end
+    chat = all("[data-testid=debrief-message]").find { |card| card.has_text?("IT Support (Larkhill)") }
+    within(chat) { assert_selector "[data-testid=debrief-contradiction]", text: "Earlier, Larkhill IT told you: “We never ask for codes”" }
+  end
+
   test "handing over the code says nothing until the debrief" do
     within("#shift_inbox") { click_on "Sam (Ops)" }
     within("#shift_reader") { click_on "Archive" }

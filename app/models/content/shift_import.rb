@@ -6,7 +6,7 @@ module Content
                      learning_summary messages hints ].freeze
     MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
                        from_address reply_to to_address subject body_html attachments replies links verify_result
-                       red_flags ].freeze
+                       red_flags answer_in ].freeze
     ARRIVAL_KEYS = %i[ after_handled after ].freeze
     LINK_KEYS = %i[ match outcome landing action ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
@@ -18,7 +18,9 @@ module Content
     # safe: fine. poor: answers a genuine message badly, so it doesn't count as replying. compromise:
     # hands a phisher what they asked for. verify: checks with someone trusted first.
     REPLY_OUTCOMES = %w[ safe poor compromise verify ].freeze
-    RED_FLAG_KEYS = %i[ key anchor quote in points label explanation ].freeze
+    RED_FLAG_KEYS = %i[ key anchor quote in points label explanation contradicts ].freeze
+    # answer_in: and contradicts: point at another message in the shift and quote the words that matter.
+    STORY_LINK_KEYS = %i[ message quote ].freeze
     HINT_KEYS = %i[ body penalty_percent ].freeze
 
     # The landing page each link outcome opens in the in-game browser.
@@ -48,6 +50,7 @@ module Content
 
       import_messages
       check_every_message_can_arrive
+      check_story_links
       check_imitations_arrive_with_their_genuine_message
       check_phishes_have_follow_ups_too
       import_hints
@@ -77,6 +80,7 @@ module Content
 
       def import_messages
         @imitations = {}
+        @story_links = []
         messages = @node.each_item(:messages) { |message_node, index| import_message(message_node, index + 1) }
 
         keys = messages.map(&:key)
@@ -97,6 +101,7 @@ module Content
         attachments = attachments_for(node)
         node.error!("attachments are only for emails") if attachments.any? && channel != "email"
         replies = replies_for(node, channel:, legit:)
+        answer_in = answer_in_for(node, legit:, expectation:, replies:)
         message = @shift.messages.find_or_initialize_by(key: node.required(:key))
 
         node.saving do
@@ -110,9 +115,11 @@ module Content
             body_html: body.html,
             attachments:,
             replies:,
-            verify_result: fictional(node, :verify_result, node.optional(:verify_result))
+            verify_result: fictional(node, :verify_result, node.optional(:verify_result)),
+            answer_in_key: answer_in&.dig(:key), answer_in_quote: answer_in&.dig(:quote)
           )
         end
+        @story_links << answer_in.merge(dependent: message) if answer_in
 
         note_imitation(node, message)
         import_links(node, message, body.links)
@@ -294,11 +301,14 @@ module Content
         flags = node.each_item(:red_flags, required: message.phish?) do |flag_node|
           flag_node.allow_only!(*RED_FLAG_KEYS)
           flag = message.red_flags.find_or_initialize_by(key: flag_node.required(:key))
+          contradicts = story_link(flag_node, :contradicts)
           flag_node.saving do
             flag.update!(**red_flag_target(flag_node, message), points: positive(flag_node, :points),
                          label: fictional(flag_node, :label, flag_node.required(:label)),
-                         explanation: fictional(flag_node, :explanation, flag_node.required(:explanation)))
+                         explanation: fictional(flag_node, :explanation, flag_node.required(:explanation)),
+                         contradicts_key: contradicts&.dig(:key), contradicts_quote: contradicts&.dig(:quote))
           end
+          @story_links << contradicts.merge(dependent: message) if contradicts
           flag
         end
 
@@ -348,6 +358,74 @@ module Content
         index = -1
         starts << index while (index = text.index(quote, index + 1))
         starts
+      end
+
+      # --- Read it, you'll need it later ----------------------------------------------------
+
+      # answer_in: { message: hr_onboarding, quote: "Room 4B" }: this message asks a question, and the
+      # right answer was in that earlier message. Only for a genuine message that expects a reply, with a
+      # wrong (poor) answer among its replies, so getting it wrong costs something.
+      def answer_in_for(node, legit:, expectation:, replies:)
+        return unless node.key?(:answer_in)
+
+        node.error!("answer_in is only for genuine messages that expect a reply") unless legit && expectation[:expects] == "reply"
+        node.error!("answer_in needs a wrong answer among the replies (outcome: poor)") if replies.none? { |reply| reply["outcome"] == "poor" }
+        story_link(node, :answer_in)
+      end
+
+      # { message: key, quote: "the words" }, checked against the other message once the whole shift is
+      # imported (check_story_links).
+      def story_link(node, key)
+        return unless node.key?(key)
+        node.error!("#{key} must be { message: other_key, quote: \"the words\" }") unless node.optional(key, Object).is_a?(Hash)
+
+        link = node.child(key)
+        link.allow_only!(*STORY_LINK_KEYS)
+        { key: link.required(:message), quote: fictional(link, :quote, Message::Paragraph.normalize(link.required(:quote))),
+          kind: key, node: link }
+      end
+
+      # Each answer_in and contradicts names another message in the shift whose text holds its quote
+      # exactly once, and that message is always in the inbox before the one that relies on it. The truth
+      # a phish contradicts comes from a genuine message. An answer may only be in a phish if the question
+      # arrives last, once every decision has been made, so asking it gives nothing away.
+      def check_story_links
+        @story_links.each do |link|
+          node, dependent = link[:node], link[:dependent]
+          source = @messages.find { |message| message.key == link[:key] }
+          node.error!("message \"#{link[:key]}\" isn't another message in this shift") if source.nil? || source == dependent
+          node.error!("contradicts must point at a genuine message: the truth comes from the real company") if link[:kind] == :contradicts && source.phish?
+
+          found = source.paragraphs.values.sum { |paragraph| occurrences(paragraph.text, link[:quote]).size }
+          node.error!("quote \"#{link[:quote]}\" must appear exactly once in #{source.key} (found #{found})") unless found == 1
+
+          if source.phish? && !arrives_last?(dependent)
+            node.error!("the answer is in a phish, so #{dependent.key} must arrive last " \
+                        "(arrives: { after_handled: #{@messages.size - 1} }), once every decision has been made")
+          elsif !always_arrives_after?(dependent, source)
+            node.error!("#{dependent.key} could arrive before #{source.key}: #{source.key} must arrive at the start, or " \
+                        "#{dependent.key} must arrive after: it (directly or through other after: triggers)")
+          end
+        end
+      end
+
+      def arrives_last?(message)
+        message.arrives_after_handled.to_i >= @messages.size - 1
+      end
+
+      # Whenever dependent is in the inbox, source is too.
+      def always_arrives_after?(dependent, source)
+        return true if source.arrives_at_start? || arrives_last?(dependent)
+
+        current = dependent
+        seen = []
+        while current&.arrives_after && seen.exclude?(current.key)
+          return true if current.arrives_after == source.key
+
+          seen << current.key
+          current = @messages.find { |message| message.key == current.arrives_after }
+        end
+        false
       end
 
       # --- Whole-shift checks and hints ----------------------------------------------------

@@ -29,6 +29,7 @@ messages:
       <p>Hi, and welcome to Larkhill Finance.</p>
       <p>Please set your account password on the IT portal this morning. You'll need your staff number, which is on your contract.</p>
       <p><a href="https://itportal.larkhill.example/setup/88213">Set up my account</a></p>
+      <p>One thing to remember: we will never ask for your current password by email.</p>
       <p>Larkhill IT Service Desk</p>
     links:
       - { match: "itportal.larkhill.example", outcome: portal, action: "Set my password" }
@@ -57,7 +58,8 @@ messages:
       - { key: deadline, quote: "expire in 30 minutes", points: 10, label: "Urgency or pressure",
           explanation: "A 30-minute deadline and a threat to lock you out are there to stop you thinking." }
       - { key: current_password, quote: "confirm your current password", points: 10, label: "Asks for your password",
-          explanation: "Nobody genuine asks you to confirm your current password from a link in an email." }
+          explanation: "Nobody genuine asks you to confirm your current password from a link in an email.",
+          contradicts: { message: it_welcome, quote: "we will never ask for your current password by email" } }
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
           explanation: "The text shows itportal.larkhill.example, but the link goes to itportal-larkhill.example.net." }
 
@@ -92,12 +94,33 @@ messages:
     body_html: |
       <p>Hello and welcome aboard!</p>
       <p>Please complete your onboarding form today so we can set up your payroll and pension.</p>
+      <p>Your induction is at 2pm in the Harbour Room, on the second floor.</p>
       <p><a href="https://hr.larkhill.example/onboarding/5521">Open my onboarding form</a></p>
       <p>You might also like to read the <a href="https://intranet.larkhill.example/handbook">staff handbook</a> when you get a moment.</p>
     links:
       - { match: "hr.larkhill.example", outcome: portal, action: "Submit my onboarding form" }
       - { match: "intranet.larkhill.example", outcome: harmless }
     verify_result: "HR confirms they sent your onboarding form."
+
+  - key: buddy_induction
+    channel: email
+    arrives: { after: hr_onboarding }
+    legit: true
+    expects: reply
+    points: 20
+    answer_in: { message: hr_onboarding, quote: "2pm in the Harbour Room" }
+    from_name: "Alex Morgan"
+    from_address: "alex.morgan@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Your induction"
+    body_html: |
+      <p>Hope the morning's going OK! I'll come and find you after your induction.</p>
+      <p>When and where is it? HR will have told you.</p>
+    replies:
+      - { text: "2pm, in the Harbour Room on the second floor.", outcome: safe, response: "Perfect, I'll be outside at three." }
+      - { text: "Friday at 5pm, in the atrium.", outcome: poor, response: "Hmm, that sounds more like the welcome drinks..." }
+      - { text: "No idea, sorry!", outcome: poor, response: "Oh! Have a look through your emails, it'll be in there." }
+    verify_result: "Alex is in the staff directory as your buddy."
 
   - key: mfa_enrolment
     channel: email

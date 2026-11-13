@@ -224,6 +224,24 @@ module DebriefsHelper
     [ action.at_seconds, description, tone ]
   end
 
+  # Where the answer to a question was, for a message that asked one: "It was in HR's email: “Room 4B”".
+  def debrief_answer_source(result)
+    source = result.message.answer_source or return
+    where = "#{source.from_name}'s #{message_noun(source)}"
+
+    if result.replied_well?
+      "You'd read carefully: the answer was in #{where}: “#{result.message.answer_in_quote}”."
+    else
+      "The answer was in #{where}: “#{result.message.answer_in_quote}”. Messages often hold details you'll need later."
+    end
+  end
+
+  # What an earlier, genuine message said that a red flag contradicts: "Earlier, Larkhill IT told you: “…”".
+  def debrief_contradiction(red_flag)
+    source = red_flag.contradicted_message or return
+    "Earlier, #{source.from_name} told you: “#{red_flag.contradicts_quote}”"
+  end
+
   # Each red flag in a phish, and whether the player found it: [red_flag, found?].
   def debrief_red_flags(result)
     found = result.found_flags
