@@ -57,6 +57,8 @@
       <%= sanitize message.body_html, tags: Content::MessageBody::OUTPUT_TAGS, attributes: Content::MessageBody::OUTPUT_ATTRIBUTES %>
     </div>
 
+    <%= render "shift_attempts/reader/replies", attempt:, message:, ref: %>
+
     <% if message.visible_attachments.any? %>
       <ul class="px-5 pb-5 flex flex-wrap gap-2" aria-label="Attachments">
         <% message.visible_attachments.each do |attachment| %>

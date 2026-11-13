@@ -2,8 +2,8 @@
 
 A Red v Blue social-engineering training game.
 
-- **Blue** works a *shift*: a simulated working day with an inbox, a task list and a clock. Complete
-  your tasks through the legitimate emails and catch Red's phishing along the way.
+- **Blue** works a *shift*: an inbox (or a phone) full of messages to deal with. Reply to the ones that
+  need a reply, do what the genuine ones ask, archive what needs nothing, and report Red's phishing.
 - **Red** builds a phishing email from technique cards in *Red's Workshop* and launches it at a panel
   of simulated Blue bots.
 - Every round ends with a **Purple debrief** that replays both sides' moves, mapped to MITRE ATT&CK.
@@ -38,18 +38,25 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 
 ## Playing a shift
 
-Pick a track at `/tracks`, read a shift's briefing and start it. The play screen has the clock and
-two meters along the top, then your tasks, your inbox and the reading pane. Every move (reading a
-message, showing full headers, calling the sender back, reporting phishing, waiting for new mail,
-ending the shift) is a POST to its own small controller, which calls a method on the `ShiftAttempt`
-(`attempt.report(message)`). The attempt logs the move as an `AttemptAction`, moves the in-game clock
-on and the panes update by Turbo Stream. `ShiftAttempt::Scorecard` scores the log.
+Pick a track at `/tracks`, read a shift's briefing and start it. The play screen shows your inbox
+(or, for a messages shift, a phone) and the open message. Every move (reading a message, showing full
+headers, calling the sender back, flagging, replying, archiving, reporting, giving up) is a POST to its
+own small controller, which calls a method on the `ShiftAttempt` (`attempt.report(message)`). The
+attempt logs the move as an `AttemptAction` with the time it was made, and the panes update by Turbo
+Stream.
+
+There's no task list, clock or score on screen. More messages arrive as you deal with others
+(`ShiftAttempt::Arrivals`), and the shift ends when every message has been reported or archived.
+Time is real time, kept on the server (a call-back adds 30 seconds), and earns a speed bonus against
+the shift's target time unless you've turned on relaxed mode in Settings. `ShiftAttempt::Scorecard`
+scores the log, and everything is revealed in the Purple debrief.
 
 Links and attachments open in an in-game browser (`ShiftAttempt::Browsing`). It shows the link's real
-address, and the server picks the page: a portal where the task gets done, a harmless article, a
-lookalike sign-in page or a download prompt. Signing in or running a download compromises you
-(`ShiftAttempt::Compromisable`), and the shift carries on. The lookalike page's fields have no names,
-so nothing typed is ever sent.
+address, and the server picks the page: a portal where you do what a genuine message asks, a harmless
+article, a lookalike sign-in page or a download prompt. Signing in on a lookalike page or running a
+download compromises you (`ShiftAttempt::Compromisable`), but nothing says so until the debrief: a
+submitted sign-in page shows the same plain confirmation a real portal does. The lookalike page's
+fields have no names, so nothing typed is ever sent.
 
 ## Content authoring
 
@@ -77,14 +84,23 @@ the file and the exact place, for example:
 
 ```
 content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invoice) → links[0]:
-  outcome must be one of bait_landing, malware, harmless for phishing messages (got completes_task)
+  outcome must be one of bait_landing, malware, harmless for phishing messages (got portal)
 ```
 
 ### Writing a shift
 
 `content/tracks/phishing-basics/month-end-at-larkhill.yml` is a complete example. Each message has a
-`body_html`, a list of `links` rules (`match` is a substring of the href), and for phishing messages
-`techniques` and `red_flags`.
+`body_html`, a list of `links` rules (`match` is a substring of the href), and:
+
+- **When it arrives:** `arrives: start` (the default), `arrives: { after_handled: 2 }` (once any two
+  messages have been dealt with) or `arrives: { after: real_invoice }` (a follow-up). Triggers only
+  depend on *that* messages were dealt with, never on whether the player was right.
+- **For a genuine message, what it expects:** `expects: reply` (send a canned reply that isn't
+  `poor`), `act` (press the button on its one `portal` link, whose rule has an `action:` label) or
+  `archive` (nothing to do); its `points`; and optionally `urgent_within_minutes`.
+- **For a phishing message:** `techniques` and `red_flags`. A phish always expects a report.
+- Optional `replies:` (2 to 4, each `text`, `outcome`: `safe`, `poor` (genuine only), `compromise`
+  (phishing only) or `verify`, and an optional `response`).
 
 The importer enforces these rules:
 
@@ -99,18 +115,20 @@ The importer enforces these rules:
   attributes**: the importer gives every paragraph-like element a neutral anchor (`p1`, `p2`…), every
   link `l1`, `l2`… and every attachment `a1`, `a2`…, so nothing in the page hints at the answer. Body
   anchors are stored as `data-anchor` attributes rather than DOM ids, since every message has a `p1`.
-- **Red flag anchors** use those neutral anchors, or `from`, `to`, `reply_to` and `subject`. Texts and chats
-  only have `from` and their body anchors, since that's all the phone shows.
+- **Red flags** are either a whole part (`anchor:` `from`, `to`, `reply_to`, `subject`, `l1`, `a1`…) or
+  a phrase in the body (`quote: "within 1 hour"`, plus `in: p2` if the words appear in more than one
+  paragraph). A quote must appear exactly once. The importer also splits each paragraph into sentences
+  (`p1s1`, `p1s2`…) so players can flag a sentence or highlight just the words. Texts and chats only
+  have `from` as a header, since that's all the phone shows.
 - **Channels match the shift:** an `inbox` shift holds only emails, a `messages` shift only `sms` and `chat`.
 - **Links never navigate.** Each `<a>` becomes a `<span>` carrying its key and URLs; the outcome
-  (`completes_task`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match
-  exactly one rule, and every rule at least one link.
-- **Every task is completable by exactly one link in a legitimate message.** Phishing messages can't
-  complete tasks; legitimate ones can't contain bait or malware, techniques or red flags.
-- Every shift has at least one phishing message, and tasks and messages fit inside the time budget.
-- A phishing message may say which task it pretends to be about (`imitates: pay_supplier`). It must
-  then arrive no later than the genuine message for that task: a fake that lands after the task is
-  done gives itself away.
+  (`portal`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match exactly
+  one rule, and every rule at least one link.
+- **Genuine messages can't contain bait or malware**, techniques or red flags; phishing messages can't
+  have portals, points or expectations.
+- **Every message can arrive:** at least one arrives at the start, `after:` names another message, and
+  dealing with everything that arrives must eventually bring the rest (no loops).
+- Every shift has at least one phishing message.
 
 ## Deployment
 

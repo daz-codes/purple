@@ -9,8 +9,9 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   # Things only the server may know until the debrief: answer words, the fixtures' descriptive keys,
   # technique tags and red-flag labels. None may appear anywhere in a mid-shift page.
   SHIFT_SECRETS = %w[
-    legit outcome task_id completes_task bait_landing credential_harvest malware harmless portal_task
-    file_preview real_invoice fake_invoice pay_supplier lookalike_domain T1583 lookalike sam_text it_chat code_request
+    legit outcome expects arrives_after bait_landing credential_harvest malware harmless file_preview
+    real_invoice fake_invoice newsletter supplier_thanks sam_text it_chat lookalike_domain T1583 lookalike
+    pay_today code_request compromise
   ].freeze
 
   private

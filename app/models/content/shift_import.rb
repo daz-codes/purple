@@ -190,7 +190,7 @@ module Content
         end
       end
 
-      # Canned replies, for texts and chats only. Each gets a neutral id (r1, r2…); its outcome stays on
+      # Canned replies. Each gets a neutral id (r1, r2…); its outcome stays on
       # the server. Only a phishing message can have a reply that hands something over.
       def replies_for(node, channel:, legit:)
         replies = node.each_item(:replies, required: false) do |reply_node, index|
@@ -206,7 +206,6 @@ module Content
         end
         return replies if replies.empty?
 
-        node.error!("replies are only for sms and chat messages") if channel == "email"
         node.error!("replies must have from 2 to #{MAX_REPLIES} options") unless replies.size.between?(2, MAX_REPLIES)
         node.error!("each reply needs different text") if replies.map { |reply| reply["text"] }.uniq.size < replies.size
         replies

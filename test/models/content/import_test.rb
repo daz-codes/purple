@@ -205,7 +205,6 @@ class Content::ImportTest < ActiveSupport::TestCase
                                   /messages\[1\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
       "an attachment on a text" => [ ->(s) { phone(s)["messages"].last["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
                                      /attachments are only for emails/ ],
-      "replies on an email" => [ ->(s) { s["messages"].last["replies"] = chat_replies }, /replies are only for sms and chat messages/ ],
       "a single reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
       "five replies" => [ ->(s) { phone(s)["messages"].last["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
                           /from 2 to 4 options/ ],

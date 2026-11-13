@@ -6,6 +6,7 @@
 <% flag_mode = local_assigns[:flag_mode] && message %>
 <% flags = message ? attempt.flags_on(message) : [] %>
 <section id="shift_reader" class="flex h-full flex-col" aria-labelledby="reader-heading"
+         data-phone-target="conversation" data-empty="<%= message ? "false" : "true" %>"
          data-controller="flag-mode"
          data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
          data-flag-mode-flags-value="<%= flags_json(flags) %>"

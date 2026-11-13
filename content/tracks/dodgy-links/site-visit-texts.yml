@@ -2,40 +2,36 @@ slug: site-visit-texts
 title: "Site visit, phone only"
 kind: messages
 difficulty: beginner
-time_budget_minutes: 30
+par_minutes: 8
 position: 1
 briefing: >
-  You're out at a client site all day with only your phone. You need to confirm a courier slot
-  for the team's new laptops and book a hot desk for tomorrow. Red knows that on a small screen
-  there's no hovering, no headers, and every link looks the same.
+  You're out at a client site all day with only your phone. The team's new laptops are being
+  delivered, tomorrow's desks need booking, and your colleagues are texting. Red knows that on a
+  small screen there's no hovering, no headers, and every link looks the same.
 learning_summary: >
-  On a phone you can't hover, so read links and sender details carefully before tapping. A text
-  can appear in a genuine-looking thread, a tiny fee is still bait, and IT will never ask for a
-  one-time code, however urgent they make it sound. If someone asks for one, refuse, and check with the
-  service desk on a number you already have.
-
-tasks:
-  - { key: confirm_courier, title: "Confirm the courier slot for the new laptops", due_at_minute: 15, points: 30 }
-  - { key: book_desk, title: "Book a hot desk for tomorrow", due_at_minute: 28, points: 30 }
+  On a phone you can't hover, so read links and sender details carefully before tapping. A tiny
+  fee is still bait, a scary bank text is a reason to open your bank's app yourself, and IT will
+  never ask for a one-time code, however urgent they make it sound. If someone asks for one,
+  refuse, and check with the service desk on a number you already have.
 
 messages:
   - key: courier_slot
     channel: sms
-    arrives_at_minute: 0
     legit: true
+    expects: act
+    points: 30
+    urgent_within_minutes: 10
     from_name: "Tidemark Logistics"
     from_address: "Tidemark"
     body_html: |
       <p>Tidemark Logistics: your Larkhill delivery (3 laptops) is ready. Choose a delivery slot: <a href="https://track.tidemark.example/slot/2231">track.tidemark.example/slot/2231</a></p>
     links:
-      - { match: "track.tidemark.example", outcome: completes_task, task: confirm_courier }
+      - { match: "track.tidemark.example", outcome: portal, action: "Confirm Thursday 10am delivery" }
     verify_result: "The IT team confirms Tidemark is delivering the new laptops this week."
 
   - key: parcel_fee
     channel: sms
-    arrives_at_minute: 0
     legit: false
-    imitates: confirm_courier
     techniques: [smishing, urgency_pretext, credential_harvest]
     from_name: "07700 900461"
     from_address: "07700 900461"
@@ -47,25 +43,56 @@ messages:
     red_flags:
       - { key: personal_number, anchor: from, points: 10, label: "Sent from a personal mobile number",
           explanation: "Delivery companies text from a sender name, not a random mobile number." }
-      - { key: tiny_fee, anchor: p1, points: 10, label: "Small fee and a deadline",
+      - { key: tiny_fee, quote: "unpaid £1.45 delivery fee", points: 10, label: "A tiny fee",
           explanation: "The fee is tiny so you don't think twice, but the page wants your full card details." }
+      - { key: deadline, quote: "Pay within 12 hours", points: 5, label: "Urgency or pressure",
+          explanation: "The deadline is there to make you pay before you think." }
+
+  - key: colleague_text
+    channel: sms
+    legit: true
+    expects: reply
+    points: 20
+    urgent_within_minutes: 5
+    from_name: "Sam (Ops)"
+    from_address: "07700 900118"
+    body_html: |
+      <p>Running 10 mins late for the site meeting, sorry! Grab me a flat white if you're passing the café?</p>
+    replies:
+      - { text: "Will do, see you there ☕", outcome: safe, response: "You're a star, thanks!" }
+      - { text: "No problem, I'll tell the client you're on your way.", outcome: safe, response: "Thank you!" }
+    verify_result: "Sam is in your contacts, and the meeting is in your calendar."
 
   - key: desk_bot
     channel: chat
-    arrives_at_minute: 6
+    arrives: { after_handled: 1 }
     legit: true
+    expects: act
+    points: 20
     from_name: "Larkhill Facilities Bot"
     from_address: "facilities-bot@larkhill.example"
     body_html: |
       <p>Good morning! Hot desks for tomorrow are now open for booking.</p>
       <p><a href="https://desks.larkhill.example/book">Book a desk</a></p>
     links:
-      - { match: "desks.larkhill.example", outcome: completes_task, task: book_desk }
+      - { match: "desks.larkhill.example", outcome: portal, action: "Book a hot desk for tomorrow" }
     verify_result: "Facilities confirms the desk bot posts every morning."
+
+  - key: laptop_ready
+    channel: sms
+    arrives: { after: courier_slot }
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill IT"
+    from_address: "LarkhillIT"
+    body_html: |
+      <p>Larkhill IT: your new laptop will be ready to collect from the IT desk on Thursday afternoon. No need to reply.</p>
+    verify_result: "The IT team confirms they text everyone when their new laptop is ready."
 
   - key: fake_it_chat
     channel: chat
-    arrives_at_minute: 9
+    arrives: { after_handled: 2 }
     legit: false
     techniques: [it_support_pretext, urgency_pretext, mfa_code_theft]
     from_name: "IT Support (Larkhill)"
@@ -84,14 +111,14 @@ messages:
     red_flags:
       - { key: external_account, anchor: from, points: 10, label: "External chat account",
           explanation: "A free webmail account calling itself \"IT Support (Larkhill)\" is not the IT team." }
-      - { key: scare, anchor: p1, points: 5, label: "Scary security warning",
+      - { key: scare, quote: "unusual sign-ins on your account from abroad", points: 5, label: "Scary security warning",
           explanation: "\"Unusual sign-ins from abroad\" is designed to make you panic and comply." }
-      - { key: code_request, anchor: p2, points: 15, label: "Asks for a one-time code",
+      - { key: code_request, quote: "reply with the 6-digit code", points: 15, label: "Asks for a one-time code",
           explanation: "The code is the attacker's way into your account. Never share it with anyone." }
 
   - key: fake_bank_alert
     channel: sms
-    arrives_at_minute: 14
+    arrives: { after_handled: 4 }
     legit: false
     techniques: [smishing, display_name_spoof, urgency_pretext, credential_harvest]
     from_name: "FernhillBank"
@@ -102,23 +129,22 @@ messages:
       - { match: "fernhill-secure.example.net", outcome: bait_landing }
     verify_result: "Fernhill Bank's app shows no new payees on your account."
     red_flags:
-      - { key: fear, anchor: p1, points: 10, label: "Fear of losing money",
+      - { key: fear, quote: "a new payee", points: 10, label: "Fear of losing money",
           explanation: "A payee you didn't add is scary, which is exactly why you shouldn't follow the link. Open your bank's app yourself." }
       - { key: bank_link, anchor: l1, points: 10, label: "Link isn't the bank's own website",
           explanation: "fernhill-secure.example.net is not the bank. Banks don't send links to cancel payees." }
 
-  - key: colleague_text
+  - key: sam_followup
     channel: sms
-    arrives_at_minute: 18
+    arrives: { after: colleague_text }
     legit: true
+    expects: archive
+    points: 5
     from_name: "Sam (Ops)"
     from_address: "07700 900118"
     body_html: |
-      <p>Running 10 mins late for the site meeting, sorry! Grab me a flat white if you're passing the café?</p>
-    replies:
-      - { text: "Will do, see you there ☕", outcome: safe, response: "You're a star, thanks!" }
-      - { text: "Sorry, no time today. See you at the meeting.", outcome: safe, response: "No worries!" }
-    verify_result: "Sam is in your contacts, and the meeting is in your calendar."
+      <p>Btw the client has moved us to meeting room 3B. See you in a bit!</p>
+    verify_result: "Sam is in your contacts."
 
 hints:
   - { body: "Which texts are you actually expecting today? Your laptops are coming from Tidemark.", penalty_percent: 20 }

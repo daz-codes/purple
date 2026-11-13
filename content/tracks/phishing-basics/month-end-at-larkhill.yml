@@ -2,25 +2,24 @@ slug: month-end-at-larkhill
 title: "Month-end at Larkhill Finance"
 kind: inbox
 difficulty: beginner
-time_budget_minutes: 30
+par_minutes: 10
 position: 2
 briefing: >
-  It's month-end. You need to approve a supplier payment and sign your new HR policy before
-  5pm. Red has been studying your team on social media and knows exactly which invoices
-  you're expecting...
+  It's month-end, and your inbox is full of things that need doing before 5pm: a supplier invoice,
+  a policy to sign, and questions from your team. Red has been studying your team on social media
+  and knows exactly which invoices you're expecting...
 learning_summary: >
-  Attackers copy the tasks you're already expecting. Check where a link really goes, look at
-  the real address behind a display name, and verify payment changes through a known channel.
-
-tasks:
-  - { key: pay_supplier, title: "Approve Tidemark invoice #4471", due_at_minute: 20, points: 40 }
-  - { key: sign_policy, title: "Sign the updated HR policy", due_at_minute: 30, points: 30 }
+  Attackers copy the jobs you're already expecting. Check where a link really goes, look at the
+  real address behind a display name, and verify payment changes through a known channel. Not
+  every urgent reminder is a trick, though: the real one comes from the real address.
 
 messages:
   - key: real_invoice
     channel: email
-    arrives_at_minute: 3
     legit: true
+    expects: act
+    points: 40
+    urgent_within_minutes: 15
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark.example"
     to_address: "you@larkhill.example"
@@ -29,14 +28,12 @@ messages:
       <p>Hi, invoice #4471 is ready in the supplier portal.</p>
       <p><a href="https://portal.larkhill.example/invoices/4471">Review invoice</a></p>
     links:
-      - { match: "portal.larkhill.example", outcome: completes_task, task: pay_supplier }
+      - { match: "portal.larkhill.example", outcome: portal, action: "Approve invoice #4471" }
     verify_result: "Tidemark's accounts team confirms invoice #4471 is genuine."
 
   - key: fake_invoice
     channel: email
-    arrives_at_minute: 0
     legit: false
-    imitates: pay_supplier
     techniques: [lookalike_domain, reply_to_mismatch, urgency_pretext, payment_change_pretext, malicious_link, credential_harvest]
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark-billing.example"
@@ -54,15 +51,18 @@ messages:
           explanation: "tidemark-billing.example is not tidemark.example." }
       - { key: reply_redirect, anchor: reply_to, points: 10, label: "Replies go to a different address",
           explanation: "Replies would go to a free webmail account, not to Tidemark." }
-      - { key: bank_change, anchor: p1, points: 10, label: "Changed bank details and urgency",
+      - { key: bank_change, quote: "Our bank details have changed", points: 10, label: "Changed bank details",
           explanation: "A classic payment-fraud pretext. Always verify by phone, using the number you already hold." }
+      - { key: deadline, quote: "within 1 hour", points: 5, label: "Urgency or pressure",
+          explanation: "A one-hour deadline on a payment is there to stop you checking." }
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
           explanation: "The text shows the real portal, but the link goes to larkhill-portal.example.net." }
 
   - key: hr_policy
     channel: email
-    arrives_at_minute: 5
     legit: true
+    expects: act
+    points: 30
     from_name: "Larkhill HR"
     from_address: "hr@larkhill.example"
     to_address: "you@larkhill.example"
@@ -71,12 +71,46 @@ messages:
       <p>Please sign the updated hybrid working policy by end of day.</p>
       <p><a href="https://hr.larkhill.example/sign/2291">Open policy</a></p>
     links:
-      - { match: "hr.larkhill.example", outcome: completes_task, task: sign_policy }
+      - { match: "hr.larkhill.example", outcome: portal, action: "Sign the hybrid working policy" }
     verify_result: "HR confirms everyone needs to sign the new policy today."
+
+  - key: maintenance_notice
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "Planned maintenance tonight"
+    body_html: |
+      <p>The expenses system will be unavailable from 8pm to 10pm tonight for planned maintenance.</p>
+      <p>No action is needed.</p>
+    verify_result: "The service desk confirms tonight's maintenance window."
+
+  - key: team_lead
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: true
+    expects: reply
+    points: 20
+    urgent_within_minutes: 10
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Month-end report"
+    body_html: |
+      <p>Hi, I'm putting the month-end report together this afternoon.</p>
+      <p>Can you let me know once the Tidemark invoice has gone through? Just reply here.</p>
+    replies:
+      - { text: "Will do, I'll let you know as soon as it's approved.", outcome: safe, response: "Thanks, that's a big help." }
+      - { text: "Can't it wait until next month?", outcome: poor, response: "Not really, it's month-end today..." }
+    verify_result: "Priya is your team lead, and the report is due today."
 
   - key: manager_survey
     channel: email
-    arrives_at_minute: 9
+    arrives: { after_handled: 3 }
     legit: false
     techniques: [display_name_spoof, malicious_link, credential_harvest]
     from_name: "Larkhill HR"
@@ -93,23 +127,27 @@ messages:
     red_flags:
       - { key: spoofed_name, anchor: from, points: 10, label: "Display name doesn't match the address",
           explanation: "It says Larkhill HR, but the address is a free webmail account." }
-      - { key: prize, anchor: p2, points: 5, label: "Too good to be true",
-          explanation: "An anonymous survey that needs your password, with a prize for finishing? That's bait." }
+      - { key: sign_in, quote: "Sign in with your Larkhill account", points: 5, label: "An anonymous survey that wants your password",
+          explanation: "Anonymous feedback doesn't need you to sign in with your work account." }
+      - { key: prize, quote: "a draw for a £50 voucher", points: 5, label: "Too good to be true",
+          explanation: "A prize for finishing is bait to get you past your doubts." }
       - { key: survey_link, anchor: l1, points: 10, label: "Sign-in page outside Larkhill",
           explanation: "larkhill-surveys.example.org isn't a Larkhill domain, so it has no business asking for your password." }
 
-  - key: maintenance_notice
+  - key: policy_reminder
     channel: email
-    arrives_at_minute: 14
+    arrives: { after: hr_policy }
     legit: true
-    from_name: "Larkhill IT Service Desk"
-    from_address: "servicedesk@larkhill.example"
+    expects: archive
+    points: 5
+    from_name: "Larkhill HR"
+    from_address: "hr@larkhill.example"
     to_address: "all-staff@larkhill.example"
-    subject: "Planned maintenance tonight"
+    subject: "REMINDER: policy sign-off closes at 6pm"
     body_html: |
-      <p>The expenses system will be unavailable from 8pm to 10pm tonight for planned maintenance.</p>
-      <p>No action is needed.</p>
-    verify_result: "The service desk confirms tonight's maintenance window."
+      <p>Final reminder: the hybrid working policy sign-off closes at 6pm today.</p>
+      <p>If you've already signed, there's nothing more to do and you can ignore this email.</p>
+    verify_result: "HR confirms they sent a reminder to all staff."
 
 hints:
   - { body: "Two emails mention the same invoice. Compare the sender domains closely.", penalty_percent: 20 }
