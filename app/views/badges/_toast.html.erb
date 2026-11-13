@@ -1,0 +1,9 @@
+<div class="card flex items-start gap-3 border-purple-team/60 p-4 shadow-xl" role="status" data-controller="toast" data-testid="badge-toast">
+  <span class="text-2xl" aria-hidden="true">🏅</span>
+  <div class="min-w-0 flex-1">
+    <p class="text-xs font-semibold uppercase tracking-widest text-purple-team">Badge earned</p>
+    <p class="font-bold"><%= badge.name %></p>
+    <p class="text-sm text-ink-muted"><%= badge.description %></p>
+  </div>
+  <button type="button" class="text-ink-muted hover:text-ink cursor-pointer" data-action="toast#dismiss" aria-label="Dismiss">✕</button>
+</div>

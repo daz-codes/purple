@@ -137,6 +137,7 @@
   .gauge-clock { --gauge: var(--color-ink-muted); }
   .gauge-productivity { --gauge: var(--color-blue-team); }
   .gauge-security { --gauge: var(--color-purple-team); }
+  .gauge-red { --gauge: var(--color-red-team); }
 
   .gauge::-webkit-progress-bar,
   .gauge::-webkit-meter-bar {

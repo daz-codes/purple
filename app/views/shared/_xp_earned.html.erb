@@ -1,0 +1,10 @@
+<% earned = xp_earned_by(source) %>
+<div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" data-testid="xp-earned">
+  <% earned.each do |amount, words| %>
+    <span><span class="rounded-full border border-purple-team/60 bg-purple-team-soft px-2 py-0.5 font-semibold text-purple-team">+<%= amount %> XP</span>
+      <span class="text-ink-muted"><%= words %></span></span>
+  <% end %>
+  <% if (note = xp_note(source)) %>
+    <span class="text-ink-muted"><%= note %></span>
+  <% end %>
+</div>

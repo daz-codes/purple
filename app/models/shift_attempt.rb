@@ -37,4 +37,17 @@ class ShiftAttempt < ApplicationRecord
   def to_param
     token
   end
+
+  # --- Progress (see Rewarded) ---------------------------------------------------------
+
+  include Rewarded
+
+  def side = "blue"
+  def xp_reason = :shift_completed
+  def finished_at = completed_at
+
+  # Finished just now by playing it: an attempt that expired doesn't count as a day played.
+  def just_finished?
+    saved_change_to_status? && (completed? || clocked_off?)
+  end
 end

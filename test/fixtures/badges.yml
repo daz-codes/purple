@@ -1,6 +1,9 @@
-first_catch:
-  key: first_catch
-  name: First Catch
-  description: Report your first phishing message.
-  side: blue
-  position: 1
+<% { first_catch: "blue", eagle_eye: "blue", clean_shift: "blue", productive_paranoid: "blue", near_miss_ninja: "blue",
+     seven_day_streak: "any", fooled_carol: "red", budget_hacker: "red", purple_belt: "purple" }.each_with_index do |(key, side), index| %>
+<%= key %>:
+  key: <%= key %>
+  name: <%= key.to_s.titleize %>
+  description: The <%= key.to_s.humanize(capitalize: false) %> badge.
+  side: <%= side %>
+  position: <%= index + 1 %>
+<% end %>
