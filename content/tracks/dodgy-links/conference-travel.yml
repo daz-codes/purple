@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Analyst, Finance, travelling"
   staff_prefix: LH
-  security_question: "Name of your favourite holiday town?"
+  security_question: "Name of your team's tea-round mascot?"
 directory:
   - { name: "Larkhill travel desk", team: "Travel", contact: "Ext 4350, or the travel portal" }
   - { name: "Jamie Cole", team: "Finance", contact: "Ext 4215" }

@@ -18,7 +18,7 @@ persona:
   name: "Robin Ashby"
   role: "Analyst, Finance"
   staff_prefix: LH
-  security_question: "Town where you were born?"
+  security_question: "Name of the finance team's tea-round mascot?"
 directory:
   - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
   - { name: "Expenses team", team: "Finance operations", contact: "Ext 4230, or the expenses portal" }

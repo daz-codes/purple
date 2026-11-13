@@ -18,7 +18,7 @@ persona:
   name: "Robin Ashby"
   role: "Payroll assistant, People team"
   staff_prefix: LH
-  security_question: "Name of your childhood best friend?"
+  security_question: "Name of the canteen cat?"
 directory:
   - { name: "Sam Okafor", team: "Operations", contact: "Ext 4610" }
   - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }

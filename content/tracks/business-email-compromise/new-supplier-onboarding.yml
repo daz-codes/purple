@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Supplier set-up, Finance"
   staff_prefix: LH
-  security_question: "Street you grew up on?"
+  security_question: "Name of the plant on your old desk?"
 directory:
   - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
   - { name: "Brightwell Services", team: "Supplier", contact: "0117 496 0754, from the signed contract" }

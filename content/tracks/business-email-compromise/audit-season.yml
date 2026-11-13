@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Senior accountant, Finance"
   staff_prefix: LH
-  security_question: "Name of your primary school?"
+  security_question: "Name of the office goldfish?"
 directory:
   - { name: "Priya Shah", team: "Finance, audit coordinator", contact: "Ext 4210" }
   - { name: "Calder & Wynn", team: "External auditors", contact: "0117 496 0911, from the audit letter" }

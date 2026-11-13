@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Analyst, Finance"
   staff_prefix: LH
-  security_question: "Your favourite teacher's surname?"
+  security_question: "Name of the server room's lucky gnome?"
 directory:
   - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
   - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }

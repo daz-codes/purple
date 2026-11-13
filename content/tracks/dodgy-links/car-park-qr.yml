@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Operations coordinator"
   staff_prefix: LH
-  security_question: "Colour of your first bike?"
+  security_question: "Name of the car park's resident pigeon?"
 directory:
   - { name: "Facilities", team: "Facilities", contact: "Ext 4300, or the parking portal" }
   - { name: "Sam Okafor", team: "Operations", contact: "Ext 4610" }

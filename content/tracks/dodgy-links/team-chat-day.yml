@@ -17,7 +17,7 @@ persona:
   name: "Robin Ashby"
   role: "Analyst, Finance, working from home"
   staff_prefix: LH
-  security_question: "Name of your first manager?"
+  security_question: "Name of your desk's rubber duck?"
 directory:
   - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
   - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }

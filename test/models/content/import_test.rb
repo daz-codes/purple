@@ -99,6 +99,12 @@ class Content::ImportTest < ActiveSupport::TestCase
     @shift["persona"] = persona.merge("security_question" => "The office dog")
     assert_import_error "must be a question"
 
+    [ "Name of your first pet?", "Name of your primary school?", "Town where you were born?", "Street you grew up on?",
+      "Your mother's maiden name?", "Make of your first car?" ].each do |question|
+      @shift["persona"] = persona.merge("security_question" => question)
+      assert_import_error "never the kind real accounts use"
+    end
+
     @shift["persona"] = persona.merge("role" => "Clerk at https://bank.com")
     assert_import_error "role mentions names outside the reserved fictional set"
 

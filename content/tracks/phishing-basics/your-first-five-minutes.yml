@@ -19,7 +19,7 @@ persona:
   name: "Robin Ashby"
   role: "Trainee, Finance"
   staff_prefix: LH
-  security_question: "Name of your first pet?"
+  security_question: "Name of the Larkhill office dog?"
 directory:
   - { name: "Morgan Lee", team: "Training", contact: "Ext 4105" }
   - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
