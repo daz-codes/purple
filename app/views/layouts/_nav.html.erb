@@ -1,12 +1,13 @@
 <header class="border-b border-line bg-surface-sunken/80">
   <nav aria-label="Main" class="max-w-6xl mx-auto px-4 sm:px-6 min-h-16 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-    <%= link_to root_path, class: "flex items-center gap-3 no-underline", aria: { label: "Purple home" } do %>
+    <%= link_to root_path, class: "flex items-center gap-3 no-underline" do %>
       <%= render "layouts/logo" %>
       <span class="flex flex-col leading-none">
         <span class="text-xl font-extrabold tracking-tight text-purple-team">Purple</span>
         <span class="mt-1 text-[0.7rem] font-semibold uppercase tracking-widest text-ink-muted">
           <span class="text-red-team">Red</span> v <span class="text-blue-team">Blue</span>
         </span>
+        <span class="sr-only">home</span>
       </span>
     <% end %>
 
@@ -16,7 +17,7 @@
       <li><%= link_to "Leaderboard", leaderboard_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
       <% if authenticated? %>
         <li><%= link_to Current.user.display_name, account_path, class: "px-3 py-2 rounded-lg font-semibold hover:bg-surface-raised",
-              aria: { label: "Your account (#{Current.user.display_name})" }, data: { testid: "current-user" } %></li>
+              aria: { label: "#{Current.user.display_name}, your account" }, data: { testid: "current-user" } %></li>
         <li><%= button_to "Sign out", session_path, method: :delete, class: "px-3 py-2 rounded-lg hover:bg-surface-raised cursor-pointer" %></li>
       <% else %>
         <li><%= link_to "Sign in", new_session_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>

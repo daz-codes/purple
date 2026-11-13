@@ -58,8 +58,8 @@
   <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="badges">
     <% @badges.each do |badge| %>
       <% earned = @earned[badge.id] %>
-      <li class="card p-4 <%= earned ? "border-purple-team/60" : "opacity-60" %>" data-earned="<%= earned.present? %>">
-        <p class="flex items-center gap-2 font-bold"><span aria-hidden="true"><%= earned ? "🏅" : "🔒" %></span><%= badge.name %></p>
+      <li class="card p-4 <%= earned ? "border-purple-team/60" : "border-dashed" %>" data-earned="<%= earned.present? %>">
+        <p class="flex items-center gap-2 font-bold <%= "text-ink-muted" unless earned %>"><span aria-hidden="true"><%= earned ? "🏅" : "🔒" %></span><%= badge.name %><% unless earned %><span class="sr-only"> (not earned yet)</span><% end %></p>
         <p class="mt-1 text-sm text-ink-muted"><%= badge.description %></p>
         <% if earned %><p class="mt-1 text-xs text-purple-team">Earned <%= earned.awarded_at.to_date.to_fs(:long) %></p><% end %>
       </li>
