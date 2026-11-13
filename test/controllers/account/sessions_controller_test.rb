@@ -6,24 +6,13 @@ class Account::SessionsControllerTest < ActionDispatch::IntegrationTest
     @other_device = @user.sessions.create!(user_agent: "Firefox on Linux", ip_address: "192.0.2.10")
   end
 
-  test "index lists the user's sessions only" do
-    someone_else = users(:two).sessions.create!(ip_address: "198.51.100.7")
-    sign_in_as @user
-
-    get account_sessions_path
-
-    assert_response :success
-    assert_select "##{ActionView::RecordIdentifier.dom_id(@other_device)}"
-    assert_select "##{ActionView::RecordIdentifier.dom_id(someone_else)}", count: 0
-  end
-
   test "destroy revokes another of your sessions" do
     sign_in_as @user
 
     assert_difference -> { Session.count }, -1 do
       delete account_session_path(@other_device)
     end
-    assert_redirected_to account_sessions_path
+    assert_redirected_to account_path
   end
 
   test "destroy on the current session signs you out" do
@@ -56,7 +45,8 @@ class Account::SessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "requires sign-in" do
-    get account_sessions_path
+    delete account_session_path(@other_device)
     assert_redirected_to new_session_path
+    assert Session.exists?(@other_device.id)
   end
 end

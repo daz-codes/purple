@@ -8,8 +8,10 @@ Rails.application.routes.draw do
   resources :passwords, param: :token, only: %i[ new create edit update ]
   resources :email_confirmations, param: :token, only: %i[ create show update ]
 
+  # Your account page: your details and the devices you're signed in on.
+  resource :account, only: :show
   namespace :account do
-    resources :sessions, only: %i[ index destroy ]
+    resources :sessions, only: :destroy
     resource :other_sessions, only: :destroy
   end
 
