@@ -427,6 +427,38 @@ class Content::ImportTest < ActiveSupport::TestCase
     end
   end
 
+  test "Workshop targets import with their cards, linked to a Blue shift" do
+    @target = workshop_target
+    import!
+
+    target = Target.find_by!(slug: "month-end-run")
+    assert_equal [ "month-end", 20 ], [ target.shift.slug, target.budget ]
+    assert_equal %w[ pretext pretext sender sender lure lure payload payload timing timing ], target.options.map(&:category)
+    assert_equal "New bank details", target.options.first.subject
+    assert_equal "Busy Bob", BotPersona.sole.name
+  end
+
+  test "rejects bad Workshop content" do
+    {
+      "a card in the wrong slot" => [ ->(t) { t["cards"]["sender"].first["technique"] = "pay_tech" }, /pay_tech is a pretext technique, so it can't go in the sender slot/ ],
+      "an unknown shift" => [ ->(t) { t["shift"] = "nope" }, /shift "nope" isn't one of the imported shifts/ ],
+      "a pretext with no subject" => [ ->(t) { t["cards"]["pretext"].first.delete("subject") }, /subject is required for pretexts/ ],
+      "a subject on a lure" => [ ->(t) { t["cards"]["lure"].first["subject"] = "Hi" }, /subject is only for pretexts/ ],
+      "a slot with one card" => [ ->(t) { t["cards"]["timing"].pop }, /timing needs at least 2 cards/ ],
+      "a missing slot" => [ ->(t) { t["cards"].delete("payload") }, /payload must be a list/ ],
+      "a budget too small for any full set" => [ ->(t) { t["budget"] = 2 }, /costs 3 together, over the budget of 2/ ],
+      "a real address on a card" => [ ->(t) { t["cards"]["sender"].first["text"] = "Tidemark <accounts@tidemark.com>" }, /text mentions names outside the reserved fictional set/ ],
+      "relevance out of range" => [ ->(t) { t["cards"]["pretext"].first["relevance"] = 4 }, /relevance must be from 0 to 3/ ],
+      "a repeated card key" => [ ->(t) { t["cards"]["lure"].last["key"] = "link" }, /card keys must be unique \(link\)/ ]
+    }.each do |description, (mutate, message)|
+      @target = workshop_target
+      mutate.call(@target)
+
+      error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
+      assert_match message, error.message, "wrong error for #{description}"
+    end
+  end
+
   test "YAML aliases are refused" do
     write_content
     @root.join("tracks/basics/_track.yml").write("base: &base\n  title: x\nother: *base\n")
@@ -441,16 +473,43 @@ class Content::ImportTest < ActiveSupport::TestCase
     end
 
     def write_content
-      write_yaml("techniques.yml", "techniques" => [
+      techniques = [
         { "key" => "lookalike_domain", "name" => "Lookalike domain", "attack_id" => "T1583.001", "category" => "sender",
           "description" => "A domain like the real one.", "defence_tip" => "Read domains carefully.",
           "red_cost" => 3, "stealth" => 6, "red_flag_label" => "Lookalike sender domain" }
-      ])
+      ]
+      if @extra_techniques
+        { "pay_tech" => "pretext", "link_tech" => "lure", "page_tech" => "payload", "time_tech" => "timing" }.each do |key, category|
+          techniques << { "key" => key, "name" => key.humanize, "category" => category, "description" => "x", "defence_tip" => "x",
+                          "red_cost" => 0, "stealth" => 5, "red_flag_label" => key.humanize }
+        end
+      end
+      write_yaml("techniques.yml", "techniques" => techniques)
       write_yaml("badges.yml", "badges" => [
         { "key" => "first_catch", "name" => "First Catch", "description" => "Report a phish.", "side" => "blue" }
       ])
       write_yaml("tracks/basics/_track.yml", valid_track)
       write_yaml("tracks/basics/month-end.yml", @shift)
+      write_yaml("bots.yml", "bots" => [
+        { "key" => "busy_bob", "name" => "Busy Bob", "description" => "Always behind.", "vigilance" => 3,
+          "detects" => { "lookalike_domain" => -1 } }
+      ])
+      write_yaml("targets/month-end-run.yml", @target) if @target
+    end
+
+    def valid_target
+      card = ->(key, technique, extra = {}) { { "key" => key, "technique" => technique, "label" => key.humanize, "text" => "Text for #{key}." }.merge(extra) }
+      {
+        "slug" => "month-end-run", "title" => "Month-end", "shift" => "month-end", "budget" => 20,
+        "recon_brief" => "Tidemark's invoice is due.",
+        "cards" => {
+          "pretext" => [ card.("bank", "lookalike_domain", "subject" => "New bank details"), card.("overdue", "lookalike_domain", "subject" => "Overdue") ],
+          "sender" => [ card.("lookalike", "lookalike_domain"), card.("lookalike_too", "lookalike_domain") ],
+          "lure" => [ card.("link", "lookalike_domain"), card.("link_too", "lookalike_domain") ],
+          "payload" => [ card.("page", "lookalike_domain"), card.("page_too", "lookalike_domain") ],
+          "timing" => [ card.("friday", "lookalike_domain"), card.("monday", "lookalike_domain") ]
+        }
+      }
     end
 
     def write_yaml(path, data)
@@ -527,6 +586,15 @@ class Content::ImportTest < ActiveSupport::TestCase
       [ { "text" => "Here it is: 482 913", "outcome" => "compromise", "response" => "Thanks, all sorted!" },
         { "text" => "I won't share a code.", "outcome" => "safe" },
         { "text" => "I'll check with the service desk.", "outcome" => "verify" } ]
+    end
+
+    # A valid target whose cards use one technique per slot, from a techniques file with all five.
+    def workshop_target
+      @extra_techniques = true
+      valid_target.tap do |target|
+        { "pretext" => "pay_tech", "sender" => "lookalike_domain", "lure" => "link_tech", "payload" => "page_tech", "timing" => "time_tech" }
+          .each { |slot, technique| target["cards"][slot].each { |card| card["technique"] = technique } }
+      end
     end
 
     def poor_replies

@@ -1,0 +1,49 @@
+<% content_for :title, @target.title %>
+
+<nav aria-label="Breadcrumb" class="mb-4 text-sm text-ink-muted">
+  <%= link_to "Workshop", targets_path, class: "hover:text-ink" %>
+</nav>
+
+<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+  <section class="card border-red-team/50" aria-labelledby="recon-heading">
+    <p class="text-sm font-semibold uppercase tracking-widest text-red-team">Recon</p>
+    <h1 id="recon-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= @target.title %></h1>
+    <p class="mt-4 text-lg"><%= @target.recon_brief %></p>
+    <p class="mt-4 text-ink-muted">
+      Blue works here in the shift <%= link_to "“#{@target.shift.title}”", @target.shift, class: "underline" %>.
+      Play it to see the other side.
+    </p>
+  </section>
+
+  <aside class="card" aria-labelledby="how-heading">
+    <h2 id="how-heading" class="text-lg font-bold">How it works</h2>
+    <ul class="mt-3 space-y-2 text-sm">
+      <li>Pick one card for each part of the email: the story, the sender, the lure, what's behind it, and when it lands.</li>
+      <li>You have a budget of <%= @target.budget %>. Stealthier cards cost more, and every point you don't spend is worth a point.</li>
+      <li>Cards that fit what recon found work better.</li>
+      <li>Launch it at three Blue bots: +<%= RedCampaign::Launchable::FOOLED %> for each one you fool, +<%= RedCampaign::Launchable::NEAR_MISS %> for each that clicks but backs out.</li>
+    </ul>
+
+    <div class="mt-6">
+      <% if authenticated? %>
+        <% draft = @campaigns.find(&:draft?) %>
+        <%= button_to draft ? "Resume your campaign" : "Start a campaign", target_campaigns_path(@target), class: "btn-red w-full" %>
+      <% else %>
+        <%= link_to "Sign in to play", new_session_path, class: "btn-red w-full" %>
+      <% end %>
+    </div>
+
+    <% launched = @campaigns.select(&:launched?) %>
+    <% if launched.any? %>
+      <h3 class="mt-6 text-sm font-semibold uppercase tracking-widest text-ink-muted">Your campaigns</h3>
+      <ul class="mt-2 space-y-2 text-sm" data-testid="past-campaigns">
+        <% launched.each do |campaign| %>
+          <li class="flex items-center justify-between gap-2">
+            <%= link_to "#{campaign.score} points", campaign, class: "underline" %>
+            <span><%= debrief_stars(campaign.stars) %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </aside>
+</div>

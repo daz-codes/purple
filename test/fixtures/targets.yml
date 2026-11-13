@@ -1,0 +1,9 @@
+# Budget 9. The cheapest full set costs 3 (either pretext) + 1 + 1 + 2 + 1 = 8.
+month_end_target:
+  shift: month_end
+  slug: month-end-target
+  title: Month-end at Larkhill
+  recon_brief: Tidemark's invoice is due this week.
+  budget: 9
+  position: 1
+  published: true

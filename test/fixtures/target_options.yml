@@ -1,0 +1,10 @@
+<% card = ->(key, technique, category, position, text, extra = {}) {
+  { "target" => "month_end_target", "technique" => technique, "key" => key, "category" => category, "label" => key.humanize,
+    "rendered_value" => text, "position" => position, "relevance" => 0, "extra_cost" => 0 }.merge(extra).to_json } %>
+bank_change: <%= card.("bank_change", "payment_change_pretext", "pretext", 1, "Our bank details have changed.", "subject" => "New bank details", "relevance" => 3) %>
+overdue: <%= card.("overdue", "urgency_pretext", "pretext", 2, "Payment is overdue <today>.", "subject" => "URGENT", "extra_cost" => 2) %>
+lookalike: <%= card.("lookalike", "lookalike_domain", "sender", 3, "Tidemark Supply <accounts@tidemark-billing.example>") %>
+spoof: <%= card.("spoof", "display_name_spoof", "sender", 4, "Tidemark Supply <tidemark@freemail.test>") %>
+link: <%= card.("link", "malicious_link", "lure", 5, "Pay here: portal.tidemark-billing.example/4471") %>
+sign_in: <%= card.("sign_in", "credential_harvest", "payload", 6, "A fake portal sign-in page.") %>
+friday: <%= card.("friday", "end_of_day_rush", "timing", 7, "Friday, 4:55pm") %>

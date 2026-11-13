@@ -1,0 +1,22 @@
+<% content_for :title, "Red's Workshop" %>
+
+<header class="mb-8">
+  <p class="text-sm font-semibold uppercase tracking-widest text-red-team">Red team</p>
+  <h1 class="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight">Red's Workshop</h1>
+  <p class="mt-3 max-w-2xl text-ink-muted">
+    Pick a target: one of the fictional companies Blue works at. Read what recon turned up, build a
+    phishing email from technique cards on a budget, and launch it at a panel of Blue bots.
+    Every card is pre-written, so nothing you build here works outside the game.
+  </p>
+</header>
+
+<div class="grid gap-6 md:grid-cols-2">
+  <% @targets.each do |target| %>
+    <%= link_to target, class: "card-link-red group flex flex-col" do %>
+      <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">Budget <%= target.budget %></p>
+      <h2 class="mt-2 text-2xl font-bold group-hover:text-red-team"><%= target.title %></h2>
+      <p class="mt-3 flex-1 text-ink-muted"><%= target.recon_brief.truncate(160) %></p>
+      <p class="mt-4 text-sm text-ink-muted">Blue plays this company in “<%= target.shift.title %>” <span aria-hidden="true">→</span></p>
+    <% end %>
+  <% end %>
+</div>

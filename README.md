@@ -59,6 +59,20 @@ download compromises you (`ShiftAttempt::Compromisable`), but nothing says so un
 submitted sign-in page shows the same plain confirmation a real portal does. The lookalike page's
 fields have no names, so nothing typed is ever sent.
 
+## Red's Workshop
+
+Pick a target at `/workshop`: one of Blue's fictional companies, with a recon brief and a budget. Build
+an email by picking one card per slot (the story, the sender, the lure, what's behind it, and the
+timing), then launch it at the Blue bots. Every card is pre-written, so nothing built here works
+outside the game.
+
+`RedCampaign::Simulation` judges the email: a pure function of the cards, the bots
+(`content/bots.yml`) and a seed stored on the campaign, so a launched campaign always replays the same
+way. Each bot may spot the sender, story or timing (and report it, or check first), or click and then
+spot the lure or payload (a near miss), or be fooled. Red scores +40 per bot fooled, +15 per near
+miss and +1 per unit of budget left. The balance rules are tests on the shipped content
+(`test/models/red_campaign/balance_test.rb`).
+
 ## Content authoring
 
 All game content is YAML in `content/`:
@@ -69,6 +83,8 @@ content/
   badges.yml                   badges players can earn
   tracks/<track>/_track.yml    a track's title, description, position and difficulty
   tracks/<track>/<shift>.yml   one file per shift (the file name is the shift's slug)
+  bots.yml                     the Blue bots that judge Red's Workshop emails
+  targets/<target>.yml         one file per Workshop target: its shift, budget, recon brief and cards
 ```
 
 Load it with:

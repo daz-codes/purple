@@ -1,0 +1,23 @@
+# The Blue bots that judge Red's emails in the Workshop.
+#
+# vigilance: 1 (clicks anything) to 10 (checks everything)
+# detects:   technique key => bonus to spotting it. Negative means more easily fooled by it.
+
+bots:
+  - key: busy_bob
+    name: Busy Bob
+    description: Approves payments and is always behind. Skims, especially late in the day.
+    vigilance: 3
+    detects: { end_of_day_rush: -2, urgency_pretext: -1, payment_change_pretext: 1 }
+
+  - key: careful_carol
+    name: Careful Carol
+    description: Security-minded. Reads every sender address and hovers over every link.
+    vigilance: 8
+    detects: { lookalike_domain: 2, display_name_spoof: 2, malicious_link: 1, urgency_pretext: 1 }
+
+  - key: new_starter_nia
+    name: New Starter Nia
+    description: Started last week and keen to impress. Doesn't yet know who's who, or what normal looks like.
+    vigilance: 4
+    detects: { authority_pretext: -2, it_support_pretext: -2, malicious_attachment: 1 }

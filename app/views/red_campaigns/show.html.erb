@@ -1,0 +1,12 @@
+<% content_for :title, @campaign.target.title %>
+
+<nav aria-label="Breadcrumb" class="mb-4 text-sm text-ink-muted">
+  <%= link_to "Workshop", targets_path, class: "hover:text-ink" %> / <%= link_to @campaign.target.title, @campaign.target, class: "hover:text-ink" %>
+</nav>
+
+<% if @campaign.draft? %>
+  <div id="campaign_notice" class="mb-4" aria-live="polite"></div>
+  <%= render "red_campaigns/builder", campaign: @campaign %>
+<% else %>
+  <%= render "red_campaigns/results", campaign: @campaign %>
+<% end %>
