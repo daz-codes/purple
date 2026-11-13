@@ -272,8 +272,13 @@ module DebriefsHelper
   end
 
   private
+    # A <mark> has the browser's yellow background unless it's one of the player's highlights.
     def mark_classes(kinds)
-      kinds.map { |kind| MARK_CLASSES.fetch(kind) }.uniq.join(" ").presence
+      return if kinds.empty?
+
+      classes = kinds.map { |kind| MARK_CLASSES.fetch(kind) }
+      classes << "bg-transparent" unless kinds.intersect?(%i[ hit wrong ])
+      classes.uniq.join(" ")
     end
 
     def genuine_story(result)

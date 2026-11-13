@@ -101,7 +101,7 @@ class DebriefsHelperTest < ActionView::TestCase
     result = result("fake_invoice", archive("newsletter"), flag("fake_invoice", "p1", 18, 21))
     paragraphs = debrief_marked_paragraphs(result)
 
-    assert_equal [ "Please pay today", DebriefsHelper::MARK_CLASSES[:missed] ], paragraphs.first[0]
+    assert_equal [ "Please pay today", "#{DebriefsHelper::MARK_CLASSES[:missed]} bg-transparent" ], paragraphs.first[0]
     assert_equal [ "Our", DebriefsHelper::MARK_CLASSES[:wrong] ], paragraphs.first[2]
     assert_empty debrief_marked_paragraphs(result("newsletter"))
   end
