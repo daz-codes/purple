@@ -34,9 +34,10 @@ module ShiftAttempt::Sharing
   end
 
   # The details already sent to a message, as the player saw them: labels and values, and the answer.
+  # Only those: what each detail is, and how sensitive, stays on the server.
   def shared_with(message)
     actions.select { |action| action.share_details? && action.target_key == message.key && action.result["via"] == "reply" }
-      .map { |action| action.result.slice("shared", "response") }
+      .map { |action| { "shared" => action.result["shared"].map { |shared| shared.slice("label", "value") }, "response" => action.result["response"] } }
   end
 
   # The six-digit code on the player's authenticator, once a sign-in page has asked for one.

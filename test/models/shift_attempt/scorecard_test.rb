@@ -196,6 +196,17 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal [ :compromised ], [ phish.(share("staff_number", "internal")).outcome ]
   end
 
+  test "details given on a lookalike page where a password was also entered cost one compromise, not two" do
+    link = { "link" => "l1" }
+    card = scorecard(archive("newsletter"), shared("fake_invoice", "page", share("memorable_word", "secret")),
+      action("submit_credentials", "fake_invoice", result: link))
+    result = card.message_result_for("fake_invoice")
+
+    assert_equal 0, result.detail_points
+    assert_equal ShiftAttempt::Scorecard::COMPROMISED, result.handling_points
+    assert_equal %w[ memorable_word ], card.leaked_details.map { |share| share["detail"] }
+  end
+
   test "the MFA code given to a genuine message anywhere but the page that asked for it is a compromise" do
     messages(:real_invoice).update!(needs: %w[ mfa_code ])
     code = share("mfa_code", "never")

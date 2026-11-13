@@ -17,7 +17,7 @@ class RegistrationsControllerTest < ActionDispatch::IntegrationTest
     user = User.find_by!(email_address: "new.player@example.com")
     assert_not user.confirmed?
     assert_enqueued_email_with EmailConfirmationsMailer, :confirm, args: [ user ]
-    assert_redirected_to root_path
+    assert_redirected_to new_side_path
     assert cookies[:session_id].present?
   end
 

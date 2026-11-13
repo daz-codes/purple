@@ -114,8 +114,13 @@ class ShiftAttempt::Scorecard
       shares.select { |share| share["sensitivity"] == "never" && !needed?(share) }
     end
 
+    # Giving a phish details is falling for it, at most COMPROMISED in all. If the player already fell for
+    # it another way (a password on its page, a code by reply), that compromise is the cost: the details
+    # don't cost a second time.
     def detail_points
       if phish?
+        return 0 if compromises.any? || gave_in?
+
         [ leaks.sum { |share| Shift::Detail::LEAK_POINTS.fetch(share["sensitivity"]) }, COMPROMISED ].max
       else
         overshares.sum { |share| Shift::Detail::OVERSHARE_POINTS.fetch(share["sensitivity"]) } + (mfa_misuses.any? ? COMPROMISED : 0)

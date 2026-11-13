@@ -11,6 +11,8 @@ class User < ApplicationRecord
   has_many :shift_attempts, dependent: :destroy
   has_many :red_campaigns, dependent: :destroy
 
+  include Progression, Streaks, Badged
+
   # Single-use: the token embeds confirmed_at, so it stops working once used.
   generates_token_for :email_confirmation, expires_in: 24.hours do
     [ email_address, confirmed_at ]

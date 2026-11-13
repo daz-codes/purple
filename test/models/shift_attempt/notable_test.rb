@@ -18,7 +18,7 @@ class ShiftAttempt::NotableTest < ActiveSupport::TestCase
 
     note = @attempt.notes.sole
     assert_equal "new menu", note.text
-    assert_match(/\An\d+\z/, note.id)
+    assert_equal "n1", note.id
     assert_equal [ note ], @attempt.notes_on(messages(:newsletter))
     assert_equal "save_note", @attempt.actions.last.kind
   end

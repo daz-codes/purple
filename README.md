@@ -81,6 +81,19 @@ spot the lure or payload (a near miss), or be fooled. Red scores +40 per bot foo
 miss and +1 per unit of budget left. The balance rules are tests on the shipped content
 (`test/models/red_campaign/balance_test.rb`).
 
+## Progression
+
+Each side has its own XP and level. Finishing your first scored attempt at a shift earns its score as
+Blue XP; launching your first scored campaign at a target earns Red XP. The first shift or campaign
+each day (London time) adds a 10 XP bonus and extends your streak. Every XP gain is an `XpEvent` in
+an append-only ledger, written together with the side's total and level (`User::Progression`); level
+n needs `100 * (n - 1)^1.5` XP.
+
+When a player finishes a shift or launches a campaign (`Rewarded`), `AwardBadgesJob` checks
+`Badge::Rulebook` and awards any new badges (each worth 25 XP), with a toast sent by Turbo Stream.
+Only confirmed players earn XP and badges. Signed-in players see a dashboard with both levels, their
+streak, a side switcher and their badges.
+
 ## Content authoring
 
 All game content is YAML in `content/`:

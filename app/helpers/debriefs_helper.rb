@@ -124,8 +124,8 @@ module DebriefsHelper
     sentences = []
     if result.phish?
       if result.leaks.any?
-        sentences << "You gave them your #{shared_labels(result.leaks)}. That's falling for it, whatever you did next " \
-          "(#{debrief_points(result.detail_points)})."
+        sentences << "You gave them your #{shared_labels(result.leaks)}. That's falling for it, whatever you did next" +
+          (result.detail_points.zero? ? ", and part of the same compromise." : " (#{debrief_points(result.detail_points)}).")
       elsif result.shares.any?
         sentences << "You sent them only #{shared_labels(result.shares)}, which anyone could know. No harm done."
       end

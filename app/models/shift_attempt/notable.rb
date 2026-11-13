@@ -20,8 +20,8 @@ module ShiftAttempt::Notable
 
   # The notes still saved, oldest first.
   def notes
-    @notes ||= actions.select(&:save_note?).each_with_object({}) do |action, standing|
-      note = ShiftAttempt::Note.from_action(action)
+    @notes ||= actions.select(&:save_note?).each_with_index.each_with_object({}) do |(action, index), standing|
+      note = ShiftAttempt::Note.from_action(action, number: index + 1)
       key = [ note.message_key, *note.range ]
       standing.key?(key) ? standing.delete(key) : standing[key] = note
     end.values

@@ -25,7 +25,8 @@ class ShiftAttempt::SharingTest < ActiveSupport::TestCase
     result = @attempt.actions.last.result
     assert_equal [ "share_details", "reply" ], [ @attempt.actions.last.kind, result["via"] ]
     assert_equal [ [ "staff_number", "internal" ], [ "name", "public" ] ], result["shared"].map { |shared| shared.values_at("detail", "sensitivity") }
-    assert_equal [ { "shared" => result["shared"], "response" => Message::DEFAULT_SHARE_RESPONSE } ], @attempt.shared_with(messages(:newsletter))
+    shown = [ { "label" => "Staff number", "value" => @attempt.persona.staff_number }, { "label" => "Your name", "value" => @attempt.persona.name } ]
+    assert_equal [ { "shared" => shown, "response" => Message::DEFAULT_SHARE_RESPONSE } ], @attempt.shared_with(messages(:newsletter))
   end
 
   test "only real chips, at least one, and only to a message with replies" do
