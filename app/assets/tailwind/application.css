@@ -104,6 +104,12 @@
     focus-visible:border-blue-team focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-team;
 }
 
+/* The same, for Red's side. */
+@utility card-link-red {
+  @apply card block transition hover:border-red-team hover:bg-red-team-soft/40 hover:shadow-lg hover:shadow-red-team/20
+    focus-visible:border-red-team focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-team;
+}
+
 @utility form-label {
   @apply block text-sm font-medium text-ink-muted mb-1;
 }

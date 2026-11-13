@@ -23,13 +23,24 @@ class RedCampaign::LaunchableTest < ActiveSupport::TestCase
     assert_equal 40 + 15 + 3, RedCampaign.score_for(results, 3)
   end
 
-  test "the result doesn't change when the content does" do
+  test "the result, budget and best possible score don't change when the content does" do
     choose :bank_change, :spoof, :link, :sign_in, :friday
     @campaign.launch
-    stored = [ @campaign.results, @campaign.rendered_body_html, @campaign.score ]
+    stored = snapshot(@campaign)
 
     target_options(:bank_change).update!(rendered_value: "Something else entirely.")
-    assert_equal stored, RedCampaign.find(@campaign.id).then { |campaign| [ campaign.results, campaign.rendered_body_html, campaign.score ] }
+    techniques(:display_name_spoof).update!(red_cost: 5)
+    targets(:month_end_target).update!(budget: 20)
+    target_options(:overdue).destroy!
+
+    assert_equal stored, snapshot(RedCampaign.find(@campaign.id))
+  end
+
+  test "cards that went over budget after a content change can't be launched" do
+    choose :bank_change, :spoof, :link, :sign_in, :friday # 8 of 9
+    techniques(:malicious_link).update!(red_cost: 3)
+
+    assert_raises(RedCampaign::Rejected, match: /cost 10, over the budget of 9/) { @campaign.reload.launch }
   end
 
   test "stars are judged against every bot fooled with the cheapest full set of cards" do
@@ -62,6 +73,10 @@ class RedCampaign::LaunchableTest < ActiveSupport::TestCase
   end
 
   private
+    def snapshot(campaign)
+      [ campaign.results, campaign.rendered_body_html, campaign.score, campaign.budget_left, campaign.max_score, campaign.stars ]
+    end
+
     def choose(*keys)
       keys.each { |key| @campaign.choose(target_options(key)) }
     end

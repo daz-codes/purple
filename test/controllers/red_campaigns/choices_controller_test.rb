@@ -19,7 +19,7 @@ class RedCampaigns::ChoicesControllerTest < ActionDispatch::IntegrationTest
     delete red_campaign_choice_path(@campaign, target_options(:lookalike)), as: :turbo_stream
 
     assert_response :success
-    assert_equal 0, @campaign.reload.budget_spent
+    assert_equal 0, @campaign.reload.spent
   end
 
   test "a card from another target, or over budget, is refused" do

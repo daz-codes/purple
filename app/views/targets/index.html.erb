@@ -12,7 +12,7 @@
 
 <div class="grid gap-6 md:grid-cols-2">
   <% @targets.each do |target| %>
-    <%= link_to target, class: "card-link group flex flex-col" do %>
+    <%= link_to target, class: "card-link-red group flex flex-col" do %>
       <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">Budget <%= target.budget %></p>
       <h2 class="mt-2 text-2xl font-bold group-hover:text-red-team"><%= target.title %></h2>
       <p class="mt-3 flex-1 text-ink-muted"><%= target.recon_brief.truncate(160) %></p>

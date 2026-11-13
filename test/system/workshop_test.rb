@@ -9,6 +9,11 @@ class WorkshopTest < ApplicationSystemTestCase
     assert_text "Tidemark's invoice is due this week."
     click_on "Start a campaign"
 
+    # The builder never shows how well a card fits the target, or how hard it is to spot.
+    html = page.html
+    assert_not_includes html, "relevance"
+    assert_not_includes html, "stealth"
+
     within("[data-testid=slot-pretext]") { click_on "Bank change" }
     assert_selector "[data-testid=budget]", text: "6 of 9 left"
     within("[data-testid=email-preview]") do
