@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   scan_ruby:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
@@ -29,7 +29,7 @@ jobs:
         run: bin/bundler-audit
       
   scan_js:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
@@ -45,7 +45,7 @@ jobs:
         run: bin/importmap audit
 
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       RUBOCOP_CACHE_ROOT: tmp/rubocop
@@ -72,7 +72,7 @@ jobs:
         run: bin/rubocop -f github
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     services:
@@ -112,7 +112,7 @@ jobs:
         run: bin/rails db:test:prepare test
 
   system-test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
 
     services:
