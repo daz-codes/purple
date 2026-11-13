@@ -29,3 +29,5 @@ code_request:
   quote_start: 15
   quote_end: 27
   points: 15
+  contradicts_key: laptop_text
+  contradicts_quote: We never ask for codes

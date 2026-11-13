@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_13_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -100,8 +100,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
     t.string "expects"
     t.integer "points", default: 0, null: false
     t.integer "urgent_within_minutes"
+    t.string "answer_in_key"
+    t.text "answer_in_quote"
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
+    t.check_constraint "(answer_in_key IS NULL) = (answer_in_quote IS NULL)", name: "messages_answer_in_complete"
+    t.check_constraint "answer_in_key IS NULL OR legit AND expects::text = 'reply'::text", name: "messages_answer_in_only_when_asking"
     t.check_constraint "\nCASE\n    WHEN legit THEN points > 0\n    ELSE points = 0\nEND", name: "messages_points_only_when_genuine"
     t.check_constraint "arrives_after_handled > 0", name: "messages_arrives_after_handled_positive"
     t.check_constraint "arrives_after_handled IS NULL OR arrives_after IS NULL", name: "messages_one_arrival_trigger"
@@ -123,8 +127,11 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
     t.string "quote"
     t.integer "quote_start"
     t.integer "quote_end"
+    t.string "contradicts_key"
+    t.text "contradicts_quote"
     t.index ["message_id", "key"], name: "index_red_flags_on_message_id_and_key", unique: true
     t.index ["message_id"], name: "index_red_flags_on_message_id"
+    t.check_constraint "(contradicts_key IS NULL) = (contradicts_quote IS NULL)", name: "red_flags_contradicts_complete"
     t.check_constraint "points > 0", name: "red_flags_points_positive"
     t.check_constraint "quote IS NULL AND quote_start IS NULL AND quote_end IS NULL OR quote IS NOT NULL AND quote_start >= 0 AND quote_end > quote_start", name: "red_flags_quote_complete"
   end

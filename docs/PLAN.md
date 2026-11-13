@@ -81,7 +81,8 @@ Free-form Red campaigns, multiplayer, AI-generated attacks, organisations and te
 
 > **M6b changes:** `Task` and `due_at_minute` go; `Shift` swaps `time_budget_minutes` for
 > `par_minutes`; `Message` swaps `arrives_at_minute` for an arrival trigger (`start`,
-> `after_handled`, `after`) and gains `expects` and `urgent_within`; `RedFlag` gains `quote`;
+> `after_handled`, `after`) and gains `expects`, `urgent_within` and `answer_in_key`/`answer_in_quote`;
+> `RedFlag` gains `quote` and `contradicts_key`/`contradicts_quote`;
 > `ShiftAttempt` gains `relaxed` and status `clocked_off`/`expired`, and loses `clock_minutes`;
 > `AttemptAction` loses `minute`/`cost_minutes` in favour of its timestamp, gains `archive`,
 > `send_reply` and `clock_off`, and loses `complete_task`; `User` gains `relaxed_mode`. The model
@@ -406,6 +407,37 @@ anyone who doesn't want to be timed (WCAG 2.2.1).
 - **The debrief shows each message with the player's highlights and the real red flags marked on
   the text:** caught, missed, and flagged by mistake.
 
+**Read it, you'll need it later.** Inspired by mystery games like KC7: a shift should be a small story
+in which facts arrive early and pay off later, so the player has to actually read every message rather
+than judge each one alone. Two authored links between messages, both secret until the debrief:
+- **A red flag can contradict an earlier message.** `contradicts: { message: it_welcome, quote: "We'll
+  never email you about your password" }` on a phish's red flag says *which genuine message gave the game
+  away*. IT says it never emails about passwords, then a "password expiry" email arrives; Finance says
+  Tidemark's invoices only come through the portal, then one arrives as an attachment. The flag itself is
+  still a quote or anchor in the phish. The debrief shows the two side by side: "Earlier, Larkhill IT told
+  you: “…”".
+- **Questions come as replies.** Instead of a debrief quiz, colleagues *ask* things in the course of the
+  job, and the right answer is in an earlier message. Alex asks which room your induction is in (HR's email
+  said); the courier asks for the delivery reference (it was in the booking). `answer_in: { message:
+  hr_onboarding, quote: "Room 4B" }` on the asking message names where the answer was; its canned replies
+  offer the right answer (`safe`) and plausible wrong ones (`poor`), so a wrong answer scores like a poor
+  reply. The debrief says where the answer was: "It was in HR's email: “…”".
+
+The importer checks:
+- The referenced message is another message in the shift, and the quote appears in its text exactly once.
+- A `contradicts` source is genuine (the truth comes from the real company, never from a phish).
+- The source is **always in the inbox before the message that relies on it**: it arrives at the start, or
+  the dependent message arrives `after:` it (directly, or through a chain of `after:` triggers). Otherwise
+  the player could meet the question before the answer.
+- A message with `answer_in` is genuine, expects a reply, and offers at least one `poor` (wrong) answer.
+- `answer_in` may point at a **phish** only if the asking message arrives last (`after_handled:` every other
+  message), when every decision has been made. This is how an end-of-shift "security team" email can ask
+  "which supplier did they pretend to be?" without giving anything away mid-shift.
+
+Neither link reaches the browser: the source message is ordinary content, and the link between them, like
+`legit`, is an answer. Every re-authored shift sets up at least one fact that a later message
+contradicts, and at least one question answered by an earlier message.
+
 **What goes**
 - The `tasks` table and `due_at_minute`.
 - Per-move minute costs (`action_costs`) and the minute clock.
@@ -422,7 +454,9 @@ every genuine message as it needed and report every phish in a single shift".
 - genuine messages that need a reply (like Sam's text) or an action;
 - at least one triggered follow-up;
 - a genuine message that looks suspicious;
-- red flags as quoted phrases.
+- red flags as quoted phrases;
+- a fact set up early that a later phish contradicts (`contradicts:`), and a question answered by an earlier
+  message (`answer_in:`).
 
 **Done when:**
 - System tests cover clearing an inbox that has a triggered follow-up, clocking off early, relaxed
@@ -430,6 +464,8 @@ every genuine message as it needed and report every phish in a single shift".
   score, outcome, red-flag quote or expectation reaches the page mid-shift.
 - The scorecard, the trigger rules (including imitation order and phish follow-ups), the
   highlight-matching rules and the lazy-play strategies are unit-tested.
+- The `contradicts` and `answer_in` import rules are unit-tested, and a system test answers a colleague's
+  question wrongly and sees the debrief point back to the earlier message.
 
 ### M7 — Red's Workshop
 - Models from section 5 (Target, TargetOption, BotPersona, RedCampaign). Seed 3 bot personas. Extend the importer for `content/targets/*.yml`.
@@ -568,6 +604,22 @@ hints:
    - **More attack types:** smishing, vishing scripts (choose-your-path phone calls), and fake IT support chat.
 2. **Async multiplayer duels:** Red's submitted campaign is inserted into a human Blue's shift; results go back to Red as a debrief. An AI bot fills whichever side has no player. Separate Red and Blue Glicko-2 ratings.
 3. **Defence vs Campaign:** Blue spends a budget on controls (SPF/DKIM/DMARC, link rewriting, attachment sandbox, MFA, training) that block or weaken specific Techniques before Red attacks.
-4. **Kill chain board** (MITRE ATT&CK stages), **simulated company** with NPC staff, **seasons** where everyone swaps sides.
-5. Organisations and teams, billing (Pay + Stripe), admin content editor.
-6. **Live real-time battles and live labs** as a separate isolated service (Phoenix is the likely choice).
+4. **A story across each track, a mystery to solve** (building on M6b's `contradicts` and `answer_in`):
+   - **One attacker per track.** The same invented group returns shift after shift: a lookalike domain
+     reused, a lure improved, a detail lifted from an earlier phish. Shift 3's phish uses a fact that
+     shift 1's phish was fishing for, which teaches that attackers do recon (and sets up Red's recon phase).
+   - **Facts carry across shifts.** `answer_in` and `contradicts` can name a message in an earlier shift of
+     the same track; the track page keeps past shifts' genuine messages readable as the player's "mail
+     archive". The importer checks the earlier shift comes first in the track.
+   - **The investigation comes as mail, not a quiz.** The last shift of a track ends with emails from
+     Larkhill's security team asking what the player saw ("Which supplier did they pretend to be?",
+     "Which domain turned up in all three attacks?"), answered by reply, scored like any reply and
+     explained in the debrief. These arrive only once every other decision is made.
+   - **Briefings move the story on, the same for everyone** ("after last week's invoice scare, Finance now
+     calls every new supplier back"). The story never branches on how the player did: that would hint at
+     their mistakes and break the "triggers never depend on being right" rule.
+   - Smaller ideas from KC7: a recurring narrator for the Purple debrief, guest play without saved
+     progress (for classrooms), and educator-hosted competitions (with item 6).
+5. **Kill chain board** (MITRE ATT&CK stages), **simulated company** with NPC staff, **seasons** where everyone swaps sides.
+6. Organisations and teams, billing (Pay + Stripe), admin content editor.
+7. **Live real-time battles and live labs** as a separate isolated service (Phoenix is the likely choice).

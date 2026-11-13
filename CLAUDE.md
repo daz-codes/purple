@@ -62,7 +62,8 @@ Rails connects over the default socket, so that doesn't matter for the app.
   (real time plus penalties, measured only on the server). The client never computes the score, the
   time, what arrives next or the outcome.
 - **Never send hidden answers to the browser** before the debrief: no `legit` flags, what a message
-  expects or is worth, arrival triggers, red flags or their quotes, link, attachment or reply outcomes,
+  expects or is worth, arrival triggers, red flags or their quotes, which earlier message a red flag
+  contradicts or a question's answer was in, link, attachment or reply outcomes,
   or technique tags in HTML, data attributes, JSON or Turbo Streams. System tests assert this.
 - The browser refers to messages only by `ShiftAttempt#message_ref`, an opaque HMAC of the attempt
   token and message key that's stable across content re-imports and different in every attempt, never
