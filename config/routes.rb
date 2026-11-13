@@ -49,7 +49,7 @@ Rails.application.routes.draw do
         end
       end
       resources :hints, only: :create
-      resource :give_up, only: :create
+      resource :clock_off, only: :create
     end
   end
 
