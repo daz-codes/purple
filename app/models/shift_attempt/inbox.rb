@@ -1,5 +1,8 @@
-# The messages the player can see: those whose arrival minute the clock has reached. The browser
-# only ever knows a message by its #message_ref.
+# The messages the player can see: those that have arrived (see ShiftAttempt::Arrivals) and haven't
+# been dealt with yet. The browser only ever knows a message by its #message_ref.
+#
+# Messages that arrive together are shown in an order shuffled per attempt, so a replay isn't a
+# memory test.
 module ShiftAttempt::Inbox
   extend ActiveSupport::Concern
 
@@ -9,18 +12,34 @@ module ShiftAttempt::Inbox
     end
   end
 
-  # Messages that have landed so far, newest first, as a mail client shows them.
+  def arrivals
+    @arrivals ||= ShiftAttempt::Arrivals.new(shift.messages.to_a, actions)
+  end
+
+  # Messages that have arrived so far, newest first, as a mail client shows them. The ones there from
+  # the start come last, in this attempt's shuffled order.
   def arrived_messages
-    @arrived_messages ||= shift.messages.where(arrives_at_minute: ..clock_minutes)
-      .reorder(arrives_at_minute: :desc, position: :desc).to_a
+    @arrived_messages ||= begin
+      at_start, later = arrivals.messages.partition(&:arrives_at_start?)
+      order = shuffled_positions
+      later.reverse + at_start.sort_by { |message| order.fetch(message.position, 0) }
+    end
   end
 
   def inbox_messages
-    arrived_messages.reject { |message| reported?(message) }
+    arrived_messages.reject { |message| handled?(message) }
   end
 
   def reported_messages
     arrived_messages.select { |message| reported?(message) }
+  end
+
+  def archived_messages
+    arrived_messages.select { |message| archived?(message) }
+  end
+
+  def handled?(message)
+    reported?(message) || archived?(message)
   end
 
   # Authored keys are descriptive ("fake_invoice") and positions change when content is re-imported,
@@ -35,21 +54,15 @@ module ShiftAttempt::Inbox
     arrived_messages.find { |message| ActiveSupport::SecurityUtils.secure_compare(message_ref(message), ref) }
   end
 
-  def next_arrival_minute
-    shift.messages.where(arrives_at_minute: (clock_minutes + 1)..).minimum(:arrives_at_minute)
-  end
-
-  # Lets time pass until the next message arrives.
-  def wait_for_mail
-    acting_on do
-      next_arrival = next_arrival_minute or reject "Nothing else is due today. End the shift when you're ready."
-
-      record :wait, cost: next_arrival - clock_minutes
-    end
-  end
-
   def reload(*)
-    @arrived_messages = nil
+    @arrivals = @arrived_messages = nil
     super
   end
+
+  private
+    # Each message's place in this attempt's shuffled order, seeded from the token.
+    def shuffled_positions
+      seed = Digest::SHA256.hexdigest(token).first(8).to_i(16)
+      shift.messages.map(&:position).shuffle(random: Random.new(seed)).each_with_index.to_h
+    end
 end

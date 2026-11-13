@@ -1,20 +1,18 @@
 require "test_helper"
 
 class LinkTest < ActiveSupport::TestCase
-  test "a task-completing link needs a task, and only those links may have one" do
-    link = links(:real_invoice_link)
-    link.task = nil
-    assert_not link.valid?
+  test "a portal link needs a button to press, and only portal links may have one" do
+    portal = links(:real_invoice_link)
+    portal.portal_action = nil
+    assert_not portal.valid?
 
     bait = links(:fake_invoice_link)
-    bait.task = tasks(:pay_supplier)
+    bait.portal_action = "Sign in"
     assert_not bait.valid?
   end
 
-  test "the database enforces the task rule too" do
-    assert_raises(ActiveRecord::StatementInvalid) do
-      links(:fake_invoice_link).update_column(:task_id, tasks(:pay_supplier).id)
-    end
+  test "the database enforces the portal rule too" do
+    assert_raises(ActiveRecord::StatementInvalid) { links(:fake_invoice_link).update_column(:portal_action, "Sign in") }
   end
 
   test "rejects unknown landing templates" do

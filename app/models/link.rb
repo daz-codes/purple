@@ -1,17 +1,17 @@
-# A link inside a message. The browser only ever sees its key and URLs; the outcome and
-# the task it completes stay on the server.
+# A link inside a message. The browser only ever sees its key and URLs; the outcome stays on the
+# server. A portal link opens the page where the player does what a genuine message asks, by pressing
+# its portal_action ("Confirm the delivery slot").
 class Link < ApplicationRecord
-  LANDING_TEMPLATES = %w[ portal_task harmless credential_harvest malware_download ].freeze
+  LANDING_TEMPLATES = %w[ portal harmless credential_harvest malware_download ].freeze
 
-  enum :outcome, { completes_task: "completes_task", harmless: "harmless", bait_landing: "bait_landing", malware: "malware" },
+  enum :outcome, { portal: "portal", harmless: "harmless", bait_landing: "bait_landing", malware: "malware" },
     prefix: true, validate: true
 
   belongs_to :message
-  belongs_to :task, optional: true
 
   validates :key, presence: true, uniqueness: { scope: :message_id }
   validates :display_url, :actual_url, presence: true
   validates :landing_template, inclusion: { in: LANDING_TEMPLATES }
-  validates :task, presence: true, if: :outcome_completes_task?
-  validates :task, absence: true, unless: :outcome_completes_task?
+  validates :portal_action, presence: true, if: :outcome_portal?
+  validates :portal_action, absence: true, unless: :outcome_portal?
 end

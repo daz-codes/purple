@@ -13,7 +13,7 @@ class ShiftAttempt::HintableTest < ActiveSupport::TestCase
 
     assert_equal [ hints(:month_end_first) ], @attempt.revealed_hints
     assert_nil @attempt.next_hint
-    assert_equal [ 0, 1 ], [ @attempt.clock_minutes, @attempt.hints_used ]
+    assert_equal [ 0, 1 ], [ @attempt.penalty_seconds, @attempt.hints_used ]
     assert_raises(ShiftAttempt::Rejected, match: /no more hints/) { @attempt.use_hint }
   end
 end

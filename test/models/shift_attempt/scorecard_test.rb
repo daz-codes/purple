@@ -1,229 +1,166 @@
 require "test_helper"
 
+# Month-end (par 10 minutes):
+#   real_invoice     genuine, expects act (its portal), 40 points, urgent within 10 minutes; at the start
+#   newsletter       genuine, expects archive, 10 points; at the start
+#   fake_invoice     phish, red flags: the sender (10) and "Please pay today" (10); after one is dealt with
+#   supplier_thanks  genuine, expects archive, 5 points; after the real invoice is dealt with
+# The best the messages can score is 40 + 10 + 5 + (30 + 20) = 105.
 class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   setup do
-    @shift = shifts(:month_end) # one task: pay_supplier, 40 points, due at minute 20
+    @shift = shifts(:month_end)
   end
 
-  test "a task completed on time earns its points" do
-    result = scorecard(action("complete_task", "pay_supplier", minute: 18, cost: 2))
+  test "a genuine message is worth its points when the player does what it needed" do
+    card = scorecard(action("use_portal", "real_invoice", at: 60), archive("newsletter"))
 
-    assert_equal 40, result.productivity
-    assert result.tasks.first.on_time?
+    assert_equal [ :done, 40 ], judged(card, "real_invoice")
+    assert_equal [ :done, 10 ], judged(card, "newsletter")
   end
 
-  test "a task completed after its deadline earns half" do
-    result = scorecard(action("complete_task", "pay_supplier", minute: 19, cost: 2))
+  test "an urgent message done late earns half, unless the player is in relaxed mode" do
+    late = [ action("use_portal", "real_invoice", at: 10 * 60 + 1) ]
 
-    assert_equal 20, result.productivity
-    assert result.tasks.first.late?
+    assert_equal [ :done_late, 20 ], judged(scorecard(*late), "real_invoice")
+    assert_equal [ :done, 40 ], judged(scorecard(*late, relaxed: true), "real_invoice")
+    assert_equal [ :done, 40 ], judged(scorecard(action("use_portal", "real_invoice", at: 10 * 60)), "real_invoice")
   end
 
-  test "a task never completed loses half its points" do
-    result = scorecard
+  test "a genuine message not done loses half its points, however it was left" do
+    card = scorecard(archive("real_invoice"))
 
-    assert_equal(-20, result.productivity)
-    assert result.tasks.first.missed?
+    assert_equal [ :not_done, -20 ], judged(card, "real_invoice") # archived without approving it
+    assert_equal [ :not_done, -5 ], judged(card, "newsletter")    # left in the inbox
+    assert_equal [ :never_arrived, -2 ], judged(scorecard, "supplier_thanks")
   end
 
-  test "only the first completion of a task counts" do
-    result = scorecard(action("complete_task", "pay_supplier", minute: 25), action("complete_task", "pay_supplier", minute: 1))
+  test "reporting a genuine message costs 15, whatever else was done with it" do
+    card = scorecard(action("use_portal", "real_invoice"), action("report_message", "real_invoice"))
 
-    assert result.tasks.first.late?
+    assert_equal [ :reported_wrongly, -15 ], judged(card, "real_invoice")
   end
 
-  test "reporting a phish scores, reporting a legitimate message costs, and repeats don't count" do
-    assert_equal 30, scorecard(action("report_message", "fake_invoice"), action("report_message", "fake_invoice")).security
-    assert_equal(-15, scorecard(action("report_message", "real_invoice")).security)
+  test "a reported phish scores 30, and one that never arrived counts for nothing" do
+    assert_equal [ :reported, 30 ], judged(scorecard(archive("newsletter"), action("report_message", "fake_invoice")), "fake_invoice")
+    assert_equal [ :not_reported, 0 ], judged(scorecard(archive("newsletter"), archive("fake_invoice")), "fake_invoice")
+    assert_equal [ :never_arrived, 0 ], judged(scorecard, "fake_invoice")
   end
 
-  test "a report of a message that no longer exists counts for nothing" do
-    assert_equal 0, scorecard(action("report_message", "deleted_by_reimport")).security
+  test "moves on a message that no longer exists, or hasn't arrived, count for nothing" do
+    card = scorecard(action("report_message", "deleted_by_reimport"), action("report_message", "fake_invoice"))
+
+    assert_equal [ :never_arrived, 0 ], judged(card, "fake_invoice")
   end
 
-  test "a compromise costs 50, once per page or file" do
+  test "a compromise costs 50, once per page or file, and a near miss 10" do
     link = { "link" => "l1" }
-    assert_equal(-50, scorecard(action("click_link", "fake_invoice", result: link), action("submit_credentials", "fake_invoice", result: link),
-                                action("submit_credentials", "fake_invoice", result: link)).security)
+    compromised = scorecard(archive("newsletter"), action("click_link", "fake_invoice", result: link),
+      action("submit_credentials", "fake_invoice", result: link), action("submit_credentials", "fake_invoice", result: link))
+    assert_equal [ :compromised, -50 ], judged(compromised, "fake_invoice")
 
-    file = { "attachment" => "a1" }
-    assert_equal(-50, scorecard(action("open_attachment", "fake_invoice", result: file), action("run_download", "fake_invoice", result: file)).security)
-  end
-
-  test "opening a trap without falling for it is a near miss" do
-    assert_equal(-10, scorecard(action("click_link", "fake_invoice", result: { "link" => "l1" })).security)
-    assert_equal(-10, scorecard(action("open_attachment", "fake_invoice", result: { "attachment" => "a1" })).security)
-  end
-
-  test "opening legitimate links and documents costs nothing" do
-    assert_equal 0, scorecard(action("click_link", "real_invoice", result: { "link" => "l1" }),
-                              action("open_attachment", "real_invoice", result: { "attachment" => "a1" })).security
-  end
-
-  test "the total is productivity plus security, never below zero" do
-    assert_equal 10, scorecard(action("report_message", "fake_invoice")).total # -20 + 30
-    assert_equal 0, scorecard(action("report_message", "real_invoice")).total # -20 - 15
-  end
-
-  test "the live productivity meter counts only completed work and never penalises unfinished tasks" do
-    assert_equal 0, scorecard.productivity_meter
-    assert_equal 100, scorecard(action("complete_task", "pay_supplier", minute: 5)).productivity_meter
-    assert_equal 50, scorecard(action("complete_task", "pay_supplier", minute: 25)).productivity_meter
-  end
-
-  test "the live security meter doesn't reveal whether a report was right" do
-    assert_equal 100, scorecard(action("report_message", "fake_invoice")).security_meter
-    assert_equal 100, scorecard(action("report_message", "real_invoice")).security_meter
-    assert_equal 50, scorecard(action("submit_credentials", "fake_invoice", result: { "link" => "l1" })).security_meter
-    assert_equal 50, scorecard(action("submit_credentials", "fake_invoice", result: { "link" => "l1" }),
-                               action("submit_credentials", "fake_invoice", result: { "link" => "l1" })).security_meter
-  end
-
-  test "the live security meter doesn't reveal that a closed page was a trap" do
-    assert_equal 100, scorecard(action("click_link", "fake_invoice", result: { "link" => "l1" }),
-                                action("close_landing", "fake_invoice", result: { "link" => "l1" })).security_meter
-  end
-
-  test "the maximum is every task on time plus every phish that arrived, reported and with every red flag found" do
-    card = scorecard
-
-    assert_equal 40, card.productivity_max
-    assert_equal 40, card.security_max # 30 for the report and 10 for its one red flag
-    assert_equal 80, card.total_max
-  end
-
-  test "a phish that arrived after the shift ended still counts, as not reported" do
-    card = scorecard(clock_minutes: 2)
-
-    assert_equal %w[ real_invoice fake_invoice ], card.messages.map { |result| result.message.key }
-    assert_equal [ true, false ], card.messages.map(&:arrived?)
-    assert_equal :arrived_after_shift, card.message_result_for("fake_invoice").outcome
-    assert_equal 0, card.security
-    assert_equal 30 + messages(:fake_invoice).red_flags.sum(&:points), card.security_max
-  end
-
-  test "a perfect shift earns three stars, and anything less is judged against the maximum" do
-    perfect = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"))
-    assert perfect.perfect?
-    assert_equal 3, perfect.stars
-
-    unflagged = scorecard(action("complete_task", "pay_supplier", minute: 5), action("report_message", "fake_invoice"))
-    assert_not unflagged.perfect?
-    assert_equal 2, unflagged.stars # 70 of 80 is under 90%
-  end
-
-  test "a perfect shift earns three stars even when there's nothing to score" do
-    @shift.messages.destroy_all
-    @shift.tasks.destroy_all
-    card = scorecard
-
-    assert_equal 0, card.total_max
-    assert card.perfect?
-    assert_equal 3, card.stars
-  end
-
-  test "three stars need no compromise" do
-    file = { "attachment" => "a1" }
-    card = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"),
-                     action("open_attachment", "fake_invoice", result: file), action("run_download", "fake_invoice", result: file))
-
-    assert_equal 1, card.stars # 30 of 80
-    assert_equal 0, scorecard.stars
-  end
-
-  test "a red flag earns its points once flagged, and a flag taken off again counts for nothing" do
-    assert_equal 10, scorecard(flag("fake_invoice", "from")).security
-    assert_equal 0, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "from")).security
-    assert_equal [ "from" ], scorecard(flag("fake_invoice", "from")).message_result_for("fake_invoice").found_flags.map(&:anchor)
-  end
-
-  # Otherwise flagging every part of every message would find every red flag for free.
-  test "a wrong flag costs 10, even when it takes flagging below zero" do
-    assert_equal 0, scorecard(flag("fake_invoice", "from"), flag("fake_invoice", "p1")).security
-    assert_equal(-20, scorecard(flag("fake_invoice", "p1"), flag("real_invoice", "p1")).security)
-    assert_equal 30, scorecard(action("report_message", "fake_invoice"), flag("fake_invoice", "from"), flag("real_invoice", "from")).security # 30 + 10 - 10
-    assert_equal [ "p1" ], scorecard(flag("fake_invoice", "p1")).message_result_for("fake_invoice").false_flags
-  end
-
-  test "each hint takes its share of the maximum off the total" do
-    card = scorecard(action("complete_task", "pay_supplier", minute: 5), flag("fake_invoice", "from"), action("report_message", "fake_invoice"),
-                     action("use_hint", nil, result: { "hint" => 1 }))
-
-    assert_equal [ 16 ], card.hints.map(&:penalty) # 20% of 80
-    assert_equal 64, card.total
-    assert_not card.perfect?
-  end
-
-  test "each message is judged on what the player did with it" do
-    file = { "attachment" => "a1" }
-
-    assert_equal :reported, outcome("fake_invoice", action("report_message", "fake_invoice"))
-    assert_equal :compromised, outcome("fake_invoice", action("open_attachment", "fake_invoice", result: file),
-                                       action("run_download", "fake_invoice", result: file), action("report_message", "fake_invoice"))
-    assert_equal :near_miss, outcome("fake_invoice", action("open_attachment", "fake_invoice", result: file))
-    assert_equal :not_reported, outcome("fake_invoice", action("open_message", "fake_invoice"))
-
-    assert_equal :reported_wrongly, outcome("real_invoice", action("report_message", "real_invoice"))
-    assert_equal :used, outcome("real_invoice", action("complete_task", "pay_supplier", minute: 5))
-    assert_equal :left_alone, outcome("real_invoice", action("open_message", "real_invoice"))
-  end
-
-  test "a message's points add up to the security score" do
-    file = { "attachment" => "a1" }
-    card = scorecard(action("open_attachment", "fake_invoice", result: file), action("report_message", "fake_invoice"))
-    result = card.message_result_for("fake_invoice")
-
-    assert_equal 20, result.points # reported, after a close call
-    assert_equal [ "Remittance_4471.pdf.exe" ], result.near_misses.map(&:file_name)
-    assert_equal card.security, card.messages.sum(&:points)
-  end
-
-  test "a completed task records the minute it was finished" do
-    assert_equal 7, scorecard(action("complete_task", "pay_supplier", minute: 5, cost: 2)).tasks.first.completed_at_minute
+    near = scorecard(archive("newsletter"), action("open_attachment", "fake_invoice", result: { "attachment" => "a1" }))
+    assert_equal [ :near_miss, -10 ], judged(near, "fake_invoice")
   end
 
   test "handing over a code in a chat is a compromise" do
-    @shift = shifts(:site_visit) # no tasks; it_chat is the phish, with one red flag worth 15
-    card = scorecard(reply("it_chat", "r1"), flag("it_chat", "p2"),
-      action("report_message", "it_chat"))
+    @shift = shifts(:site_visit)
+    card = scorecard(archive("sam_text"), action("send_reply", "it_chat", result: { "outcome" => "compromise", "text" => "Here it is" }))
 
-    result = card.message_result_for("it_chat")
-    assert result.gave_in?
-    assert card.compromised?
-    assert_equal :compromised, result.outcome
-    assert_equal 30 - 50 + 15, card.security
-    assert_equal 50, card.security_meter
+    assert card.message_result_for("it_chat").gave_in?
+    assert_equal [ :compromised, -50 ], judged(card, "it_chat")
   end
 
-  test "a safe reply, or checking first, costs nothing" do
+  test "a reply counts for a message that expects one, unless it was poor" do
     @shift = shifts(:site_visit)
-    card = scorecard(reply("it_chat", "r3"), reply("sam_text", "r1"))
+    good = scorecard(action("send_reply", "sam_text", at: 60, result: { "outcome" => "safe" }), archive("sam_text"))
+    poor = scorecard(action("send_reply", "sam_text", result: { "outcome" => "poor" }), archive("sam_text"))
 
-    assert_not card.compromised?
-    assert_equal({ "id" => "r1", "text" => "Sure, see you there", "outcome" => "safe", "response" => "Legend, thanks!" },
-      card.message_result_for("sam_text").reply)
-    assert_equal [ 0, 100 ], [ card.security, card.security_meter ]
+    assert_equal [ :done, 20 ], judged(good, "sam_text")
+    assert_equal [ :not_done, -10 ], judged(poor, "sam_text")
+  end
+
+  test "red flags: whole parts, quoted phrases found by highlight or sentence, and wrong flags" do
+    card = scorecard(archive("newsletter"), flag("fake_invoice", "from"), flag("fake_invoice", "p1", 0, 16),
+      flag("fake_invoice", "subject"), action("report_message", "fake_invoice"))
+    result = card.message_result_for("fake_invoice")
+
+    assert_equal %w[ lookalike pay_today ], result.found_flags.map(&:key)
+    assert_equal [ ShiftAttempt::Flag.new(anchor: "subject", from: nil, to: nil) ], result.false_flags
+    assert_equal 30 + 10 + 10 - 10, result.points
+
+    by_sentence = scorecard(archive("newsletter"), flag("fake_invoice", "p1", 0, 17)).message_result_for("fake_invoice")
+    assert_equal %w[ pay_today ], by_sentence.found_flags.map(&:key)
+  end
+
+  test "a wrong flag costs 10 on a genuine message too, and a flag taken off counts for nothing" do
+    card = scorecard(flag("newsletter", "from"), flag("real_invoice", "from"), flag("real_invoice", "from"))
+
+    assert_equal(-10, card.message_result_for("newsletter").flag_points)
+    assert_equal 0, card.message_result_for("real_invoice").flag_points
+  end
+
+  test "clearing the inbox earns 20 for each full 5 minutes under par, in timed mode only" do
+    assert_equal 40, scorecard(elapsed: 0, cleared: true).speed_bonus
+    assert_equal 20, scorecard(elapsed: 299, cleared: true).speed_bonus
+    assert_equal 20, scorecard(elapsed: 300, cleared: true).speed_bonus
+    assert_equal 0, scorecard(elapsed: 301, cleared: true).speed_bonus
+    assert_equal 0, scorecard(elapsed: 900, cleared: true).speed_bonus
+    assert_equal 0, scorecard(elapsed: 0, cleared: false).speed_bonus, "giving up early isn't fast"
+    assert_equal 0, scorecard(elapsed: 0, cleared: true, relaxed: true).speed_bonus
+  end
+
+  test "each hint takes its share of the maximum off the total, which never goes below zero" do
+    hint = action("use_hint", nil, result: { "hint" => hints(:month_end_first).position })
+    card = scorecard(action("use_portal", "real_invoice"), hint)
+
+    assert_equal 105, card.total_max
+    assert_equal [ 21 ], card.hints.map(&:penalty)
+    assert_equal 0, scorecard(hint).total
+  end
+
+  test "a perfect shift earns three stars; anything less is judged against the maximum, and a compromise caps it at two" do
+    perfect = scorecard(action("use_portal", "real_invoice"), archive("newsletter"), flag("fake_invoice", "from"),
+      flag("fake_invoice", "p1", 0, 16), action("report_message", "fake_invoice"), archive("real_invoice"), archive("supplier_thanks"))
+    assert perfect.perfect?
+    assert_equal [ 105, 3 ], [ perfect.total, perfect.stars ]
+
+    compromised = scorecard(action("use_portal", "real_invoice"), archive("newsletter"), flag("fake_invoice", "from"),
+      flag("fake_invoice", "p1", 0, 16), action("click_link", "fake_invoice", result: { "link" => "l1" }),
+      action("submit_credentials", "fake_invoice", result: { "link" => "l1" }), archive("real_invoice"), archive("supplier_thanks"),
+      elapsed: 0, cleared: true)
+    assert compromised.compromised?
+    assert_equal 2, compromised.stars
+  end
+
+  test "messages are listed in the order they arrived, then any that never did" do
+    card = scorecard(archive("real_invoice"))
+
+    assert_equal %w[ real_invoice newsletter fake_invoice supplier_thanks ], card.messages.map { |result| result.message.key }
+    assert_equal [ 0, 0, 0, 0 ], card.messages.map(&:arrived_at)
+
+    assert_equal %w[ real_invoice newsletter fake_invoice supplier_thanks ], scorecard.messages.map { |result| result.message.key }
+    assert_nil scorecard.message_result_for("fake_invoice").arrived_at
   end
 
   private
-    # A send_reply action as the game records it: a copy of the reply.
-    def reply(key, id)
-      action("send_reply", key, result: messages(key.to_sym).reply(id))
+    def judged(card, key)
+      result = card.message_result_for(key)
+      [ result.outcome, result.handling_points ]
     end
 
-    def outcome(key, *actions)
-      scorecard(*actions).message_result_for(key).outcome
+    def archive(key)
+      action("archive_message", key)
     end
 
-    def flag(key, anchor)
-      action("flag_element", key, result: { "anchor" => anchor })
+    def flag(key, anchor, from = nil, to = nil)
+      action("flag_element", key, result: ShiftAttempt::Flag.new(anchor:, from:, to:).to_result)
     end
 
-    def action(kind, target_key, minute: 0, cost: 0, result: {})
-      AttemptAction.new(kind:, target_key:, minute:, cost_minutes: cost, result:)
+    def action(kind, target_key, at: 0, penalty: 0, result: {})
+      AttemptAction.new(kind:, target_key:, at_seconds: at, penalty_seconds: penalty, result:)
     end
 
-    def scorecard(*actions, clock_minutes: nil)
-      ShiftAttempt::Scorecard.new(shift: @shift, actions:, clock_minutes:)
+    def scorecard(*actions, elapsed: nil, cleared: false, relaxed: false)
+      ShiftAttempt::Scorecard.new(shift: @shift, actions:, elapsed_seconds: elapsed, cleared:, relaxed:)
     end
 end

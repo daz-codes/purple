@@ -10,9 +10,15 @@ class ShiftAttempt::Tab
   attr_reader :message, :source
 
   # source: { "link" => "l1" } or { "attachment" => "a1" }, as recorded in the action's result.
-  def initialize(message:, source:)
+  # submitted: the page's button (sign in, or the portal's action) has been pressed.
+  def initialize(message:, source:, submitted: false)
     @message = message
     @source = source
+    @submitted = submitted
+  end
+
+  def submitted?
+    @submitted
   end
 
   def link
@@ -74,8 +80,8 @@ class ShiftAttempt::Tab
     name.include?(".") ? name : "document.zip"
   end
 
-  # The task a portal page completes.
-  def task
-    link&.task if landing == "portal_task"
+  # The button on a portal page.
+  def portal_action
+    link&.portal_action if landing == "portal"
   end
 end

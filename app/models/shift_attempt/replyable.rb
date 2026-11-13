@@ -2,20 +2,18 @@
 # reply can only ever be one the content author wrote. Each message takes one reply.
 #
 # What a reply leads to is decided on the server, by its hidden outcome:
-#   safe:       nothing happens beyond the conversation.
-#   compromise: the player handed over what the sender asked for, such as a one-time code. It counts
+#   safe:       a fine answer. For a genuine message that expects a reply, this is what it wanted.
+#   poor:       an answer to a genuine message that doesn't do what it asked, so it doesn't count.
+#   compromise: the player handed a phisher what they asked for, such as a one-time code. It counts
 #               like entering a password on a bait page.
-#   verify:     the player says they'll check with someone they already trust, and does: they get the
-#               message's verify_result, as a call-back would. It's still one reply and costs what every
-#               reply costs, since a different price would give away which reply it is.
+#   verify:     the player checks with someone they already trust first, and gets the message's
+#               verify_result. Like a call-back, it adds 30 seconds to the attempt's time.
 # The player only ever sees the reply's text and the answers that come back.
 #
 # The send_reply action keeps a copy of the reply as it was sent (its text, outcome, response and any
 # check), so re-importing the content later can't change what an old attempt did or scored.
 module ShiftAttempt::Replyable
   extend ActiveSupport::Concern
-
-  OUTCOMES = %w[ safe compromise verify ].freeze
 
   # The reply sent to each message, by message key, as stored on its send_reply action.
   def self.sent(actions)
@@ -33,19 +31,14 @@ module ShiftAttempt::Replyable
       reject "You've already replied to that." if replied?(message)
 
       result = reply.slice("id", "text", "outcome", "response")
-      result["check"] = message.verify_result.presence || ShiftAttempt::Verifiable::NO_ANSWER if reply["outcome"] == "verify"
-      record :send_reply, message:, result:
+      checks = reply["outcome"] == "verify"
+      result["check"] = message.verify_result.presence || ShiftAttempt::Verifiable::NO_ANSWER if checks
+      record :send_reply, message:, result:, penalty: checks ? ShiftAttempt::Timed::CALL_PENALTY : 0
     end
   end
 
   def replied?(message)
     done?(:send_reply, message.key)
-  end
-
-  # Whether the reply the player sent handed over what the sender asked for. Only asked once it's sent,
-  # to show the damage, as a password entered on a bait page does.
-  def handed_over?(message)
-    ShiftAttempt::Replyable.gave_in?(ShiftAttempt::Replyable.sent(actions)[message.key])
   end
 
   # The reply the player sent, as they saw it: its text, the answer that came back and, if they checked

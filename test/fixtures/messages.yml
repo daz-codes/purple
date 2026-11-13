@@ -1,25 +1,46 @@
+# Month-end (inbox, par 10 minutes). At the start: the real invoice and a newsletter. The fake invoice
+# arrives once any one message has been dealt with; the supplier's thank-you arrives once the real
+# invoice has been.
+#
+# Bodies go through Content::MessageBody, as the importer's do, so anchors and sentences match.
+<% body = ->(html) { Content::MessageBody.new(html).html.to_json } %>
 real_invoice:
   shift: month_end
   key: real_invoice
   channel: email
   position: 1
-  arrives_at_minute: 0
   legit: true
+  expects: act
+  points: 40
+  urgent_within_minutes: 10
   from_name: Tidemark Supply
   from_address: accounts@tidemark.example
   to_address: you@larkhill.example
   subject: Invoice ready
   attachments: [{ "id": "a1", "name": "Invoice_4471.pdf", "type": "application/pdf", "size": "88 KB", "outcome": "harmless" }]
-  body_html: >-
-    <p data-anchor="p1"><span data-anchor="l1" class="fake-link" role="link" tabindex="0" data-controller="fake-link"
-    data-link-key="l1" data-display-url="Review" data-actual-url="https://portal.larkhill.example/invoices/4471">Review</span></p>
+  verify_result: Tidemark confirm they sent it.
+  body_html: <%= body.(%(<p><a href="https://portal.larkhill.example/invoices/4471">Review</a></p>)) %>
+
+newsletter:
+  shift: month_end
+  key: newsletter
+  channel: email
+  position: 2
+  legit: true
+  expects: archive
+  points: 10
+  from_name: Larkhill News
+  from_address: news@larkhill.example
+  to_address: you@larkhill.example
+  subject: This week at Larkhill
+  body_html: <%= body.(%(<p>The canteen has a new menu. Enjoy!</p>)) %>
 
 fake_invoice:
   shift: month_end
   key: fake_invoice
   channel: email
-  position: 2
-  arrives_at_minute: 3
+  position: 3
+  arrives_after_handled: 1
   legit: false
   from_name: Tidemark Supply
   from_address: accounts@tidemark-billing.example
@@ -28,32 +49,47 @@ fake_invoice:
   subject: URGENT invoice
   attachments: [{ "id": "a1", "name": "Remittance_4471.pdf.exe", "type": "application/x-msdownload", "size": "312 KB", "outcome": "malware" }]
   verify_result: Tidemark haven't changed their bank details.
-  body_html: >-
-    <p data-anchor="p1">Please pay today.</p>
-    <p data-anchor="p2"><span data-anchor="l1" class="fake-link" role="link" tabindex="0" data-controller="fake-link"
-    data-link-key="l1" data-display-url="Pay now" data-actual-url="https://larkhill-portal.example.net/login">Pay now</span></p>
+  body_html: <%= body.(%(<p>Please pay today. Our bank details have changed.</p><p><a href="https://larkhill-portal.example.net/login">Pay now</a></p>)) %>
 
+supplier_thanks:
+  shift: month_end
+  key: supplier_thanks
+  channel: email
+  position: 4
+  arrives_after: real_invoice
+  legit: true
+  expects: archive
+  points: 5
+  from_name: Tidemark Supply
+  from_address: accounts@tidemark.example
+  to_address: you@larkhill.example
+  subject: Thanks for approving
+  body_html: <%= body.(%(<p>Thanks, payment is scheduled.</p>)) %>
+
+# Site visit (phone, par 10 minutes). Sam's text needs a reply, soon; the fake IT chat arrives once
+# one message has been dealt with.
 sam_text:
   shift: site_visit
   key: sam_text
   channel: sms
   position: 1
-  arrives_at_minute: 0
   legit: true
+  expects: reply
+  points: 20
+  urgent_within_minutes: 5
   from_name: Sam (Ops)
   from_address: 07700 900118
   verify_result: Sam is in your contacts.
   replies: [{ "id": "r1", "text": "Sure, see you there", "outcome": "safe", "response": "Legend, thanks!" },
-            { "id": "r2", "text": "Sorry, no time today", "outcome": "safe" }]
-  body_html: >-
-    <p data-anchor="p1">Running late. Grab me a coffee?</p>
+            { "id": "r2", "text": "Sorry, no time today", "outcome": "poor" }]
+  body_html: <%= body.(%(<p>Running late. Grab me a coffee?</p>)) %>
 
 it_chat:
   shift: site_visit
   key: it_chat
   channel: chat
   position: 2
-  arrives_at_minute: 2
+  arrives_after_handled: 1
   legit: false
   from_name: IT Support (Larkhill)
   from_address: it.support.larkhill@freemail.test
@@ -61,6 +97,4 @@ it_chat:
   replies: [{ "id": "r1", "text": "Here it is: 482 913", "outcome": "compromise", "response": "Thanks, you're all locked down now." },
             { "id": "r2", "text": "I won't share a code.", "outcome": "safe", "response": "Your account will be locked!" },
             { "id": "r3", "text": "I'll check with the service desk first.", "outcome": "verify" }]
-  body_html: >-
-    <p data-anchor="p1">We're seeing unusual sign-ins.</p>
-    <p data-anchor="p2">Reply with the 6-digit code we just sent you.</p>
+  body_html: <%= body.(%(<p>We're seeing unusual sign-ins.</p><p>Reply with the 6-digit code we just sent you.</p>)) %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_13_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -19,14 +19,14 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.bigint "shift_attempt_id", null: false
     t.string "kind", null: false
     t.string "target_key"
-    t.integer "minute", null: false
-    t.integer "cost_minutes", default: 0, null: false
     t.jsonb "result", default: {}, null: false
     t.datetime "created_at", null: false
+    t.integer "at_seconds", default: 0, null: false
+    t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
-    t.check_constraint "cost_minutes >= 0", name: "attempt_actions_cost_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'hover_link'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'report_message'::character varying, 'flag_element'::character varying, 'complete_task'::character varying, 'use_hint'::character varying, 'wait'::character varying, 'end_shift'::character varying, 'send_reply'::character varying]::text[])", name: "attempt_actions_kind"
-    t.check_constraint "minute >= 0", name: "attempt_actions_minute_non_negative"
+    t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'give_up'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
   create_table "badges", force: :cascade do |t|
@@ -38,7 +38,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_badges_on_key", unique: true
-    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text, 'purple'::character varying::text, 'any'::character varying::text])", name: "badges_side"
+    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying, 'purple'::character varying, 'any'::character varying]::text[])", name: "badges_side"
   end
 
   create_table "hints", force: :cascade do |t|
@@ -54,7 +54,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
 
   create_table "links", force: :cascade do |t|
     t.bigint "message_id", null: false
-    t.bigint "task_id"
     t.string "key", null: false
     t.string "display_url", null: false
     t.string "actual_url", null: false
@@ -62,12 +61,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.string "landing_template", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "portal_action"
     t.index ["message_id", "key"], name: "index_links_on_message_id_and_key", unique: true
     t.index ["message_id"], name: "index_links_on_message_id"
-    t.index ["task_id"], name: "index_links_on_task_id"
-    t.check_constraint "(outcome::text = 'completes_task'::text) = (task_id IS NOT NULL)", name: "links_task_only_when_completing"
-    t.check_constraint "landing_template::text = ANY (ARRAY['portal_task'::character varying::text, 'harmless'::character varying::text, 'credential_harvest'::character varying::text, 'malware_download'::character varying::text])", name: "links_landing_template"
-    t.check_constraint "outcome::text = ANY (ARRAY['completes_task'::character varying::text, 'harmless'::character varying::text, 'bait_landing'::character varying::text, 'malware'::character varying::text])", name: "links_outcome"
+    t.check_constraint "(outcome::text = 'portal'::text) = (portal_action IS NOT NULL)", name: "links_portal_action_only_on_portals"
+    t.check_constraint "landing_template::text = ANY (ARRAY['portal'::character varying, 'harmless'::character varying, 'credential_harvest'::character varying, 'malware_download'::character varying]::text[])", name: "links_landing_template"
+    t.check_constraint "outcome::text = ANY (ARRAY['portal'::character varying, 'harmless'::character varying, 'bait_landing'::character varying, 'malware'::character varying]::text[])", name: "links_outcome"
   end
 
   create_table "message_techniques", force: :cascade do |t|
@@ -84,7 +83,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.string "key", null: false
     t.string "channel", null: false
     t.integer "position", null: false
-    t.integer "arrives_at_minute", default: 0, null: false
     t.string "from_name", null: false
     t.string "from_address", null: false
     t.string "reply_to"
@@ -97,10 +95,20 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "replies", default: [], null: false
+    t.integer "arrives_after_handled"
+    t.string "arrives_after"
+    t.string "expects"
+    t.integer "points", default: 0, null: false
+    t.integer "urgent_within_minutes"
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
-    t.check_constraint "arrives_at_minute >= 0", name: "messages_arrives_at_minute_non_negative"
-    t.check_constraint "channel::text = ANY (ARRAY['email'::character varying::text, 'sms'::character varying::text, 'chat'::character varying::text])", name: "messages_channel"
+    t.check_constraint "\nCASE\n    WHEN legit THEN points > 0\n    ELSE points = 0\nEND", name: "messages_points_only_when_genuine"
+    t.check_constraint "arrives_after_handled > 0", name: "messages_arrives_after_handled_positive"
+    t.check_constraint "arrives_after_handled IS NULL OR arrives_after IS NULL", name: "messages_one_arrival_trigger"
+    t.check_constraint "channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'chat'::character varying]::text[])", name: "messages_channel"
+    t.check_constraint "expects::text = ANY (ARRAY['reply'::character varying, 'act'::character varying, 'archive'::character varying]::text[])", name: "messages_expects"
+    t.check_constraint "legit = (expects IS NOT NULL)", name: "messages_expects_only_when_genuine"
+    t.check_constraint "urgent_within_minutes IS NULL OR legit AND urgent_within_minutes > 0", name: "messages_urgent_only_when_genuine"
   end
 
   create_table "red_flags", force: :cascade do |t|
@@ -112,9 +120,13 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.integer "points", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "quote"
+    t.integer "quote_start"
+    t.integer "quote_end"
     t.index ["message_id", "key"], name: "index_red_flags_on_message_id_and_key", unique: true
     t.index ["message_id"], name: "index_red_flags_on_message_id"
     t.check_constraint "points > 0", name: "red_flags_points_positive"
+    t.check_constraint "quote IS NULL AND quote_start IS NULL AND quote_end IS NULL OR quote IS NOT NULL AND quote_start >= 0 AND quote_end > quote_start", name: "red_flags_quote_complete"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -131,16 +143,14 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.bigint "shift_id", null: false
     t.string "token", null: false
     t.string "status", default: "open", null: false
-    t.integer "clock_minutes", default: 0, null: false
-    t.integer "time_budget_minutes", null: false
-    t.integer "productivity_score"
-    t.integer "security_score"
     t.integer "score"
     t.datetime "started_at", null: false
     t.datetime "completed_at"
     t.boolean "scored", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "penalty_seconds", default: 0, null: false
+    t.boolean "relaxed", default: false, null: false
     t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
     t.index ["token"], name: "index_shift_attempts_on_token", unique: true
     t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"
@@ -149,10 +159,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.check_constraint "(status::text = 'open'::text) = (completed_at IS NULL)", name: "shift_attempts_completed_at_when_finished"
     t.check_constraint "(status::text = 'open'::text) = (score IS NULL)", name: "shift_attempts_score_when_finished"
     t.check_constraint "NOT scored OR status::text <> 'open'::text", name: "shift_attempts_scored_only_when_finished"
-    t.check_constraint "clock_minutes <= time_budget_minutes", name: "shift_attempts_clock_within_budget"
-    t.check_constraint "clock_minutes >= 0", name: "shift_attempts_clock_non_negative"
-    t.check_constraint "status::text = ANY (ARRAY['open'::character varying::text, 'completed'::character varying::text, 'timed_out'::character varying::text])", name: "shift_attempts_status"
-    t.check_constraint "time_budget_minutes > 0", name: "shift_attempts_time_budget_positive"
+    t.check_constraint "penalty_seconds >= 0", name: "shift_attempts_penalty_seconds_non_negative"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'gave_up'::character varying, 'timed_out'::character varying]::text[])", name: "shift_attempts_status"
   end
 
   create_table "shifts", force: :cascade do |t|
@@ -161,37 +169,22 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.string "title", null: false
     t.string "kind", null: false
     t.string "difficulty", null: false
-    t.integer "time_budget_minutes", null: false
     t.integer "position", default: 0, null: false
     t.boolean "published", default: false, null: false
     t.text "briefing", null: false
     t.text "learning_summary", null: false
     t.string "author_side", default: "red", null: false
     t.string "author_type", default: "system", null: false
-    t.jsonb "action_costs", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "par_minutes", default: 10, null: false
     t.index ["slug"], name: "index_shifts_on_slug", unique: true
     t.index ["track_id"], name: "index_shifts_on_track_id"
     t.check_constraint "author_side::text = 'red'::text", name: "shifts_author_side"
-    t.check_constraint "author_type::text = ANY (ARRAY['system'::character varying::text, 'player'::character varying::text])", name: "shifts_author_type"
-    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying::text, 'intermediate'::character varying::text, 'advanced'::character varying::text])", name: "shifts_difficulty"
-    t.check_constraint "kind::text = ANY (ARRAY['inbox'::character varying::text, 'messages'::character varying::text])", name: "shifts_kind"
-    t.check_constraint "time_budget_minutes > 0", name: "shifts_time_budget_positive"
-  end
-
-  create_table "tasks", force: :cascade do |t|
-    t.bigint "shift_id", null: false
-    t.string "key", null: false
-    t.string "title", null: false
-    t.integer "due_at_minute", null: false
-    t.integer "points", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["shift_id", "key"], name: "index_tasks_on_shift_id_and_key", unique: true
-    t.index ["shift_id"], name: "index_tasks_on_shift_id"
-    t.check_constraint "due_at_minute > 0", name: "tasks_due_at_minute_positive"
-    t.check_constraint "points > 0", name: "tasks_points_positive"
+    t.check_constraint "author_type::text = ANY (ARRAY['system'::character varying, 'player'::character varying]::text[])", name: "shifts_author_type"
+    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying, 'intermediate'::character varying, 'advanced'::character varying]::text[])", name: "shifts_difficulty"
+    t.check_constraint "kind::text = ANY (ARRAY['inbox'::character varying, 'messages'::character varying]::text[])", name: "shifts_kind"
+    t.check_constraint "par_minutes > 0", name: "shifts_par_minutes_positive"
   end
 
   create_table "techniques", force: :cascade do |t|
@@ -207,7 +200,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_techniques_on_key", unique: true
-    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying::text, 'sender'::character varying::text, 'lure'::character varying::text, 'payload'::character varying::text, 'timing'::character varying::text])", name: "techniques_category"
+    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying, 'sender'::character varying, 'lure'::character varying, 'payload'::character varying, 'timing'::character varying]::text[])", name: "techniques_category"
     t.check_constraint "red_cost >= 0", name: "techniques_red_cost_non_negative"
     t.check_constraint "stealth >= 1 AND stealth <= 10", name: "techniques_stealth_range"
   end
@@ -222,7 +215,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_tracks_on_slug", unique: true
-    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying::text, 'intermediate'::character varying::text, 'advanced'::character varying::text])", name: "tracks_difficulty"
+    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying, 'intermediate'::character varying, 'advanced'::character varying]::text[])", name: "tracks_difficulty"
   end
 
   create_table "user_badges", force: :cascade do |t|
@@ -243,6 +236,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
     t.boolean "admin", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "relaxed_mode", default: false, null: false
     t.index ["display_name"], name: "index_users_on_display_name", unique: true
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
@@ -250,7 +244,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
   add_foreign_key "attempt_actions", "shift_attempts"
   add_foreign_key "hints", "shifts"
   add_foreign_key "links", "messages"
-  add_foreign_key "links", "tasks"
   add_foreign_key "message_techniques", "messages"
   add_foreign_key "message_techniques", "techniques"
   add_foreign_key "messages", "shifts"
@@ -259,7 +252,6 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_120001) do
   add_foreign_key "shift_attempts", "shifts"
   add_foreign_key "shift_attempts", "users"
   add_foreign_key "shifts", "tracks"
-  add_foreign_key "tasks", "shifts"
   add_foreign_key "user_badges", "badges"
   add_foreign_key "user_badges", "users"
 end

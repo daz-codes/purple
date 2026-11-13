@@ -4,7 +4,7 @@ month_end:
   title: Month-end
   kind: inbox
   difficulty: beginner
-  time_budget_minutes: 30
+  par_minutes: 10
   position: 1
   published: true
   briefing: It's month-end.
@@ -16,7 +16,7 @@ site_visit:
   title: Site visit
   kind: messages
   difficulty: beginner
-  time_budget_minutes: 30
+  par_minutes: 10
   position: 2
   published: true
   briefing: You're on site with only your phone.

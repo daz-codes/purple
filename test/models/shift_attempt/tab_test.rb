@@ -8,7 +8,7 @@ class ShiftAttempt::TabTest < ActiveSupport::TestCase
     assert_equal "https://larkhill-portal.example.net/login", tab.address
     assert_equal "larkhill-portal.example.net", tab.title
     assert tab.padlock?, "https phishing sites have padlocks too"
-    assert_nil tab.task
+    assert_nil tab.portal_action
   end
 
   test "only sign-in and download pages are traps" do
@@ -24,11 +24,12 @@ class ShiftAttempt::TabTest < ActiveSupport::TestCase
     assert ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }).showable?
   end
 
-  test "a portal tab knows the task it completes" do
+  test "a portal tab knows what its button does, and whether it's been pressed" do
     tab = ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" })
 
-    assert_equal "portal_task", tab.landing
-    assert_equal tasks(:pay_supplier), tab.task
+    assert_equal [ "portal", "Approve invoice" ], [ tab.landing, tab.portal_action ]
+    assert_not tab.submitted?
+    assert ShiftAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }, submitted: true).submitted?
   end
 
   test "attachments preview documents and prompt before running programs" do

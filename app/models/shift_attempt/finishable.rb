@@ -1,7 +1,6 @@
-# The end of a shift: when the clock reaches the time budget, or when the player ends it. Clearing the
-# task list doesn't end it, and nothing in play says the list is clear beyond the tasks themselves:
-# the rest of the day's mail still has to be dealt with. Ending early leaves that mail unhandled (see
-# Scorecard). Finishing scores the attempt from its log.
+# The end of a shift. It ends by itself once every message has been dealt with (the inbox is empty and
+# nothing more is coming), when the player gives up, or when it's left open too long. Anything not
+# dealt with by then counts as ignored. Finishing scores the attempt from its log.
 module ShiftAttempt::Finishable
   extend ActiveSupport::Concern
 
@@ -25,28 +24,28 @@ module ShiftAttempt::Finishable
     !open?
   end
 
-  def end_shift
+  def give_up
     acting_on do
-      record :end_shift, cost: 0
-      finish :completed # does nothing if recording the action already ran the clock out
+      record :give_up
+      finish :gave_up
     end
   end
 
   def scorecard
-    ShiftAttempt::Scorecard.new(shift:, actions:, clock_minutes:)
+    ShiftAttempt::Scorecard.new(shift:, actions:, elapsed_seconds:, cleared: completed? || (open? && inbox_messages.empty?), relaxed:)
   end
 
   private
-    def finish_if_over
-      finish :timed_out if time_up?
+    def finish_if_cleared
+      finish :completed if open? && inbox_messages.empty?
     end
 
     def finish(status)
       return if finished?
 
-      card = scorecard
-      update! status:, completed_at: Time.current, scored: first_scored_attempt?,
-        productivity_score: card.productivity, security_score: card.security, score: card.total
+      self.status = status
+      self.completed_at = Time.current
+      update! scored: first_scored_attempt?, score: scorecard.total
     end
 
     # XP (from M8) is only for confirmed players' first finished attempt at each shift.

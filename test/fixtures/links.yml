@@ -1,11 +1,11 @@
 real_invoice_link:
   message: real_invoice
-  task: pay_supplier
   key: l1
   display_url: Review
   actual_url: https://portal.larkhill.example/invoices/4471
-  outcome: completes_task
-  landing_template: portal_task
+  outcome: portal
+  landing_template: portal
+  portal_action: Approve invoice
 
 fake_invoice_link:
   message: fake_invoice
