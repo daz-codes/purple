@@ -24,4 +24,16 @@ class RedCampaign < ApplicationRecord
   def to_param
     token
   end
+
+  # --- Progress (see Rewarded) ---------------------------------------------------------
+
+  include Rewarded
+
+  def side = "red"
+  def xp_reason = :workshop_completed
+  def finished_at = launched_at
+
+  def just_finished?
+    saved_change_to_status? && launched?
+  end
 end
