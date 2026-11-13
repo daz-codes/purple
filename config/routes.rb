@@ -8,6 +8,10 @@ Rails.application.routes.draw do
   resources :passwords, param: :token, only: %i[ new create edit update ]
   resources :email_confirmations, param: :token, only: %i[ create show update ]
 
+  # Leaderboards (tabs are params: side, period, relaxed) and public player profiles.
+  resource :leaderboard, only: :show
+  resources :profiles, path: "u", param: :display_name, only: :show
+
   # Which side the player prefers: asked once after signing up, and switchable from the dashboard.
   resource :side, only: %i[ new create ]
 

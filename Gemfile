@@ -70,4 +70,6 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara", require: false
   gem "selenium-webdriver", require: false
+  # Accessibility checks (axe) in system tests.
+  gem "axe-core-capybara", require: false
 end

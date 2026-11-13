@@ -92,7 +92,14 @@ n needs `100 * (n - 1)^1.5` XP.
 When a player finishes a shift or launches a campaign (`Rewarded`), `AwardBadgesJob` checks
 `Badge::Rulebook` and awards any new badges (each worth 25 XP), with a toast sent by Turbo Stream.
 Only confirmed players earn XP and badges. Signed-in players see a dashboard with both levels, their
-streak, a side switcher and their badges.
+streak, a side switcher, what to play next and their badges.
+
+`/leaderboard` ranks players by XP (`Leaderboard`): Blue, Red or overall; this week (from Monday,
+London time) or all time; timed or relaxed play. Ties go to whoever got there first, players can opt
+out on their account page, and every player has a public profile at `/u/:display_name`.
+
+Accessibility is checked with axe in the system tests (`assert_accessible`, WCAG 2.1 A and AA),
+including a keyboard-only playthrough.
 
 ## Content authoring
 

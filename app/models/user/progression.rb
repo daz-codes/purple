@@ -34,7 +34,8 @@ module User::Progression
       lock!
       return if source && xp_events.exists?(reason:, source_type: source.class.polymorphic_name, source_id: source.id)
 
-      event = xp_events.create!(side:, amount:, reason:, source:, occurred_at: at)
+      relaxed = source.respond_to?(:relaxed?) && source.relaxed?
+      event = xp_events.create!(side:, amount:, reason:, source:, occurred_at: at, relaxed:)
       xp = xp(side) + amount
       update!("#{side}_xp" => xp, "#{side}_level" => self.class.level_for(xp), xp_total: blue_xp + red_xp + amount)
       event

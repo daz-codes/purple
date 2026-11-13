@@ -1,0 +1,33 @@
+<% content_for :title, @user.display_name %>
+
+<header class="flex flex-wrap items-center gap-3">
+  <h1 class="text-3xl font-extrabold tracking-tight"><%= @user.display_name %></h1>
+  <% if @user.preferred_side %>
+    <span class="rounded-full border px-3 py-0.5 text-sm font-semibold <%= @user.preferred_side == "blue" ? "border-blue-team text-blue-team" : "border-red-team text-red-team" %>" data-testid="preferred-side">
+      Prefers <%= @user.preferred_side == "blue" ? "Blue" : "Red" %>
+    </span>
+  <% end %>
+</header>
+
+<div class="mt-6 grid gap-6 sm:grid-cols-2">
+  <% %w[ blue red ].each do |side| %>
+    <section class="card <%= side == "blue" ? "border-blue-team/50" : "border-red-team/50" %>" data-testid="<%= side %>-level">
+      <p class="text-sm font-semibold uppercase tracking-widest <%= side == "blue" ? "text-blue-team" : "text-red-team" %>"><%= side == "blue" ? "Blue team" : "Red team" %></p>
+      <p class="mt-2 text-2xl font-bold">Level <%= @user.level(side) %></p>
+      <p class="text-sm text-ink-muted"><%= number_with_delimiter(@user.xp(side)) %> XP</p>
+    </section>
+  <% end %>
+</div>
+
+<section class="mt-8" aria-labelledby="profile-badges-heading">
+  <h2 id="profile-badges-heading" class="text-xl font-bold">Badges</h2>
+  <% if @badges.any? %>
+    <ul class="mt-3 flex flex-wrap gap-2" data-testid="profile-badges">
+      <% @badges.each do |badge| %>
+        <li class="rounded-full border border-purple-team/60 bg-purple-team-soft px-3 py-1 text-sm" title="<%= badge.description %>">🏅 <%= badge.name %></li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-2 text-ink-muted">No badges yet.</p>
+  <% end %>
+</section>

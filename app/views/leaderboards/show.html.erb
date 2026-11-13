@@ -1,0 +1,64 @@
+<% content_for :title, "Leaderboard" %>
+<% board = @leaderboard %>
+<% tab = ->(label, **changes) {
+     options = { side: board.side, period: board.period, relaxed: board.relaxed }.merge(changes)
+     current = options == { side: board.side, period: board.period, relaxed: board.relaxed }
+     link_to label, leaderboard_path(options.compact_blank), aria: { current: current ? "page" : nil },
+       class: "rounded-full border px-3 py-1 text-sm #{current ? "border-purple-team bg-purple-team-soft text-ink" : "border-line text-ink-muted hover:bg-surface-raised"}"
+   } %>
+
+<header>
+  <h1 class="text-3xl font-extrabold tracking-tight">Leaderboard</h1>
+  <p class="mt-1 text-ink-muted">
+    XP earned <%= board.period == "week" ? "since Monday (London time)" : "all time" %>.
+    Only each player's first scored attempt at a shift or target counts here; streak bonuses and badges raise your
+    level but not your rank. Ties go to whoever got there first.
+  </p>
+</header>
+
+<nav class="mt-6 flex flex-wrap gap-x-6 gap-y-3" aria-label="Leaderboard tabs">
+  <div class="flex flex-wrap gap-2" role="group" aria-label="Side">
+    <%= tab.("Overall", side: "overall") %><%= tab.("Blue", side: "blue") %><%= tab.("Red", side: "red") %>
+  </div>
+  <div class="flex flex-wrap gap-2" role="group" aria-label="Period">
+    <%= tab.("This week", period: "week") %><%= tab.("All time", period: "all") %>
+  </div>
+  <div class="flex flex-wrap gap-2" role="group" aria-label="Pace">
+    <%= tab.("Timed", relaxed: false) %><%= tab.("Relaxed", relaxed: true) %>
+  </div>
+</nav>
+
+<% entries = board.entries %>
+<section class="card mt-6 p-0 overflow-hidden" aria-labelledby="ranking-heading">
+  <h2 id="ranking-heading" class="sr-only">Rankings</h2>
+  <% if entries.empty? %>
+    <p class="p-6 text-ink-muted">Nobody's on this board yet. Play a shift or launch a campaign to be the first.</p>
+  <% else %>
+    <table class="w-full text-left">
+      <thead class="border-b border-line text-sm text-ink-muted">
+        <tr><th scope="col" class="px-4 py-2">Rank</th><th scope="col" class="px-4 py-2">Player</th><th scope="col" class="px-4 py-2 text-right">XP</th></tr>
+      </thead>
+      <tbody class="divide-y divide-line" data-testid="leaderboard">
+        <% entries.each do |entry| %>
+          <tr class="<%= "bg-purple-team-soft" if @mine && entry.user_id == @mine.user_id %>">
+            <td class="px-4 py-2 tabular-nums"><%= entry.rank %></td>
+            <td class="px-4 py-2"><%= link_to entry.display_name, profile_path(entry.display_name), class: "underline" %></td>
+            <td class="px-4 py-2 text-right tabular-nums"><%= number_with_delimiter(entry.xp) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<% if authenticated? %>
+  <p class="mt-4 text-sm" data-testid="my-rank">
+    <% if Current.user.leaderboard_opt_out? %>
+      You've chosen to stay off the leaderboards. <%= link_to "Change that", account_path, class: "underline" %>.
+    <% elsif @mine %>
+      You're ranked <strong><%= @mine.rank.ordinalize %></strong> with <%= number_with_delimiter(@mine.xp) %> XP.
+    <% else %>
+      You're not on this board yet.
+    <% end %>
+  </p>
+<% end %>

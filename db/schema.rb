@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_140001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_140001) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'clock_off'::character varying, 'save_note'::character varying, 'share_details'::character varying, 'ask_why'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying::text, 'expand_headers'::character varying::text, 'verify_sender'::character varying::text, 'click_link'::character varying::text, 'close_landing'::character varying::text, 'submit_credentials'::character varying::text, 'open_attachment'::character varying::text, 'run_download'::character varying::text, 'use_portal'::character varying::text, 'report_message'::character varying::text, 'archive_message'::character varying::text, 'flag_element'::character varying::text, 'send_reply'::character varying::text, 'use_hint'::character varying::text, 'clock_off'::character varying::text, 'save_note'::character varying::text, 'share_details'::character varying::text, 'ask_why'::character varying::text])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -362,6 +362,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_140001) do
     t.datetime "occurred_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "relaxed", default: false, null: false
     t.index ["side", "occurred_at"], name: "index_xp_events_on_side_and_occurred_at"
     t.index ["source_type", "source_id"], name: "index_xp_events_on_source"
     t.index ["user_id", "occurred_at"], name: "index_xp_events_on_user_id_and_occurred_at"

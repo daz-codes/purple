@@ -36,6 +36,15 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=badges] li", count: Badge.count
   end
 
+  test "the dashboard suggests the next shift and target the player hasn't finished" do
+    ShiftAttempt.start(user: users(:one), shift: shifts(:month_end)).clock_off
+    sign_in_as users(:one)
+
+    get root_path
+    assert_select "[data-testid=blue-suggestion]", text: /Site visit/
+    assert_select "[data-testid=red-suggestion]", text: /Month-end at Larkhill/
+  end
+
   test "the dashboard offers to resume a shift in progress" do
     attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
     sign_in_as users(:one)
