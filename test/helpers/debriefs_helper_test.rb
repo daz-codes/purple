@@ -98,6 +98,36 @@ class DebriefsHelperTest < ActionView::TestCase
       debrief_false_flags(result("real_invoice", action("flag_element", "real_invoice", result: { "anchor" => "from" })))
   end
 
+  test "handing over a code in a chat says what was sent, what it cost and what to do next time" do
+    @shift = shifts(:site_visit)
+    sent = action("send_reply", "it_chat", minute: 4, result: messages(:it_chat).reply("r1"))
+    result = result("it_chat", sent)
+
+    assert_equal [ "Phish: you fell for it", :bad ], debrief_verdict(result)
+    assert_includes debrief_story(result).join, "You replied “Here it is: 482 913”, handing over exactly what they asked for"
+    assert_includes debrief_lessons(result).join, "Never share a one-time code"
+    assert_equal [ 4, "Replied “Here it is: 482 913” to “IT Support (Larkhill)”", :bad ], debrief_timeline_entry(sent, scorecard(sent))
+  end
+
+  test "refusing, or checking with someone you trust, is called out as the right move" do
+    @shift = shifts(:site_visit)
+    assert_includes story("it_chat", action("send_reply", "it_chat", result: messages(:it_chat).reply("r2"))).join, "gave them nothing they could use"
+
+    sent = action("send_reply", "it_chat", minute: 4,
+      result: messages(:it_chat).reply("r3").merge("check" => "The IT service desk says that isn't them."))
+    assert_equal "You checked with someone you already trust: “The IT service desk says that isn't them.”",
+      debrief_verification(result("it_chat", sent))
+    assert_equal [ 4, "Replied “I'll check with the service desk first.” to “IT Support (Larkhill)”, and checked with someone you trust", :good ],
+      debrief_timeline_entry(sent, scorecard(sent))
+  end
+
+  test "texts and chats are called what they are" do
+    @shift = shifts(:site_visit)
+    sam = result("sam_text", action("flag_element", "sam_text", result: { "anchor" => "p1" }))
+    assert_includes debrief_false_flags(sam), "but this text was genuine"
+    assert_equal [ "Text message", "Workchat" ], [ messages(:sam_text), messages(:it_chat) ].map { |message| channel_label(message) }
+  end
+
   test "points are signed" do
     assert_equal [ "+30", "−10", "0" ], [ 30, -10, 0 ].map { |points| debrief_points(points) }
   end

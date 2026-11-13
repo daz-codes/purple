@@ -1,16 +1,22 @@
 <%# SECRET-FREE ZONE: this screen is rendered mid-shift. Only show what the player can already see.
     Never render a message's key, legit flag, links' outcomes or tasks, red flags, techniques or
     attachment outcomes here (test/system/shift_play_test.rb checks the HTML). %>
+<% phone = attempt.shift.kind_messages? %>
 <div class="flex flex-col gap-4">
   <%= render "shift_attempts/status_bar", attempt: %>
   <div id="shift_notice" aria-live="polite"></div>
-  <div class="grid gap-4 lg:grid-cols-[16rem_22rem_minmax(0,1fr)] items-start">
+  <div class="grid gap-4 <%= phone ? "lg:grid-cols-[16rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_22rem_minmax(0,1fr)]" %> items-start">
     <div class="flex flex-col gap-4">
       <%= render "shift_attempts/tasks", attempt: %>
       <%= render "shift_attempts/hints", attempt: %>
     </div>
-    <%= render "shift_attempts/inbox", attempt: %>
-    <%= render "shift_attempts/reader", attempt: %>
+    <% if phone %>
+      <%# The phone holds both panes, and shows one at a time. %>
+      <%= render "shift_attempts/phone", attempt: %>
+    <% else %>
+      <%= render pane_partial(attempt, :inbox), attempt: %>
+      <%= render pane_partial(attempt, :reader), attempt: %>
+    <% end %>
   </div>
   <%= render "shift_attempts/browser", attempt: %>
 </div>

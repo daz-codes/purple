@@ -1,0 +1,5 @@
+<% if attempt.sender_verified?(message) %>
+  <p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm" data-testid="verify-result">
+    <span class="font-semibold">You checked on a number you already had.</span> <%= attempt.verification_reply(message) %>
+  </p>
+<% end %>

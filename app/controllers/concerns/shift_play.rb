@@ -12,10 +12,12 @@ module ShiftPlay
   end
 
   private
-    # alert: what the player sees if the move went wrong for them (a compromise).
+    # alert: what the player sees if the move went wrong for them (a compromise). A callable is asked
+    # after the move, for moves that only sometimes go wrong.
     def play(alert: nil)
       arrived_before = @attempt.arrived_messages.size
       yield
+      alert = alert.call if alert.respond_to?(:call)
       return redirect_to(@attempt, status: :see_other, alert:) if @attempt.finished?
 
       @alert = alert.present?

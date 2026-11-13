@@ -9,7 +9,8 @@
       </p>
       <h3 class="mt-2 text-lg font-bold break-words"><%= message.subject.presence || "Message from #{message.from_name}" %></h3>
       <p class="text-sm text-ink-muted break-words">
-        <%= message.from_name %> <span class="font-mono">&lt;<%= message.from_address %>&gt;</span>
+        <% unless message.email? %><%= channel_label(message) %> from <% end %><%= message.from_name %>
+        <% if message.from_address != message.from_name %><span class="font-mono">&lt;<%= message.from_address %>&gt;</span><% end %>
         <% if message.reply_to.present? %>
           · replies go to <span class="font-mono"><%= message.reply_to %></span>
         <% end %>

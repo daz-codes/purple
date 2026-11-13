@@ -99,7 +99,9 @@ The importer enforces these rules:
   attributes**: the importer gives every paragraph-like element a neutral anchor (`p1`, `p2`…), every
   link `l1`, `l2`… and every attachment `a1`, `a2`…, so nothing in the page hints at the answer. Body
   anchors are stored as `data-anchor` attributes rather than DOM ids, since every message has a `p1`.
-- **Red flag anchors** use those neutral anchors, or `from`, `to`, `reply_to` and `subject`.
+- **Red flag anchors** use those neutral anchors, or `from`, `to`, `reply_to` and `subject`. Texts and chats
+  only have `from` and their body anchors, since that's all the phone shows.
+- **Channels match the shift:** an `inbox` shift holds only emails, a `messages` shift only `sms` and `chat`.
 - **Links never navigate.** Each `<a>` becomes a `<span>` carrying its key and URLs; the outcome
   (`completes_task`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match
   exactly one rule, and every rule at least one link.

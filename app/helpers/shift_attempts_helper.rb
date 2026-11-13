@@ -1,11 +1,41 @@
 module ShiftAttemptsHelper
   # A button for one move in a shift, labelled with what it costs and disabled when it won't fit in
   # the time left. The URL names the move and, for message moves, only the message's opaque ref.
-  def shift_action_button(attempt, label, path, cost: 0, **options)
+  def shift_action_button(attempt, label, path, cost: 0, params: {}, **options)
     button_to cost.positive? ? "#{label} (#{cost} min)" : label, path,
+      params:,
       disabled: !attempt.affordable?(cost),
       class: options.fetch(:class, "btn-ghost"),
       form: { class: "contents" }
+  end
+
+  # The partials for the list of messages and the open message: an email client for an inbox shift,
+  # a phone for a message shift. Their outer ids are the same, so every move's Turbo Stream works for both.
+  PANE_PARTIALS = {
+    "inbox" => { inbox: "shift_attempts/inbox", reader: "shift_attempts/reader" },
+    "messages" => { inbox: "shift_attempts/phone/conversations", reader: "shift_attempts/phone/thread" }
+  }.freeze
+
+  def pane_partial(attempt, pane)
+    PANE_PARTIALS.fetch(attempt.shift.kind).fetch(pane)
+  end
+
+  # Each channel's name: the label a phone app shows, and the noun for it in a sentence. Chats come
+  # through the company's work chat app.
+  CHANNEL_NAMES = {
+    "email" => { label: "Email", noun: "email" },
+    "sms" => { label: "Text message", noun: "text" },
+    "chat" => { label: "Workchat", noun: "chat message" }
+  }.freeze
+
+  def channel_label(message)
+    CHANNEL_NAMES.fetch(message.channel).fetch(:label)
+  end
+
+  # The letter on a conversation's avatar: the sender's initial, or # for a bare number.
+  def avatar_initial(message)
+    initial = message.from_name.strip[0]
+    initial.match?(/[[:alpha:]]/) ? initial.upcase : "#"
   end
 
   # The page each landing shows in the in-game browser. Partial names are neutral ("sign_in", not

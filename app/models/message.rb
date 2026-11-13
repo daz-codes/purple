@@ -1,7 +1,7 @@
 # An email, SMS or chat message in a shift.
 #
-# SECRET: legit, links' outcomes and tasks, red flags, techniques and attachment outcomes are
-# answers. They must never reach the browser before the debrief.
+# SECRET: legit, links' outcomes and tasks, red flags, techniques, attachment outcomes and reply
+# outcomes are answers. They must never reach the browser before the debrief.
 class Message < ApplicationRecord
   enum :channel, { email: "email", sms: "sms", chat: "chat" }, validate: true
 
@@ -23,13 +23,19 @@ class Message < ApplicationRecord
 
   # The parts of the message a player can flag, by their neutral ids: the headers, then every
   # paragraph, link and attachment. Everything is flaggable, so this says nothing about which parts
-  # are red flags.
+  # are red flags. A text or chat on the phone shows only its sender and body, so those are all it has.
   #
   # The importer checks red flags against this list too, so the two can't disagree.
   def anchors
-    @anchors ||= [ "from", ("to" if to_address.present?), ("reply_to" if reply_to.present?), ("subject" if subject.present?) ].compact +
+    @anchors ||= header_anchors +
       Nokogiri::HTML5.fragment(body_html).css("[data-anchor]").map { |node| node["data-anchor"] } +
       attachments.map { |attachment| attachment["id"] }
+  end
+
+  def header_anchors
+    return [ "from" ] unless email?
+
+    [ "from", ("to" if to_address.present?), ("reply_to" if reply_to.present?), ("subject" if subject.present?) ].compact
   end
 
   # Header anchors only shown once the player has expanded the full headers.
@@ -42,5 +48,15 @@ class Message < ApplicationRecord
   # Attachment details that are safe to show. Each attachment's outcome stays on the server.
   def visible_attachments
     attachments.map { |attachment| attachment.slice("id", "name", "type", "size") }
+  end
+
+  # The canned replies a text or chat message offers, by their neutral ids (r1, r2…).
+  def reply(id)
+    replies.find { |reply| reply["id"] == id } if id
+  end
+
+  # Reply options that are safe to show: only their text. What each one leads to stays on the server.
+  def visible_replies
+    replies.map { |reply| reply.slice("id", "text") }
   end
 end

@@ -5,7 +5,8 @@
 # Productivity: a task completed on time earns its points, late earns half, never completed loses
 # half. Security is judged message by message: +30 for reporting a phish, -15 for reporting a
 # legitimate message, -10 for each near miss (a bait page or malware download opened but not fallen
-# for), -50 for each compromise (a password entered or a download run), plus each red flag's points
+# for), -50 for each compromise (a password entered, a download run, or a reply that handed over what
+# the sender asked for), plus each red flag's points
 # when it's flagged and -10 for each flag on something that isn't one, so flagging everything costs
 # more than it finds. Each hint takes its penalty_percent of the maximum score off the total. Total = productivity + security - hints, never below 0.
 #
@@ -32,15 +33,19 @@ class ShiftAttempt::Scorecard
 
   # What the player did with one message, and what it scored. compromises and near_misses are the
   # ShiftAttempt::Tabs (pages or files) involved; completed_tasks are tasks done through its links;
-  # flagged are the anchors the player left flagged; arrived is false for a message that came after
-  # the shift ended.
-  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks, :flagged, :arrived) do
+  # flagged are the anchors the player left flagged; reply is the canned reply they sent, if any, as
+  # stored when it was sent (see ShiftAttempt::Replyable);
+  # arrived is false for a message that came after the shift ended.
+  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :completed_tasks, :flagged, :reply,
+    :arrived) do
     def phish? = message.phish?
     def arrived? = arrived
     def opened? = actions.any?(&:open_message?)
     def verified? = actions.any?(&:verify_sender?)
+    def checked_first? = reply&.dig("outcome") == "verify"
     def reported? = actions.any?(&:report_message?)
-    def compromised? = compromises.any?
+    def gave_in? = ShiftAttempt::Replyable.gave_in?(reply)
+    def compromised? = compromises.any? || gave_in?
     def near_miss? = near_misses.any?
 
     def reported_at_minute
@@ -67,7 +72,7 @@ class ShiftAttempt::Scorecard
     end
 
     def points
-      report_points + near_misses.size * NEAR_MISS + compromises.size * COMPROMISED + flag_points
+      report_points + near_misses.size * NEAR_MISS + (compromises.size + (gave_in? ? 1 : 0)) * COMPROMISED + flag_points
     end
 
     def best_points
@@ -186,10 +191,12 @@ class ShiftAttempt::Scorecard
   def security_meter
     compromises = @actions.select { |action| action.kind.in?(ShiftAttempt::Compromisable::COMPROMISING_KINDS) }
       .uniq { |action| [ action.target_key, action.result ] }
-    (100 + compromises.size * COMPROMISED).clamp(0, 100)
+    replies = ShiftAttempt::Replyable.sent(@actions).values.count { |reply| ShiftAttempt::Replyable.gave_in?(reply) }
+    (100 + (compromises.size + replies) * COMPROMISED).clamp(0, 100)
   end
 
   private
+
     # While the shift is open, a task that isn't done yet hasn't been missed.
     def task_results(open:)
       completions = first_actions(:complete_task)
@@ -225,7 +232,8 @@ class ShiftAttempt::Scorecard
         .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
 
       MessageResult.new(message:, actions:, compromises:, near_misses:, completed_tasks: completed_tasks(message),
-        flagged: ShiftAttempt::Flaggable.standing_anchors(actions), arrived: arrived?(message))
+        flagged: ShiftAttempt::Flaggable.standing_anchors(actions), reply: ShiftAttempt::Replyable.sent(actions)[message.key],
+        arrived: arrived?(message))
     end
 
     # The pages or files the given kinds of action happened on, once each. Uses the same rules as

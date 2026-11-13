@@ -1,0 +1,20 @@
+<%# The phone for a message shift. It shows one screen at a time: the conversation list, or one
+    conversation. Opening a conversation is a move like reading an email; going back to the list is
+    only a change of view. Both screens are replaced by every move's Turbo Stream, but this frame isn't,
+    so the screen the player is on survives. %>
+<section class="mx-auto w-full max-w-sm rounded-[2.5rem] border-8 border-line bg-surface-sunken shadow-2xl overflow-hidden"
+         aria-label="Your phone" data-controller="phone"
+         data-phone-screen-value="<%= attempt.current_message ? "thread" : "list" %>">
+  <div class="flex items-center justify-between px-6 pt-3 pb-2 text-xs font-semibold text-ink-muted" aria-hidden="true">
+    <span>Larkhill</span>
+    <span class="h-5 w-20 rounded-full bg-surface"></span>
+    <span>▂▄▆ ▮</span>
+  </div>
+  <div class="h-[40rem] overflow-y-auto" data-phone-target="list" data-action="turbo:submit-end->phone#opened">
+    <%= render "shift_attempts/phone/conversations", attempt: %>
+  </div>
+  <div class="h-[40rem]" data-phone-target="thread" hidden>
+    <%= render "shift_attempts/phone/thread", attempt: %>
+  </div>
+  <div class="flex justify-center py-2" aria-hidden="true"><span class="h-1 w-28 rounded-full bg-ink-muted/60"></span></div>
+</section>

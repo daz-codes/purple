@@ -4,7 +4,7 @@ class Shift < ApplicationRecord
   # Minutes each action costs on the in-game clock. A shift can override any of these.
   DEFAULT_ACTION_COSTS = {
     "open_message" => 0, "hover_link" => 0, "expand_headers" => 1, "verify_sender" => 5,
-    "report_message" => 1, "complete_task" => 2, "use_hint" => 0
+    "report_message" => 1, "complete_task" => 2, "use_hint" => 0, "send_reply" => 1
   }.freeze
 
   enum :kind, { inbox: "inbox", messages: "messages" }, prefix: true, validate: true

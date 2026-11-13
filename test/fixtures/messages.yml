@@ -32,3 +32,35 @@ fake_invoice:
     <p data-anchor="p1">Please pay today.</p>
     <p data-anchor="p2"><span data-anchor="l1" class="fake-link" role="link" tabindex="0" data-controller="fake-link"
     data-link-key="l1" data-display-url="Pay now" data-actual-url="https://larkhill-portal.example.net/login">Pay now</span></p>
+
+sam_text:
+  shift: site_visit
+  key: sam_text
+  channel: sms
+  position: 1
+  arrives_at_minute: 0
+  legit: true
+  from_name: Sam (Ops)
+  from_address: 07700 900118
+  verify_result: Sam is in your contacts.
+  replies: [{ "id": "r1", "text": "Sure, see you there", "outcome": "safe", "response": "Legend, thanks!" },
+            { "id": "r2", "text": "Sorry, no time today", "outcome": "safe" }]
+  body_html: >-
+    <p data-anchor="p1">Running late. Grab me a coffee?</p>
+
+it_chat:
+  shift: site_visit
+  key: it_chat
+  channel: chat
+  position: 2
+  arrives_at_minute: 2
+  legit: false
+  from_name: IT Support (Larkhill)
+  from_address: it.support.larkhill@freemail.test
+  verify_result: The IT service desk says that isn't them.
+  replies: [{ "id": "r1", "text": "Here it is: 482 913", "outcome": "compromise", "response": "Thanks, you're all locked down now." },
+            { "id": "r2", "text": "I won't share a code.", "outcome": "safe", "response": "Your account will be locked!" },
+            { "id": "r3", "text": "I'll check with the service desk first.", "outcome": "verify" }]
+  body_html: >-
+    <p data-anchor="p1">We're seeing unusual sign-ins.</p>
+    <p data-anchor="p2">Reply with the 6-digit code we just sent you.</p>
