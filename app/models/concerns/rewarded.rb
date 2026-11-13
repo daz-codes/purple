@@ -15,6 +15,8 @@ module Rewarded
       return unless user.earns_xp?
 
       user.transaction do
+        # Lock first: two attempts finishing at once must not both count as the day's first play.
+        user.lock!
         user.award_xp(side:, amount: score, reason: xp_reason, source: self, at: finished_at) if scored?
         user.record_play(side:, source: self, at: finished_at)
       end
