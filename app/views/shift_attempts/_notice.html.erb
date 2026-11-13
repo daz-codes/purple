@@ -1,3 +1,4 @@
+<% alert = local_assigns[:alert] %>
 <% if message.present? %>
   <p role="<%= alert ? "alert" : "status" %>"
      class="rounded-lg border px-4 py-3 text-sm <%= alert ? "border-red-team/60 bg-red-team-soft" : "border-blue-team/60 bg-blue-team-soft" %>"><%= message %></p>

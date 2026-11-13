@@ -35,31 +35,31 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=shift-progress]", count: 0
 
     worse = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    worse.end_shift # -20, so 0
+    worse.give_up # nothing done: 0
     best = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    best.wait_for_mail
+    best.archive(messages(:newsletter))
     best.report(messages(:fake_invoice))
-    best.end_shift # -20 + 30 = 10
+    best.give_up # +10 + 30, then -20 for the invoice and -2 for the thank-you still to come = 18
 
     get track_path(tracks(:basics))
     assert_select "[data-testid=shift-progress]" do
-      assert_select "*", text: /Completed/
-      assert_select "strong", text: "10"
-      assert_select "*", text: /out of 80/
+      assert_select "*", text: /Gave up/
+      assert_select "strong", text: "18"
+      assert_select "*", text: /out of 105/
       assert_select "[data-testid=stars][aria-label='0 of 3 stars']"
       assert_select "a[href=?]", shift_attempt_path(best), text: "See debrief"
     end
   end
 
-  test "a best attempt that ran out of time says so" do
+  test "an attempt left open too long says so" do
     sign_in_as users(:one)
     attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    attempt.update_columns(clock_minutes: 30)
-    attempt.reload.end_shift
+    travel ShiftAttempt::Timed::EXPIRES_AFTER + 1.second
+    attempt.expire_if_stale
     assert attempt.timed_out?
 
     get track_path(tracks(:basics))
-    assert_select "[data-testid=shift-progress]", text: /Ran out of time/
+    assert_select "[data-testid=shift-progress]", text: /Left unfinished/
   end
 
   test "an unfinished attempt doesn't count as completed" do

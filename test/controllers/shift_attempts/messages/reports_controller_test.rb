@@ -3,7 +3,7 @@ require "test_helper"
 class ShiftAttempts::Messages::ReportsControllerTest < ActionDispatch::IntegrationTest
   setup do
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    @attempt.wait_for_mail
+    @attempt.archive(messages(:newsletter))
     sign_in_as users(:one)
   end
 

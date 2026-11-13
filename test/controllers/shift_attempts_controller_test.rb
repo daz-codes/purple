@@ -30,7 +30,7 @@ class ShiftAttemptsControllerTest < ActionDispatch::IntegrationTest
 
   test "the play screen contains no answers" do
     attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    attempt.wait_for_mail
+    attempt.archive(messages(:newsletter))
     attempt.read(messages(:fake_invoice))
     sign_in_as users(:one)
 
@@ -43,8 +43,9 @@ class ShiftAttemptsControllerTest < ActionDispatch::IntegrationTest
 
   private
     def assert_no_answers_in(html)
-      secrets = %w[ legit outcome completes_task bait_landing credential_harvest real_invoice fake_invoice pay_supplier
-                    lookalike_domain T1583 ] + [ red_flags(:lookalike).label, "freemail.test", "haven't changed" ]
+      secrets = %w[ legit outcome expects bait_landing credential_harvest real_invoice fake_invoice newsletter supplier_thanks
+                    arrives_after lookalike_domain T1583 ] +
+        [ red_flags(:lookalike).label, red_flags(:pay_today).label, "Thanks for approving", "freemail.test", "haven't changed" ]
       secrets.each do |secret|
         assert_not_includes html, secret
         assert_not_includes html, ERB::Util.html_escape(secret)

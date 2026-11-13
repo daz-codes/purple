@@ -5,7 +5,7 @@
     <div class="min-w-0">
       <p class="flex flex-wrap items-center gap-2 text-sm">
         <span class="rounded-full border px-2 py-0.5 font-semibold <%= debrief_tone_classes(tone) %>" data-testid="debrief-verdict"><%= verdict %></span>
-        <span class="text-ink-muted">Arrived at minute <%= message.arrives_at_minute %></span>
+        <% if result.arrived? %><span class="text-ink-muted">Arrived at <%= debrief_clock(result.arrived_at) %></span><% end %>
       </p>
       <h3 class="mt-2 text-lg font-bold break-words"><%= message.subject.presence || "Message from #{message.from_name}" %></h3>
       <p class="text-sm text-ink-muted break-words">
@@ -32,6 +32,20 @@
     <% end %>
   </div>
 
+  <% if (paragraphs = debrief_marked_paragraphs(result)).any? %>
+    <div class="rounded-lg border border-line bg-surface-sunken px-4 py-3 text-sm" data-testid="debrief-marked-text">
+      <p class="mb-2 text-xs text-ink-muted">
+        The message, with <span class="bg-safe-soft px-1">your highlights that found something</span>,
+        <span class="bg-warn-soft px-1">ones that didn't</span>, and the giveaways
+        <span class="underline decoration-2 decoration-safe">you found</span> or
+        <span class="underline decoration-2 decoration-red-team">missed</span>.
+      </p>
+      <% paragraphs.each do |segments| %>
+        <p class="mt-1"><% segments.each do |text, classes| %><% if classes %><mark class="<%= classes %> text-ink"><%= text %></mark><% else %><%= text %><% end %><% end %></p>
+      <% end %>
+    </div>
+  <% end %>
+
   <% if (lessons = debrief_lessons(result)).any? %>
     <div class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3">
       <p class="text-sm font-semibold text-purple-team">Next time</p>
@@ -54,7 +68,9 @@
                 <span class="mr-1 rounded-full border px-1.5 text-xs font-semibold <%= debrief_tone_classes(found ? :good : :neutral) %>">
                   <%= found ? "Flagged #{debrief_points(flag.points)}" : "Missed" %>
                 </span>
-                <span class="font-semibold"><%= flag.label %>.</span> <%= flag.explanation %>
+                <span class="font-semibold"><%= flag.label %>.</span>
+                <% if flag.quote? %><span class="italic">“<%= flag.quote %>”</span><% end %>
+                <%= flag.explanation %>
               </li>
             <% end %>
           </ul>

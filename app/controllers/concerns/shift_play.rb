@@ -12,19 +12,17 @@ module ShiftPlay
   end
 
   private
-    # alert: what the player sees if the move went wrong for them (a compromise). A callable is asked
-    # after the move, for moves that only sometimes go wrong.
-    def play(alert: nil)
+    # Nothing in the response says whether the move was right: no meters, no alerts. New messages
+    # arriving is the one thing that's announced, since the inbox shows them anyway.
+    def play
       arrived_before = @attempt.arrived_messages.size
       yield
-      alert = alert.call if alert.respond_to?(:call)
-      return redirect_to(@attempt, status: :see_other, alert:) if @attempt.finished?
+      return redirect_to(@attempt, status: :see_other) if @attempt.finished?
 
-      @alert = alert.present?
-      @notice = [ alert, new_mail_notice(@attempt.arrived_messages.size - arrived_before) ].compact.join(" ").presence
+      @notice = new_mail_notice(@attempt.arrived_messages.size - arrived_before)
       respond_to do |format|
         format.turbo_stream { render "shift_attempts/play" }
-        format.html { redirect_to @attempt, flash: { (@alert ? :alert : :notice) => @notice } }
+        format.html { redirect_to @attempt, notice: @notice }
       end
     end
 

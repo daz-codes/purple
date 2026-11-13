@@ -10,9 +10,7 @@
   <section class="card border-purple-team/50" aria-labelledby="results-heading">
     <p class="text-sm font-semibold uppercase tracking-widest text-purple-team">Purple debrief</p>
     <h1 id="results-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= shift.title %></h1>
-    <p class="mt-2 text-ink-muted">
-      <%= attempt.timed_out? ? "Time's up: the clock reached minute #{attempt.clock_minutes}." : "You ended your shift at minute #{attempt.clock_minutes} of #{attempt.time_budget}." %>
-    </p>
+    <p class="mt-2 text-ink-muted" data-testid="debrief-ending"><%= debrief_ending(attempt, scorecard) %></p>
 
     <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
       <span class="text-3xl"><%= debrief_stars(scorecard.stars) %></span>
@@ -26,21 +24,27 @@
           <span class="text-ink-muted">out of <%= scorecard.total_max %></span></dd>
       </div>
       <div class="rounded-xl border border-line p-4">
-        <dt class="text-sm text-ink-muted">Productivity</dt>
-        <dd><span class="text-3xl font-bold" data-testid="productivity-score"><%= scorecard.productivity %></span>
-          <span class="text-ink-muted">out of <%= scorecard.productivity_max %></span></dd>
-        <dd class="mt-1 text-xs text-ink-muted">Your tasks: full points on time, half if late, minus half if not done.</dd>
-      </div>
-      <div class="rounded-xl border border-line p-4">
-        <dt class="text-sm text-ink-muted">Security</dt>
-        <dd><span class="text-3xl font-bold" data-testid="security-score"><%= scorecard.security %></span>
-          <span class="text-ink-muted">out of <%= scorecard.security_max %></span></dd>
+        <dt class="text-sm text-ink-muted">Messages</dt>
+        <dd><span class="text-3xl font-bold" data-testid="message-points"><%= scorecard.message_points %></span></dd>
         <dd class="mt-1 text-xs text-ink-muted">
-          <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH) %> per phish reported,
-          <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_LEGIT) %> per genuine email reported,
+          Genuine messages: their points when you did what they needed, half if an urgent one was late, minus half if not,
+          <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_GENUINE) %> if reported.
+          Phishes: <%= debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH) %> reported,
           <%= debrief_points(ShiftAttempt::Scorecard::NEAR_MISS) %> per close call,
           <%= debrief_points(ShiftAttempt::Scorecard::COMPROMISED) %> each time you fell for one.
           Each red flag you spot earns its points, and each wrong flag costs <%= ShiftAttempt::Scorecard::FALSE_FLAG.abs %>.
+        </dd>
+      </div>
+      <div class="rounded-xl border border-line p-4">
+        <dt class="text-sm text-ink-muted">Speed bonus</dt>
+        <dd><span class="text-3xl font-bold" data-testid="speed-bonus"><%= debrief_points(scorecard.speed_bonus) %></span></dd>
+        <dd class="mt-1 text-xs text-ink-muted">
+          <% if scorecard.relaxed? %>
+            Not timed: you played in relaxed mode.
+          <% else %>
+            <%= debrief_points(ShiftAttempt::Scorecard::SPEED_BLOCK_POINTS) %> for each full 5 minutes under the
+            <%= shift.par_minutes %>-minute target, for clearing everything. Each call-back adds <%= ShiftAttempt::Timed::CALL_PENALTY %> seconds.
+          <% end %>
         </dd>
       </div>
     </dl>
@@ -62,7 +66,7 @@
 
   <section aria-labelledby="messages-heading">
     <h2 id="messages-heading" class="text-xl font-bold">Message by message</h2>
-    <p class="mt-1 text-sm text-ink-muted">Everything that landed in your inbox, in the order it arrived.</p>
+    <p class="mt-1 text-sm text-ink-muted">Everything in the shift, in the order it arrived.</p>
     <ol class="mt-4 space-y-4">
       <% scorecard.messages.each do |result| %>
         <%= render "shift_attempts/debrief/message", result: %>
@@ -70,34 +74,15 @@
     </ol>
   </section>
 
-  <section class="card" aria-labelledby="tasks-heading">
-    <h2 id="tasks-heading" class="text-xl font-bold">Your tasks</h2>
-    <ul class="mt-3 space-y-2">
-      <% scorecard.tasks.each do |task_result| %>
-        <% tone = { on_time: :good, late: :warn, missed: :bad }.fetch(task_result.status) %>
-        <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2" data-testid="debrief-task">
-          <span>
-            <span class="font-medium"><%= task_result.task.title %></span>
-            <span class="block text-sm text-ink-muted"><%= debrief_task_timing(task_result) %></span>
-          </span>
-          <span class="rounded-full border px-2 py-0.5 text-sm font-semibold <%= debrief_tone_classes(tone) %>">
-            <%= { on_time: "On time", late: "Late", missed: "Missed" }.fetch(task_result.status) %>
-            <%= debrief_points(task_result.points) %>
-          </span>
-        </li>
-      <% end %>
-    </ul>
-  </section>
-
   <section class="card" aria-labelledby="timeline-heading">
     <details>
       <summary class="cursor-pointer">
-        <h2 id="timeline-heading" class="inline text-xl font-bold">Your shift, minute by minute</h2>
+        <h2 id="timeline-heading" class="inline text-xl font-bold">Your shift, move by move</h2>
       </summary>
       <ol class="mt-4 space-y-1 text-sm" data-testid="debrief-timeline">
-        <% debrief_timeline(attempt.actions, scorecard).each do |minute, description, tone| %>
+        <% debrief_timeline(attempt.actions, scorecard).each do |seconds, description, tone| %>
           <li class="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
-            <span class="text-ink-muted tabular-nums">Min <%= minute %></span>
+            <span class="text-ink-muted tabular-nums"><%= debrief_clock(seconds) %></span>
             <span class="<%= debrief_text_class(tone) %>"><%= description %></span>
           </li>
         <% end %>

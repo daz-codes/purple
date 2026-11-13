@@ -15,6 +15,7 @@
       <% if authenticated? %>
         <li><span class="px-3 py-2 font-semibold" data-testid="current-user"><%= Current.user.display_name %></span></li>
         <li><%= link_to "Devices", account_sessions_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
+        <li><%= link_to "Settings", edit_account_preferences_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
         <li><%= button_to "Sign out", session_path, method: :delete, class: "px-3 py-2 rounded-lg hover:bg-surface-raised cursor-pointer" %></li>
       <% else %>
         <li><%= link_to "Sign in", new_session_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>

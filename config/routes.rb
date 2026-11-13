@@ -11,6 +11,8 @@ Rails.application.routes.draw do
   namespace :account do
     resources :sessions, only: %i[ index destroy ]
     resource :other_sessions, only: :destroy
+    # Relaxed mode and other per-player settings.
+    resource :preferences, only: %i[ edit update ]
   end
 
   # Blue: tracks of shifts, and the attempts that play them.
@@ -27,6 +29,7 @@ Rails.application.routes.draw do
           resource :headers, only: :create
           resource :verification, only: :create
           resource :report, only: :create
+          resource :archive, only: :create
           resource :reply, only: :create
           resources :flags, only: :create
           resources :links, param: :key, only: [] do
@@ -40,14 +43,13 @@ Rails.application.routes.draw do
       # The page open in the in-game browser, and the moves you can make on it.
       resource :tab, only: :destroy do
         scope module: :tabs do
-          resource :task_completion, only: :create
+          resource :portal_submission, only: :create
           resource :sign_in, only: :create
           resource :download_run, only: :create
         end
       end
       resources :hints, only: :create
-      resource :wait, only: :create
-      resource :completion, only: :create
+      resource :give_up, only: :create
     end
   end
 

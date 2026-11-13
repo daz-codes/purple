@@ -1,11 +1,8 @@
-# Opening a downloaded file that turns out to be malware.
+# Opening a downloaded file. If it was malware, nothing says so until the debrief.
 class ShiftAttempts::Tabs::DownloadRunsController < ApplicationController
   include ShiftPlay
 
   def create
-    play(alert: "Your files are being encrypted. IT has pulled your laptop off the network to stop it spreading. " \
-                "Keep working from the spare machine.") do
-      @attempt.run_download
-    end
+    play { @attempt.run_download }
   end
 end

@@ -1,12 +1,8 @@
 module ShiftAttemptsHelper
-  # A button for one move in a shift, labelled with what it costs and disabled when it won't fit in
-  # the time left. The URL names the move and, for message moves, only the message's opaque ref.
-  def shift_action_button(attempt, label, path, cost: 0, params: {}, **options)
-    button_to cost.positive? ? "#{label} (#{cost} min)" : label, path,
-      params:,
-      disabled: !attempt.affordable?(cost),
-      class: options.fetch(:class, "btn-ghost"),
-      form: { class: "contents" }
+  # A button for one move in a shift. The URL names the move and, for message moves, only the
+  # message's opaque ref. Moves have no visible cost: time is never shown during a shift.
+  def shift_action_button(label, path, params: {}, **options)
+    button_to label, path, params:, class: options.fetch(:class, "btn-ghost"), form: { class: "contents" }
   end
 
   # The partials for the list of messages and the open message: an email client for an inbox shift,
@@ -41,38 +37,38 @@ module ShiftAttemptsHelper
   # The page each landing shows in the in-game browser. Partial names are neutral ("sign_in", not
   # "credential_harvest") because they can surface in error pages and logs.
   LANDING_PARTIALS = {
-    "portal_task" => "shift_attempts/landings/portal",
+    "portal" => "shift_attempts/landings/portal",
     "credential_harvest" => "shift_attempts/landings/sign_in",
     "malware_download" => "shift_attempts/landings/download",
     "file_preview" => "shift_attempts/landings/document",
     "harmless" => "shift_attempts/landings/article"
   }.freeze
 
+  # A submitted sign-in or portal page shows the same plain confirmation either way.
   def landing_partial(tab)
-    LANDING_PARTIALS.fetch(tab.landing)
+    tab.submitted? ? "shift_attempts/landings/submitted" : LANDING_PARTIALS.fetch(tab.landing)
   end
 
   HEADER_ANCHOR_LABELS = { "from" => "the sender", "reply_to" => "the Reply-To address", "to" => "the To address", "subject" => "the subject" }.freeze
 
-  # How a flagged part of a message is named to the player: "the sender", "paragraph 2", the link's
-  # text, or the attachment's file name. Only ever what the player can see in the message.
-  def anchor_label(message, anchor)
-    HEADER_ANCHOR_LABELS[anchor] ||
-      case anchor
-      when /\Ap(\d+)\z/ then "paragraph #{$1}"
-      when /\Al(\d+)\z/ then "the link “#{message.links.find { |link| link.key == anchor }&.display_url || "link #{$1}"}”"
-      else message.attachment(anchor)&.fetch("name") || anchor
+  # How a flagged part of a message is named to the player: "the sender", the link's text, the
+  # attachment's file name, or the highlighted words in quotes. Only ever what the player can see.
+  def flag_label(message, flag)
+    if flag.text?
+      words = message.paragraphs[flag.anchor]&.excerpt(flag.from, flag.to)
+      return words ? "“#{words.truncate(60)}”" : "some text"
+    end
+
+    HEADER_ANCHOR_LABELS[flag.anchor] ||
+      case flag.anchor
+      when /\Al\d+\z/ then "the link “#{message.link(flag.anchor)&.display_url || "that was here"}”"
+      else message.attachment(flag.anchor)&.fetch("name") || "a part that's no longer there"
       end
   end
 
-  def shift_clock_label(attempt)
-    "Minute #{attempt.clock_minutes} of #{attempt.time_budget}"
-  end
-
-  def task_state(attempt, task)
-    if attempt.task_completed?(task) then :done
-    elsif attempt.task_overdue?(task) then :overdue
-    else :pending
-    end
+  # The player's own flags, for the flag-mode controller to draw: whole parts by anchor, and text as
+  # ranges. Never anything about red flags.
+  def flags_json(flags)
+    flags.map(&:to_result).to_json
   end
 end

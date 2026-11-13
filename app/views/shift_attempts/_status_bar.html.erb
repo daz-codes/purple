@@ -1,34 +1,16 @@
-<% scorecard = attempt.scorecard %>
-<% productivity = scorecard.productivity_meter %>
-<% security = scorecard.security_meter %>
-<header id="shift_status" class="card p-4 grid gap-4 md:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_auto] md:items-center">
+<%# No clock and no meters: nothing here says how the player is doing. That waits for the debrief. %>
+<header id="shift_status" class="card p-4 flex flex-wrap items-center justify-between gap-4">
   <div class="min-w-0">
-    <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">On shift</p>
+    <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">
+      On shift<% if attempt.relaxed? %> · <span class="text-purple-team">Relaxed mode</span><% end %>
+    </p>
     <h1 class="text-lg font-bold truncate"><%= attempt.shift.title %></h1>
   </div>
-
-  <div>
-    <p class="flex justify-between text-sm"><span class="font-semibold">Clock</span><span data-testid="clock"><%= shift_clock_label(attempt) %></span></p>
-    <progress class="gauge gauge-clock mt-1" value="<%= attempt.clock_minutes %>" max="<%= attempt.time_budget %>" aria-label="Shift clock"><%= shift_clock_label(attempt) %></progress>
-  </div>
-
-  <div>
-    <p class="flex justify-between text-sm"><span class="font-semibold">Productivity</span><span data-testid="productivity"><%= productivity %>%</span></p>
-    <meter class="gauge gauge-productivity mt-1" min="0" max="100" value="<%= productivity %>" aria-label="Productivity"><%= productivity %>%</meter>
-  </div>
-
-  <div>
-    <p class="flex justify-between text-sm"><span class="font-semibold">Security</span><span data-testid="security"><%= security %>%</span></p>
-    <meter class="gauge gauge-security mt-1" min="0" max="100" value="<%= security %>" aria-label="Security"><%= security %>%</meter>
-  </div>
-
-  <div class="flex flex-wrap gap-2 md:justify-end">
-    <% incoming = attempt.shift.kind_messages? ? "messages" : "mail" %>
-    <% if (next_arrival = attempt.next_arrival_minute) %>
-      <%= shift_action_button attempt, "Wait for new #{incoming}", shift_attempt_wait_path(attempt), cost: next_arrival - attempt.clock_minutes %>
-    <% end %>
-    <% confirm = "End your shift now? Unfinished tasks count as missed." %>
-    <% confirm += " More #{incoming} #{incoming == "mail" ? "is" : "are"} due today: anything that arrives after you leave goes unhandled." if next_arrival %>
-    <%= button_to "End shift", shift_attempt_completion_path(attempt), class: "btn-primary", form: { data: { turbo_confirm: confirm } } %>
+  <div class="flex items-center gap-4">
+    <p class="text-sm text-ink-muted" data-testid="inbox-count">
+      <%= pluralize(attempt.inbox_messages.size, attempt.shift.kind_inbox? ? "email" : "message") %> to deal with
+    </p>
+    <%= button_to "Give up", shift_attempt_give_up_path(attempt), class: "btn-ghost",
+          form: { data: { turbo_confirm: "Give up this shift? Anything you haven't dealt with counts as ignored." } } %>
   </div>
 </header>

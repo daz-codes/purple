@@ -1,0 +1,8 @@
+<section class="card p-4" aria-labelledby="job-heading">
+  <h2 id="job-heading" class="text-lg font-bold">Your job</h2>
+  <p class="mt-2 text-sm"><%= attempt.shift.briefing %></p>
+  <p class="mt-3 text-sm text-ink-muted">
+    Deal with every <%= attempt.shift.kind_inbox? ? "email" : "message" %>: reply, do what it asks, archive it when you're done,
+    or report it if it's phishing. The shift ends when your <%= attempt.shift.kind_inbox? ? "inbox" : "phone" %> is clear.
+  </p>
+</section>

@@ -1,17 +1,21 @@
 <%# The flag-mode banner, the player's own flags, and the hidden form a flag posts. Shared by the email
     reader and the phone's conversation view. %>
 <p class="mt-4 rounded-lg border border-red-team/60 bg-red-team-soft px-4 py-3 text-sm" data-flag-mode-target="banner" <%= "hidden" unless flag_mode %>>
-  <span class="font-semibold">Flag mode.</span> <%= local_assigns.fetch(:parts, "Click anything that looks wrong: the sender, subject, a paragraph, a link or an attachment.") %>
-  Click it again to take the flag off. Flags are free, but each wrong one costs points at the end.
+  <span class="font-semibold">Flag mode.</span>
+  <%= local_assigns.fetch(:parts, "Click the sender, subject, a link or an attachment to flag it.") %>
+  Drag across any words to highlight just those, or click a sentence to flag the whole sentence.
+  Click a flag again to take it off. Flags are free, but each wrong one costs points at the end.
 </p>
 
-<% if flagged.any? %>
+<% if flags.any? %>
   <p class="mt-3 text-sm" data-testid="your-flags">
-    <span class="font-semibold text-red-team">🚩 Your flags:</span> <%= flagged.map { |anchor| anchor_label(message, anchor) }.to_sentence %>
+    <span class="font-semibold text-red-team">🚩 Your flags:</span> <%= flags.map { |flag| flag_label(message, flag) }.to_sentence %>
   </p>
 <% end %>
 
 <%= form_with url: shift_attempt_message_flags_path(attempt, ref), method: :post, hidden: true,
       data: { flag_mode_target: "form" } do |form| %>
   <%= form.hidden_field :anchor, value: "", data: { flag_mode_target: "anchor" } %>
+  <%= form.hidden_field :from, value: "", data: { flag_mode_target: "from" } %>
+  <%= form.hidden_field :to, value: "", data: { flag_mode_target: "to" } %>
 <% end %>
