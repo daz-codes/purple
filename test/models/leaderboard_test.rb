@@ -56,6 +56,15 @@ class LeaderboardTest < ActiveSupport::TestCase
     assert_equal [ "overall", "week" ], [ board.side, board.period ]
   end
 
+  test "only XP for playing ranks: streak bonuses and badges don't" do
+    xp(@blue, "blue", 100)
+    @red.xp_events.create!(side: "blue", amount: 10, reason: :streak_bonus, occurred_at: Time.zone.parse("2026-11-12 09:00"))
+    @red.xp_events.create!(side: "blue", amount: 25, reason: :badge_awarded, occurred_at: Time.zone.parse("2026-11-12 09:00"))
+
+    assert_equal [ [ "blue_one", 100 ] ], board(side: "blue").map { |entry| [ entry.display_name, entry.xp ] }
+    assert_nil Leaderboard.new(side: "blue").entry_for(@red)
+  end
+
   private
     def xp(user, side, amount, at: "2026-11-12 09:00", relaxed: false)
       user.xp_events.create!(side:, amount:, reason: :shift_completed, occurred_at: Time.zone.parse(at), relaxed:)

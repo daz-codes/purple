@@ -1,12 +1,16 @@
 # A ranking of players by XP: for one side or both (overall), this ISO week or all time, and for timed
 # or relaxed play. Built from the XP ledger, so a week's board is just that week's events.
 #
+# Only XP for playing counts (a player's first scored attempt at each shift or target): streak bonuses
+# and badges raise a player's level but not their rank, so daily replays can't climb the board.
+#
 # Ties go to whoever reached the score first: the player whose last counted event is earliest. Players
 # who've opted out of leaderboards aren't ranked. Rankings are cached for a minute.
 class Leaderboard
   SIDES = %w[ blue red overall ].freeze
   PERIODS = %w[ week all ].freeze
   TIME_ZONE = User::Streaks::TIME_ZONE
+  REASONS = %w[ shift_completed workshop_completed ].freeze
   SIZE = 50
   CACHE_FOR = 60.seconds
 
@@ -46,7 +50,7 @@ class Leaderboard
     # Each player's XP in this board, with their rank, best first.
     def ranked_relation
       @ranked_relation ||= begin
-        totals = XpEvent.joins(:user).where(users: { leaderboard_opt_out: false }).where(relaxed:)
+        totals = XpEvent.joins(:user).where(users: { leaderboard_opt_out: false }).where(relaxed:, reason: REASONS)
         totals = totals.where(side:) unless side == "overall"
         totals = totals.where(occurred_at: week_starts_at..) if period == "week"
         totals = totals.group(:user_id).select("xp_events.user_id, SUM(xp_events.amount) AS earned, MAX(xp_events.occurred_at) AS reached_at")

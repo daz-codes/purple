@@ -23,8 +23,7 @@ class AccessibilityTest < ApplicationSystemTestCase
     click_on "Start shift"
     within("#shift_inbox") { click_on "Invoice ready" }
     assert_selector "#shift_reader h2", text: "Invoice ready"
-    # Attachment buttons are labelled in the reader, which M7b is rewriting: checked there.
-    assert_accessible(excluding: "[aria-label^='Open attachment']")
+    assert_accessible
     accept_confirm { click_on "Clock off early" }
     assert_selector "h2", text: "Message by message"
     assert_accessible
