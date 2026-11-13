@@ -1,0 +1,19 @@
+<% content_for :title, "Pick a side" %>
+
+<section class="mx-auto max-w-3xl text-center">
+  <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Which side do you want to try first?</h1>
+  <p class="mt-3 text-ink-muted">You can play both, and switch whenever you like. Each side has its own XP and level.</p>
+</section>
+
+<div class="mx-auto mt-8 grid max-w-3xl gap-6 md:grid-cols-2">
+  <%= button_to side_path, params: { side: "blue" }, class: "card-link h-full w-full cursor-pointer border-blue-team/50 text-left", form: { class: "h-full" } do %>
+    <span class="block text-sm font-semibold uppercase tracking-widest text-blue-team">Blue team</span>
+    <span class="mt-2 block text-2xl font-bold">Defend</span>
+    <span class="mt-3 block text-ink-muted">Work a shift at a fictional company. Clear your inbox without letting the phish through.</span>
+  <% end %>
+  <%= button_to side_path, params: { side: "red" }, class: "card-link-red h-full w-full cursor-pointer border-red-team/50 text-left", form: { class: "h-full" } do %>
+    <span class="block text-sm font-semibold uppercase tracking-widest text-red-team">Red team</span>
+    <span class="mt-2 block text-2xl font-bold">Attack</span>
+    <span class="mt-3 block text-ink-muted">Study a company, build a phishing email from cards on a budget, and see which Blue bots fall for it.</span>
+  <% end %>
+</div>

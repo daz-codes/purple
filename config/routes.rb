@@ -8,6 +8,9 @@ Rails.application.routes.draw do
   resources :passwords, param: :token, only: %i[ new create edit update ]
   resources :email_confirmations, param: :token, only: %i[ create show update ]
 
+  # Which side the player prefers: asked once after signing up, and switchable from the dashboard.
+  resource :side, only: %i[ new create ]
+
   # Your account page: your details and the devices you're signed in on.
   resource :account, only: :show
   namespace :account do

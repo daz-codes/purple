@@ -1,0 +1,66 @@
+<% content_for :title, "Your dashboard" %>
+<% sides = @user.preferred_side == "red" ? %w[ red blue ] : %w[ blue red ] %>
+
+<header class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-3xl font-extrabold tracking-tight">Welcome back, <%= @user.display_name %></h1>
+    <p class="mt-1 text-ink-muted" data-testid="streak">
+      <% if (streak = @user.streak_today).positive? %>
+        🔥 <%= pluralize(streak, "day") %> in a row. Play today to keep it going.
+      <% else %>
+        Play a shift or launch a campaign today to start a streak.
+      <% end %>
+      <% if @user.longest_streak > 1 %><span class="ml-2 text-sm">Best: <%= pluralize(@user.longest_streak, "day") %>.</span><% end %>
+    </p>
+  </div>
+
+  <div class="flex items-center gap-2 text-sm" role="group" aria-label="Your side">
+    <span class="text-ink-muted">Your side:</span>
+    <% { "blue" => "Blue", "red" => "Red" }.each do |side, label| %>
+      <% current = @user.preferred_side == side %>
+      <%= button_to label, side_path, params: { side:, return_to: "dashboard" }, aria: { pressed: current },
+            class: "rounded-full border px-3 py-1 cursor-pointer #{current ? (side == "blue" ? "border-blue-team bg-blue-team-soft text-blue-team" : "border-red-team bg-red-team-soft text-red-team") : "border-line hover:bg-surface-raised"}" %>
+    <% end %>
+  </div>
+</header>
+
+<% if !@user.earns_xp? %>
+  <p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm">Confirm your email address to start earning XP and badges.</p>
+<% end %>
+
+<div class="mt-8 grid gap-6 md:grid-cols-2">
+  <% sides.each do |side| %>
+    <% blue = side == "blue" %>
+    <section class="card <%= blue ? "border-blue-team/50" : "border-red-team/50" %>" aria-labelledby="<%= side %>-heading" data-testid="<%= side %>-progress">
+      <p class="text-sm font-semibold uppercase tracking-widest <%= blue ? "text-blue-team" : "text-red-team" %>"><%= blue ? "Blue team" : "Red team" %></p>
+      <h2 id="<%= side %>-heading" class="mt-2 text-2xl font-bold">Level <%= @user.level(side) %></h2>
+      <p class="text-sm text-ink-muted"><%= number_with_delimiter(@user.xp(side)) %> XP · <%= number_with_delimiter(@user.xp_to_next_level(side)) %> to level <%= @user.level(side) + 1 %></p>
+      <meter class="gauge <%= blue ? "gauge-productivity" : "gauge-red" %> mt-3" min="0" max="1" value="<%= @user.level_progress(side).round(3) %>"
+             aria-label="Progress to the next <%= side %> level"></meter>
+
+      <div class="mt-5">
+        <% if blue && @open_attempt %>
+          <%= link_to "Resume “#{@open_attempt.shift.title}”", @open_attempt, class: "btn-blue" %>
+        <% elsif !blue && @draft_campaign %>
+          <%= link_to "Resume your campaign at “#{@draft_campaign.target.title}”", @draft_campaign, class: "btn-red" %>
+        <% else %>
+          <%= link_to blue ? "Pick a shift" : "Pick a target", blue ? tracks_path : targets_path, class: blue ? "btn-blue" : "btn-red" %>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+</div>
+
+<section class="mt-10" aria-labelledby="badges-heading">
+  <h2 id="badges-heading" class="text-xl font-bold">Badges</h2>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" data-testid="badges">
+    <% @badges.each do |badge| %>
+      <% earned = @earned[badge.id] %>
+      <li class="card p-4 <%= earned ? "border-purple-team/60" : "opacity-60" %>" data-earned="<%= earned.present? %>">
+        <p class="flex items-center gap-2 font-bold"><span aria-hidden="true"><%= earned ? "🏅" : "🔒" %></span><%= badge.name %></p>
+        <p class="mt-1 text-sm text-ink-muted"><%= badge.description %></p>
+        <% if earned %><p class="mt-1 text-xs text-purple-team">Earned <%= earned.awarded_at.to_date.to_fs(:long) %></p><% end %>
+      </li>
+    <% end %>
+  </ul>
+</section>

@@ -14,6 +14,7 @@
         You fooled <%= campaign.results.count { |result| result["outcome"] == "fooled" } %> of <%= pluralize(campaign.results.size, "bot") %>.
       </p>
     </div>
+    <%= render "shared/xp_earned", source: campaign %>
 
     <dl class="mt-6 grid gap-4 sm:grid-cols-3">
       <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">

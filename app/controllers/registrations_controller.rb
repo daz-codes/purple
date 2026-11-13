@@ -15,7 +15,7 @@ class RegistrationsController < ApplicationController
     if @user.save
       start_new_session_for @user
       EmailConfirmationsMailer.confirm(@user).deliver_later
-      redirect_to root_path, notice: "Welcome to Purple! Check your email to confirm your address."
+      redirect_to new_side_path, notice: "Welcome to Purple! Check your email to confirm your address."
     else
       render :new, status: :unprocessable_entity
     end
