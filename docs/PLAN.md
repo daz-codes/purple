@@ -474,6 +474,91 @@ every genuine message as it needed and report every phish in a single shift".
 - Write **3 targets**, each linked to an existing Blue shift's company so both sides share a world.
 - **Done when:** the system test builds and launches a campaign, and the simulator and balance tests pass.
 
+### M7b — Who are you? Personas and private details
+So far a phish only gets you if you click or press. This milestone lets the player **hand something
+over**. Each attempt gives the player a persona with private details, and genuine jobs need some of them,
+so refusing everything doesn't work either. The lesson becomes "who's asking, through which channel, and
+do they need this?" rather than "never share".
+
+**The persona card**
+- When the shift starts, the player gets a welcome pack: name and role (fixed per shift), plus details
+  generated **for each attempt**: staff number, desk extension, a memorable word for the IT phone line,
+  and a "security question" answer. Values are generated on the server, seeded from the attempt token
+  like `message_ref`, so answers can't be shared between players and a replay can't be done from memory.
+- Values are obviously fictional and realistic in kind: "Memorable word: TANGERINE OTTER", "Staff number:
+  LH-48213". The generators use their own fictional word lists; the importer checks every one.
+- The card stays open in a side panel (keyboard and screen-reader reachable, and on the phone layout too).
+  Looking things up is part of the job.
+- **The MFA code is live:** a code appears on the in-game phone when a real sign-in happens (using a
+  portal that asks for it), and a phish may ask for it moments later.
+
+**Details learned from messages.** Not everything is on the card. Earlier messages can tell the player
+things they'll need later, or must keep to themselves: the manager's codeword for approving payments,
+the time the CEO's flight leaves, the room the board meets in, the name of a new supplier.
+- Authored as a quote in the message, like a red flag:
+  `details: [{ key: wire_codeword, quote: "BLUEBELL", sensitivity: secret }]`. A detail's value can be
+  fixed, or generated for each attempt (`value: word`), and is substituted into the body.
+- The player **saves a note** by highlighting words in a message (the same highlight as flagging, in a
+  "save to notes" mode). The note becomes a chip with the words as its label. The server matches the
+  highlight against the authored details with the red-flag coverage rules, privately: a note that matches
+  nothing is just a note, and the page never says whether a note "counts".
+- The importer checks a detail is in the inbox before any message that needs or wants it (as with
+  `answer_in`).
+- This builds on M6b's `answer_in`: a question can be answered by sharing a saved note, as well as by
+  picking a canned reply.
+
+**Sharing: chips, never typing**
+- A message that asks for details offers a **Send details** composer alongside its canned replies: pick
+  chips from the card and from saved notes, then send. Portal and bait pages have labelled fields, each
+  filled by picking a chip.
+- No free-text field anywhere, so nobody can type a real password into the game. Rule 5 holds: the
+  server records which chips were shared with which message, never anything typed.
+- New move: `share_details` (an `AttemptAction` with the detail keys and the message or page), and
+  `save_note`. Both are resources with a one-line `create`, like the other moves.
+
+**Sensitivity and scoring** (hidden until the debrief, like `legit`):
+
+| Sensitivity | Examples | Who may have it |
+|---|---|---|
+| `public` | Name, role, desk | Anyone: it's on the intranet |
+| `internal` | Staff number, extension, supplier name | Genuine colleagues and systems that need it |
+| `secret` | Memorable word, codeword, travel times | Only the one genuine place that asks, through the right channel |
+| `never` | Password, MFA code | Nobody, ever |
+
+- Genuine messages declare what they `need:`; phishes declare what they `want:`. Both stay on the server.
+- **To a genuine message:** sharing everything it needs means done. Sharing nothing, or refusing, means
+  not done, as now. Sharing details it didn't need is **oversharing**: −5 per `internal`, −15 per `secret`.
+  Sharing a `never` detail with anyone is a compromise.
+- **To a phish:** sharing anything above `public` is falling for it, costing −20 per `internal`, −50 per
+  `secret` or `never` detail (capped at the compromise cost per message), and stars need no compromise.
+- **Lazy play** gains two strategies that must stay below one star: **share nothing** (genuine jobs
+  aren't done) and **share everything with everyone** (every phish is a compromise).
+
+**The debrief: "What Red now knows."** A panel listing every detail the player gave a phish, and what
+Red could do with it: "You gave away your staff number and memorable word. With those, Red could call
+the IT service desk as you and reset your password." Each genuine message says whether it got what it
+needed, and what was overshared.
+
+**Never sent to the browser:** what a message needs or wants, sensitivities, which notes match a detail,
+or which details exist in a message. The persona's own values are the player's and are shown.
+
+**Content.** Re-author the shifts so each has:
+- a genuine message that needs a card detail (HR's form needs your staff number);
+- a phish that wants a card detail (the "IT" chat wants your memorable word or MFA code);
+- a detail learned from a message that's needed later by a genuine message, and wanted by a phish
+  (Priya tells you the payment codeword; Finance needs it; a fake "Priya" asks you to confirm it).
+
+**Also update** CLAUDE.md (the new moves, and the secrets list), the README's content guide, and
+`RedCampaign` cards: a Red "ask for details" card targets a sensitivity level, and bots fall for it
+according to their persona.
+
+**Done when:**
+- Unit tests cover persona generation (stable per attempt, different between attempts), note matching,
+  sharing and its scoring, the new lazy-play strategies and the importer rules.
+- System tests: start a shift and read the card; save a note from a message and share it with the
+  genuine message that needs it; give a detail to a phish and see it in "What Red now knows"; and check
+  that no needs, wants, sensitivities or note matches reach the page mid-shift.
+
 ### M8 — Progression: XP, levels, streaks, badges
 - XpEvent (with `side`) on scored completion; update that side's XP and level and `xp_total` in one transaction.
 - Onboarding: "Which side do you want to try first?" Then a side switcher on the dashboard.
@@ -618,6 +703,11 @@ hints:
    - **Briefings move the story on, the same for everyone** ("after last week's invoice scare, Finance now
      calls every new supplier back"). The story never branches on how the player did: that would hint at
      their mistakes and break the "triggers never depend on being right" rule.
+   - **Leaked details used against you (parked).** Once M7b lets players give details away, a later
+     phish could use what they leaked ("Hi, staff #48213…") to look more convincing, as real attackers do.
+     Within a shift this would break "content never depends on being right": a sharp player could work
+     out that the earlier message was a phish. Across shifts it fits the one-attacker arc, but it makes the
+     story branch on how the player did. Revisit once the arc exists.
    - Smaller ideas from KC7: a recurring narrator for the Purple debrief, guest play without saved
      progress (for classrooms), and educator-hosted competitions (with item 6).
 5. **Kill chain board** (MITRE ATT&CK stages), **simulated company** with NPC staff, **seasons** where everyone swaps sides.
