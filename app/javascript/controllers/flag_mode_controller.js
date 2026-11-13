@@ -1,6 +1,7 @@
 import { Controller } from "@hotwired/stimulus"
 
 const BLOCK = /^p\d+$/
+const SENTENCE = /^p\d+s\d+$/
 
 // Flag mode in the reading pane. While it's on:
 // - dragging across words in a paragraph flags just those words (posted as the paragraph's anchor and
@@ -11,13 +12,17 @@ const BLOCK = /^p\d+$/
 // Only anchors and ranges are posted. The server records the flag and sends the reader back, still in
 // flag mode. Every part and every word is flaggable, so flagging gives nothing away.
 //
+// The same picking saves notes in "notes" mode (mode value "note"): words or a sentence are posted to
+// the notes form instead, and clicking a saved note takes it off. Headers, links and attachments can't
+// be saved as notes.
+//
 // Offsets count characters of the paragraph's normalised text, the same way the server does
 // (Message::Paragraph): the text nodes in order, every run of whitespace collapsed to one space, and the
 // ends trimmed. Highlights are drawn with the CSS Custom Highlight API, so the message's markup is never
 // changed.
 export default class extends Controller {
-  static targets = [ "toggle", "banner", "form", "anchor", "from", "to" ]
-  static values = { active: Boolean, flags: Array }
+  static targets = [ "toggle", "banner", "form", "anchor", "from", "to", "noteToggle", "noteBanner", "noteForm" ]
+  static values = { active: Boolean, mode: { type: String, default: "flag" }, flags: Array, notes: Array }
 
   connect() {
     this.render()
@@ -25,14 +30,34 @@ export default class extends Controller {
 
   disconnect() {
     CSS.highlights?.delete("flagged")
+    CSS.highlights?.delete("noted")
   }
 
   toggle() {
-    this.activeValue = !this.activeValue
+    this.switchTo("flag")
+  }
+
+  toggleNotes() {
+    this.switchTo("note")
+  }
+
+  // Pressing a mode's button turns it on, or off if it's already the one on.
+  switchTo(mode) {
+    const on = !(this.activeValue && this.modeValue === mode)
+    this.modeValue = mode
+    this.activeValue = on
   }
 
   activeValueChanged() {
     this.render()
+  }
+
+  modeValueChanged() {
+    this.render()
+  }
+
+  get noting() {
+    return this.activeValue && this.modeValue === "note"
   }
 
   pick(event) {
@@ -58,13 +83,14 @@ export default class extends Controller {
   }
 
   submit({ anchor, from = "", to = "" }) {
-    if (this.submitting) return
+    const form = this.noting ? (this.hasNoteFormTarget && this.noteFormTarget) : this.formTarget
+    if (this.submitting || !form) return
     this.submitting = true
 
-    this.anchorTarget.value = anchor
-    this.fromTarget.value = from
-    this.toTarget.value = to
-    this.formTarget.requestSubmit()
+    form.elements.anchor.value = anchor
+    form.elements.from.value = from
+    form.elements.to.value = to
+    form.requestSubmit()
   }
 
   // Words dragged over within one paragraph, as { anchor, from, to }.
@@ -89,11 +115,15 @@ export default class extends Controller {
     const block = this.blockOf(part)
     const offset = block && this.clickOffset(event, block)
     if (offset != null) {
-      const highlight = this.flagsValue.find((flag) => flag.anchor === block.dataset.anchor && flag.from <= offset && offset < flag.to)
+      const marks = this.noting ? this.notesValue : this.flagsValue
+      const highlight = marks.find((mark) => mark.anchor === block.dataset.anchor && mark.from <= offset && offset < mark.to)
       if (highlight) return highlight
     }
 
-    return BLOCK.test(part.dataset.anchor) ? null : { anchor: part.dataset.anchor }
+    if (BLOCK.test(part.dataset.anchor)) return null
+    // Notes are words: only a sentence can be saved whole.
+    if (this.noting && !SENTENCE.test(part.dataset.anchor)) return null
+    return { anchor: part.dataset.anchor }
   }
 
   blockOf(node) {
@@ -156,15 +186,19 @@ export default class extends Controller {
   }
 
   render() {
+    const flagging = this.activeValue && !this.noting
     this.element.classList.toggle("flag-mode", this.activeValue)
-    this.toggleTargets.forEach((button) => button.setAttribute("aria-pressed", this.activeValue))
-    this.bannerTargets.forEach((banner) => banner.hidden = !this.activeValue)
+    this.toggleTargets.forEach((button) => button.setAttribute("aria-pressed", flagging))
+    this.bannerTargets.forEach((banner) => banner.hidden = !flagging)
+    this.noteToggleTargets.forEach((button) => button.setAttribute("aria-pressed", this.noting))
+    this.noteBannerTargets.forEach((banner) => banner.hidden = !this.noting)
 
     const whole = this.flagsValue.filter((flag) => flag.from == null).map((flag) => flag.anchor)
     this.element.querySelectorAll("[data-anchor]").forEach((part) => {
       part.classList.toggle("flagged", whole.includes(part.dataset.anchor))
-      // Sentences and headers can be reached by keyboard while flagging. Links already can.
-      const focusable = this.activeValue && !BLOCK.test(part.dataset.anchor)
+      // Sentences and headers can be reached by keyboard while flagging (only sentences while saving
+      // notes). Links already can.
+      const focusable = this.activeValue && !BLOCK.test(part.dataset.anchor) && (!this.noting || SENTENCE.test(part.dataset.anchor))
       if (focusable && !part.hasAttribute("tabindex")) {
         part.setAttribute("tabindex", "0")
         part.dataset.flagModeFocusable = ""
@@ -180,11 +214,15 @@ export default class extends Controller {
   drawHighlights() {
     if (!window.CSS?.highlights) return
 
-    const ranges = this.flagsValue.filter((flag) => flag.from != null).flatMap((flag) => {
-      const block = [ ...this.element.querySelectorAll("[data-anchor]") ].find((node) => node.dataset.anchor === flag.anchor)
-      const range = block && this.rangeFor(block, flag.from, flag.to)
+    CSS.highlights.set("flagged", new Highlight(...this.rangesFor(this.flagsValue)))
+    CSS.highlights.set("noted", new Highlight(...this.rangesFor(this.notesValue)))
+  }
+
+  rangesFor(marks) {
+    return marks.filter((mark) => mark.from != null).flatMap((mark) => {
+      const block = [ ...this.element.querySelectorAll("[data-anchor]") ].find((node) => node.dataset.anchor === mark.anchor)
+      const range = block && this.rangeFor(block, mark.from, mark.to)
       return range ? [ range ] : []
     })
-    CSS.highlights.set("flagged", new Highlight(...ranges))
   }
 }

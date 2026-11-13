@@ -165,7 +165,74 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_nil scorecard.message_result_for("fake_invoice").arrived_at
   end
 
+  test "a message that needs details is only done once it has them all, through the right channel" do
+    messages(:real_invoice).update!(needs: %w[ staff_number memorable_word ])
+    staff, word = share("staff_number", "internal"), share("memorable_word", "secret")
+
+    assert_equal :done, judged(scorecard(shared("real_invoice", "page", staff, word, at: 30), action("use_portal", "real_invoice", at: 30)), "real_invoice").first
+    assert_equal :not_done, judged(scorecard(shared("real_invoice", "page", staff), action("use_portal", "real_invoice")), "real_invoice").first
+    assert_equal :not_done, judged(scorecard(action("use_portal", "real_invoice")), "real_invoice").first
+  end
+
+  test "a genuine message that needs details by reply is done when it gets them; a secret by reply is overshared" do
+    messages(:newsletter).update!(expects: "reply", needs: %w[ extension ],
+      replies: [ { "id" => "r1", "text" => "OK", "outcome" => "safe" }, { "id" => "r2", "text" => "Why?", "outcome" => "ask_why", "response" => "Because." } ])
+
+    done = scorecard(shared("newsletter", "reply", share("extension", "internal")))
+    assert_equal [ :done, 10 ], judged(done, "newsletter")
+
+    over = scorecard(shared("newsletter", "reply", share("extension", "internal"), share("staff_number", "internal"), share("memorable_word", "secret")))
+    result = over.message_result_for("newsletter")
+    assert_equal %w[ staff_number memorable_word ], result.overshares.map { |share| share["detail"] }
+    assert_equal 10 - 5 - 15, result.handling_points
+  end
+
+  test "giving a phish anything above public costs 20 or 50 a detail, at most 50, and counts as falling for it" do
+    phish = ->(*shares) { scorecard(archive("newsletter"), shared("fake_invoice", "page", *shares)).message_result_for("fake_invoice") }
+
+    assert_equal [ false, 0 ], phish.(share("name", "public")).then { |result| [ result.compromised?, result.detail_points ] }
+    assert_equal [ true, -20 ], phish.(share("staff_number", "internal")).then { |result| [ result.compromised?, result.detail_points ] }
+    assert_equal(-50, phish.(share("staff_number", "internal"), share("memorable_word", "secret")).detail_points)
+    assert_equal [ :compromised ], [ phish.(share("staff_number", "internal")).outcome ]
+  end
+
+  test "details given on a lookalike page where a password was also entered cost one compromise, not two" do
+    link = { "link" => "l1" }
+    card = scorecard(archive("newsletter"), shared("fake_invoice", "page", share("memorable_word", "secret")),
+      action("submit_credentials", "fake_invoice", result: link))
+    result = card.message_result_for("fake_invoice")
+
+    assert_equal 0, result.detail_points
+    assert_equal ShiftAttempt::Scorecard::COMPROMISED, result.handling_points
+    assert_equal %w[ memorable_word ], card.leaked_details.map { |share| share["detail"] }
+  end
+
+  test "the MFA code given to a genuine message anywhere but the page that asked for it is a compromise" do
+    messages(:real_invoice).update!(needs: %w[ mfa_code ])
+    code = share("mfa_code", "never")
+
+    assert_not scorecard(shared("real_invoice", "page", code), action("use_portal", "real_invoice")).compromised?
+    misused = scorecard(shared("newsletter", "reply", code))
+    assert misused.compromised?
+    assert_equal ShiftAttempt::Scorecard::COMPROMISED, misused.message_result_for("newsletter").detail_points
+  end
+
+  test "what Red now knows: each detail given to a phish, once" do
+    card = scorecard(archive("newsletter"), shared("fake_invoice", "page", share("staff_number", "internal")),
+      shared("fake_invoice", "page", share("staff_number", "internal"), share("name", "public")))
+
+    assert_equal %w[ staff_number ], card.leaked_details.map { |share| share["detail"] }
+  end
+
   private
+    def share(detail, sensitivity)
+      { "chip" => detail, "label" => detail.humanize, "value" => "x", "detail" => detail, "sensitivity" => sensitivity }
+    end
+
+    def shared(key, via, *shares, at: 0)
+      action("share_details", key, at:, result: { "via" => via, "shared" => shares })
+    end
+
     def careful_play
       [ action("use_portal", "real_invoice"), archive("newsletter"), flag("fake_invoice", "from"), flag("fake_invoice", "p1", 0, 16),
         action("report_message", "fake_invoice"), archive("real_invoice"), archive("supplier_thanks") ]

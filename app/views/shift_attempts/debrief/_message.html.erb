@@ -24,6 +24,13 @@
     <% debrief_story(result).each do |sentence| %>
       <p><%= sentence %></p>
     <% end %>
+    <% if (details = debrief_details(result)).any? %>
+      <div class="space-y-1" data-testid="debrief-details">
+        <% details.each do |sentence| %>
+          <p>🔑 <%= sentence %></p>
+        <% end %>
+      </div>
+    <% end %>
     <% if (answer = debrief_answer_source(result)) %>
       <p class="text-sm text-purple-team" data-testid="debrief-answer-source"><%= answer %></p>
     <% end %>

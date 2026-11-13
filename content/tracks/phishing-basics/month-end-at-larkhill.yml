@@ -13,6 +13,17 @@ learning_summary: >
   real address behind a display name, and verify payment changes through a known channel. Not
   every urgent reminder is a trick, though: the real one comes from the real address.
 
+persona:
+  name: "Robin Ashby"
+  role: "Accounts payable clerk, Finance"
+  staff_prefix: LH
+  security_question: "Name of the Larkhill office dog?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }
+  - { name: "Tidemark Supply accounts", team: "Supplier", contact: "0117 496 0321, from the supplier file" }
+
 messages:
   - key: real_invoice
     channel: email
@@ -30,12 +41,14 @@ messages:
       <p><a href="https://portal.larkhill.example/invoices/4471">Review invoice</a></p>
     links:
       - { match: "portal.larkhill.example", outcome: portal, action: "Approve invoice #4471" }
+    needs: [payment_codeword]
     verify_result: "Tidemark's accounts team confirms invoice #4471 is genuine."
 
   - key: fake_invoice
     channel: email
     legit: false
     imitates: real_invoice
+    wants: [payment_codeword]
     techniques: [lookalike_domain, reply_to_mismatch, urgency_pretext, payment_change_pretext, malicious_link, credential_harvest]
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark-billing.example"
@@ -64,6 +77,23 @@ messages:
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
           explanation: "The text shows the real portal, but the link goes to larkhill-portal.example.net." }
 
+  - key: payment_codeword
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "This month's payment codeword"
+    body_html: |
+      <p>Morning! This month's payment approval codeword is BLUEBELL.</p>
+      <p>The supplier portal asks for it when you approve anything over £1,000. Please keep it to yourself: nobody else needs it, me included.</p>
+    details:
+      - { key: payment_codeword, label: "Payment codeword", quote: "BLUEBELL", sensitivity: secret,
+          red_use: "approve their own fake invoices in the supplier portal, as you" }
+    verify_result: "Priya confirms she sends the codeword at the start of every month."
+
   - key: hr_policy
     channel: email
     legit: true
@@ -78,6 +108,7 @@ messages:
       <p><a href="https://hr.larkhill.example/sign/2291">Open policy</a></p>
     links:
       - { match: "hr.larkhill.example", outcome: portal, action: "Sign the hybrid working policy" }
+    needs: [staff_number]
     verify_result: "HR confirms everyone needs to sign the new policy today."
 
   - key: maintenance_notice
@@ -131,6 +162,7 @@ messages:
       <p><a href="https://larkhill-surveys.example.org/signin">Start the survey</a></p>
     links:
       - { match: "larkhill-surveys.example.org", outcome: bait_landing }
+    wants: [staff_number]
     verify_result: "HR: \"We're not running a manager survey this month.\""
     red_flags:
       - { key: spoofed_name, anchor: from, points: 10, label: "Display name doesn't match the address",
@@ -154,15 +186,21 @@ messages:
     subject: "RE: Invoice #4471, did you get this?"
     body_html: |
       <p>Just checking you received our updated bank details for invoice #4471.</p>
-      <p>Please reply to confirm the payment will go to the new account today.</p>
+      <p>Please reply to confirm the payment will go to the new account today, with your payment codeword so we can release it.</p>
     replies:
       - { text: "Confirmed, I'll pay the new account today.", outcome: compromise, response: "Great, thanks for your help!" }
       - { text: "I'll confirm any bank changes with Tidemark by phone first.", outcome: verify }
       - { text: "No. Please don't email me about bank details.", outcome: safe, response: "This is very urgent, we will have to stop supply." }
+      - { text: "Why do you need my codeword?", outcome: ask_why,
+          response: "Our finance system needs it to release the payment. Please hurry, or supply stops today." }
+    wants: [payment_codeword]
     verify_result: "Tidemark's finance team: \"We haven't changed our bank details, and we haven't emailed you about them.\""
     red_flags:
       - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
           explanation: "tidemark-billing.example again, not tidemark.example." }
+      - { key: asks_codeword, quote: "with your payment codeword", points: 10, label: "Asks for a secret in an email",
+          explanation: "The codeword only ever goes into Larkhill's own supplier portal. A supplier never needs it, and nobody asks for it by email.",
+          contradicts: { message: payment_codeword, quote: "nobody else needs it, me included" } }
       - { key: confirm_new_account, quote: "the payment will go to the new account today", points: 10, label: "Pushing the bank change",
           explanation: "Chasing you to confirm a new account is how payment fraud closes the deal." }
 

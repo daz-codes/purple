@@ -8,6 +8,7 @@
   <div class="grid gap-4 <%= phone ? "lg:grid-cols-[16rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_22rem_minmax(0,1fr)]" %> items-start">
     <div class="flex flex-col gap-4">
       <%= render "shift_attempts/job", attempt: %>
+      <%= render "shift_attempts/persona", attempt: %>
       <%= render "shift_attempts/hints", attempt: %>
     </div>
     <% if phone %>

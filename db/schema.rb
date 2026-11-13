@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_140001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying::text, 'expand_headers'::character varying::text, 'verify_sender'::character varying::text, 'click_link'::character varying::text, 'close_landing'::character varying::text, 'submit_credentials'::character varying::text, 'open_attachment'::character varying::text, 'run_download'::character varying::text, 'use_portal'::character varying::text, 'report_message'::character varying::text, 'archive_message'::character varying::text, 'flag_element'::character varying::text, 'send_reply'::character varying::text, 'use_hint'::character varying::text, 'clock_off'::character varying::text])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'clock_off'::character varying, 'save_note'::character varying, 'share_details'::character varying, 'ask_why'::character varying]::text[])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -115,6 +115,10 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.integer "urgent_within_minutes"
     t.string "answer_in_key"
     t.text "answer_in_quote"
+    t.jsonb "needs", default: [], null: false
+    t.jsonb "wants", default: [], null: false
+    t.jsonb "details", default: [], null: false
+    t.text "share_response"
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
     t.check_constraint "(answer_in_key IS NULL) = (answer_in_quote IS NULL)", name: "messages_answer_in_complete"
@@ -203,6 +207,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.datetime "updated_at", null: false
     t.integer "penalty_seconds", default: 0, null: false
     t.boolean "relaxed", default: false, null: false
+    t.jsonb "persona_details", default: {}, null: false
     t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
     t.index ["token"], name: "index_shift_attempts_on_token", unique: true
     t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"
@@ -230,6 +235,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "par_minutes", default: 10, null: false
+    t.jsonb "persona", default: {}, null: false
+    t.jsonb "directory", default: [], null: false
     t.index ["slug"], name: "index_shifts_on_slug", unique: true
     t.index ["track_id"], name: "index_shifts_on_track_id"
     t.check_constraint "author_side::text = 'red'::text", name: "shifts_author_side"
@@ -341,7 +348,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.check_constraint "blue_level >= 1 AND red_level >= 1", name: "users_levels_positive"
     t.check_constraint "blue_xp >= 0 AND red_xp >= 0", name: "users_xp_non_negative"
     t.check_constraint "current_streak >= 0 AND longest_streak >= current_streak", name: "users_streaks"
-    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "users_preferred_side"
+    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "users_preferred_side"
     t.check_constraint "xp_total = (blue_xp + red_xp)", name: "users_xp_total_is_the_sum"
   end
 
@@ -361,8 +368,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.index ["user_id", "reason", "source_type", "source_id"], name: "index_xp_events_once_per_source", unique: true
     t.index ["user_id"], name: "index_xp_events_on_user_id"
     t.check_constraint "amount >= 0", name: "xp_events_amount_non_negative"
-    t.check_constraint "reason::text = ANY (ARRAY['shift_completed'::character varying, 'workshop_completed'::character varying, 'streak_bonus'::character varying, 'badge_awarded'::character varying]::text[])", name: "xp_events_reason"
-    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "xp_events_side"
+    t.check_constraint "reason::text = ANY (ARRAY['shift_completed'::character varying::text, 'workshop_completed'::character varying::text, 'streak_bonus'::character varying::text, 'badge_awarded'::character varying::text])", name: "xp_events_reason"
+    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "xp_events_side"
   end
 
   add_foreign_key "attempt_actions", "shift_attempts"

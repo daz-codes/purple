@@ -6,6 +6,8 @@
 #   poor:       an answer to a genuine message that doesn't do what it asked, so it doesn't count.
 #   compromise: the player handed a phisher what they asked for, such as a one-time code. It counts
 #               like entering a password on a bait page.
+#   ask_why:    "Why do you need this?". Not the reply itself: the sender answers, and the player can
+#               still reply, share details or report it.
 #   verify:     the player checks with someone they already trust first, and gets the message's
 #               verify_result. Like a call-back, it adds 30 seconds to the attempt's time.
 # The player only ever sees the reply's text and the answers that come back.
@@ -28,6 +30,7 @@ module ShiftAttempt::Replyable
   def send_reply(message, reply_id)
     acting_on(message) do
       reply = message.reply(reply_id.to_s) or reject "That isn't one of the replies you can send."
+      next ask_why(message, reply) if reply["outcome"] == "ask_why"
       reject "You've already replied to that." if replied?(message)
 
       result = reply.slice("id", "text", "outcome", "response")
@@ -35,6 +38,15 @@ module ShiftAttempt::Replyable
       result["check"] = message.verify_result.presence || ShiftAttempt::Verifiable::NO_ANSWER if checks
       record :send_reply, message:, result:, penalty: checks ? ShiftAttempt::Timed::CALL_PENALTY : 0
     end
+  end
+
+  def asked_why?(message)
+    done?(:ask_why, message.key)
+  end
+
+  # What the sender said when asked why they need the details, if the player asked.
+  def why_answer(message)
+    actions.find { |action| action.ask_why? && action.target_key == message.key }&.result&.slice("text", "response")
   end
 
   def replied?(message)
@@ -46,4 +58,13 @@ module ShiftAttempt::Replyable
   def sent_reply(message)
     ShiftAttempt::Replyable.sent(actions)[message.key]&.slice("text", "response", "check")
   end
+
+  private
+    # "Why do you need this?" isn't the reply: the sender answers (a sensible reason, or more pressure)
+    # and the player can still decide what to do. It can be asked once.
+    def ask_why(message, reply)
+      reject "You've already asked." if asked_why?(message)
+
+      record :ask_why, message:, result: reply.slice("id", "text", "response")
+    end
 end

@@ -26,15 +26,22 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     Shift.where(slug: shipped_shift_slugs).each do |shift|
       messages = shift.messages.includes(:red_flags)
-      assert_includes 5..10, messages.size, "#{shift.slug} should have 5-10 messages"
+      assert_includes 5..12, messages.size, "#{shift.slug} should have 5-12 messages"
       assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
       assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
       assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
       assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
       assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
+      assert shift.persona.present?, "#{shift.slug} needs a persona"
+      assert messages.any? { |message| message.legit? && message.needs.any? }, "#{shift.slug} needs a genuine message that needs a detail"
+      assert messages.any? { |message| message.phish? && message.wants.any? }, "#{shift.slug} needs a phish that wants a detail"
+      assert shift.directory.any?, "#{shift.slug} needs a staff directory"
     end
     assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
     assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
+    shipped = Message.joins(:shift).where(shifts: { slug: shipped_shift_slugs })
+    assert shipped.any? { |message| message.details.any? }, "a shift needs a detail learned from a message"
+    assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a shift needs an MFA-fatigue run"
   end
 
   # --- A minimal content folder, mutated one rule at a time ------------------------------
@@ -63,6 +70,94 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_includes fake.body_html, %(data-link-key="l1")
     assert_includes fake.body_html, %(data-anchor="p1s2")
     assert_not_includes fake.body_html, "href"
+  end
+
+  test "a persona and staff directory are stored on the shift" do
+    @shift["persona"] = { "name" => "Robin Ashby", "role" => "Accounts clerk", "staff_prefix" => "LH",
+                          "security_question" => "Name of the office dog?" }
+    @shift["directory"] = [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ]
+    import!
+    shift = Shift.find_by!(slug: "month-end")
+
+    assert_equal "LH", shift.persona["staff_prefix"]
+    assert_equal [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ],
+      shift.directory
+  end
+
+  test "a shift without a persona or directory imports with neither" do
+    import!
+
+    assert_equal [ {}, [] ], Shift.find_by!(slug: "month-end").then { |shift| [ shift.persona, shift.directory ] }
+  end
+
+  test "persona rules: a short capital prefix, a real question, fiction only" do
+    persona = { "name" => "Robin Ashby", "role" => "Clerk", "staff_prefix" => "LH", "security_question" => "Name of the office dog?" }
+
+    @shift["persona"] = persona.merge("staff_prefix" => "lh-1")
+    assert_import_error "staff_prefix must be 2-3 capital letters"
+
+    @shift["persona"] = persona.merge("security_question" => "The office dog")
+    assert_import_error "must be a question"
+
+    @shift["persona"] = persona.merge("role" => "Clerk at https://bank.com")
+    assert_import_error "role mentions names outside the reserved fictional set"
+
+    @shift["persona"] = persona.merge("password" => "hunter2")
+    assert_import_error "unknown key password"
+  end
+
+  test "the directory says how to reach someone, never an email address" do
+    @shift["directory"] = [ { "name" => "IT", "contact" => "servicedesk@larkhill.example" } ]
+
+    assert_import_error "not an email address"
+  end
+
+  test "private details: needs, wants and learned details are stored with the message" do
+    real, canteen, fake = @shift["messages"]
+    real["needs"] = %w[ staff_number soup ]
+    canteen["details"] = [ { "key" => "soup", "label" => "Soup of the day", "quote" => "Soup of the day", "sensitivity" => "internal",
+                             "red_use" => "sound like an insider" } ]
+    fake["wants"] = %w[ staff_number soup ]
+    import!
+
+    shift = Shift.find_by!(slug: "month-end")
+    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "real_invoice").needs
+    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "fake_invoice").wants
+    soup = shift.detail("soup")
+    assert_equal [ "internal", "p1", 0, 15, "canteen_news" ], [ soup.sensitivity, soup.anchor, soup.quote_start, soup.quote_end, soup.message_key ]
+  end
+
+  test "private details rules" do
+    real, canteen, fake = @shift["messages"]
+    reply_options = [ { "text" => "OK", "outcome" => "safe" }, { "text" => "Why?", "outcome" => "ask_why", "response" => "Because." } ]
+    cases = [
+      [ "needs on a phish", -> { fake["needs"] = %w[ staff_number ] }, /needs isn't allowed here/ ],
+      [ "wants on a genuine message", -> { real["wants"] = %w[ staff_number ] }, /wants isn't allowed here/ ],
+      [ "an unknown detail", -> { real["needs"] = %w[ shoe_size ] }, /unknown detail "shoe_size"/ ],
+      [ "a learned detail with a card key", -> { canteen["details"] = [ { "key" => "staff_number", "label" => "X", "quote" => "Soup", "sensitivity" => "internal" } ] },
+        /is a persona card detail/ ],
+      [ "a secret needed by reply", -> {
+        canteen.merge!("expects" => "reply", "needs" => %w[ memorable_word ], "replies" => reply_options)
+      }, /can only be needed on a portal page/ ],
+      [ "a message that asks by reply without an ask_why reply", -> {
+        canteen.merge!("expects" => "reply", "needs" => %w[ extension ], "replies" => reply_options.first(1) + [ { "text" => "Fine", "outcome" => "safe" } ])
+        fake["wants"] = %w[ extension ]
+      }, /exactly one "Why do you need this\?" reply/ ],
+      [ "an ask_why reply on a message that asks for nothing", -> { canteen["replies"] = reply_options }, /only a message that asks for details/ ],
+      [ "an internal detail needed but never wanted", -> { real["needs"] = %w[ staff_number ] }, /needed by genuine messages only: staff_number/ ],
+      [ "a learned detail asked for before it arrives", -> {
+        fake["details"] = [ { "key" => "pay", "label" => "Pay", "quote" => "Please pay today", "sensitivity" => "secret" } ]
+        real["needs"] = %w[ pay ]
+      }, /could arrive before fake_invoice/ ]
+    ]
+
+    cases.each do |description, mutate, expected|
+      @shift = valid_shift
+      real, canteen, fake = @shift["messages"]
+      instance_exec(&mutate)
+      error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
+      assert_match expected, error.message, "wrong error for #{description}"
+    end
   end
 
   test "arrivals: after a count, or after another message, with phishes following up too" do
@@ -320,9 +415,9 @@ class Content::ImportTest < ActiveSupport::TestCase
                           /from 2 to 4 options/ ],
       "a reply that hands over on a genuine message" => [
         ->(s) { phone(s)["messages"].first["replies"] = chat_replies },
-        /outcome must be one of safe, poor, verify for legitimate messages \(got compromise\)/ ],
+        /outcome must be one of safe, poor, verify, ask_why for legitimate messages \(got compromise\)/ ],
       "a poor reply on a phish" => [ ->(s) { phone(s)["messages"].last["replies"] = poor_replies },
-                                     /outcome must be one of safe, compromise, verify for phishing messages \(got poor\)/ ],
+                                     /outcome must be one of safe, compromise, verify, ask_why for phishing messages \(got poor\)/ ],
       "an unknown reply outcome" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
                                       /outcome must be one of safe, compromise, verify/ ],
       "a repeated reply" => [ ->(s) { phone(s)["messages"].last["replies"] = [ chat_replies.first, chat_replies.first ] },
@@ -467,6 +562,10 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   private
+    def assert_import_error(message)
+      assert_raises(Content::ImportError, match: Regexp.new(Regexp.escape(message))) { import! }
+    end
+
     def import!
       write_content
       Content::Import.new(@root).run

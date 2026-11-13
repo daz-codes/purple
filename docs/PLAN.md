@@ -474,6 +474,139 @@ every genuine message as it needed and report every phish in a single shift".
 - Write **3 targets**, each linked to an existing Blue shift's company so both sides share a world.
 - **Done when:** the system test builds and launches a campaign, and the simulator and balance tests pass.
 
+### M7b — Who are you? Personas and private details
+So far a phish only gets you if you click or press. This milestone lets the player **hand something
+over**. Each attempt gives the player a persona with private details, and genuine jobs need some of them,
+so refusing everything doesn't work either. The lesson becomes "who's asking, through which channel, and
+do they need this?" rather than "never share".
+
+**The persona card**
+- When the shift starts, the player gets a welcome pack: name and role (fixed per shift), plus details
+  generated **for each attempt**: staff number, desk extension, a memorable word for the IT phone line,
+  and a security answer. They are generated on the server when the attempt starts (seeded from the
+  attempt token) and **stored on the attempt**, so a later change to the word lists can't rewrite an old
+  debrief, answers can't be shared between players, and a replay can't be done from memory.
+- Values are obviously fictional and realistic in kind: "Memorable word: TANGERINE OTTER", "Staff number:
+  LH-48213". The generators use their own fictional word lists; a test checks every word against the
+  fiction rules.
+- Security questions are **in-world** ("Name of the Larkhill office dog?", "Your first desk at
+  Larkhill?"), never the real-life kind (a first pet, a mother's maiden name), so nobody is nudged to
+  think about their real answers.
+- There is **no password on the card**. Signing in to a mock page still records only *that* a password was
+  submitted (rule 5).
+- The card stays open in a side panel next to a **staff directory** (the colleagues and suppliers the
+  player can check with, and how: "IT service desk: ext 4400, or the IT portal"). Both are keyboard and
+  screen-reader reachable, and on the phone layout too. Looking things up is part of the job, and the
+  directory is how a player checks a request through a known channel.
+- **The MFA code is live:** a code appears on the authenticator in the persona panel when a page that
+  asks for it is opened. That includes a lookalike page, which relays the sign-in as attackers' kits do, so
+  a code arriving says nothing about the page. A phish may ask for it moments later. Typing it into the genuine sign-in
+  page that asked for it is **using** it, not sharing it: that's the genuine task, and it never counts as
+  a compromise.
+
+**Details learned from messages.** Not everything is on the card. Earlier messages can tell the player
+things they'll need later, or must keep to themselves: the manager's codeword for approving payments,
+the time the CEO's flight leaves, the room the board meets in, the name of a new supplier.
+- Authored as a quote in the message, like a red flag:
+  `details: [{ key: payment_codeword, label: "Payment codeword", quote: "BLUEBELL", sensitivity: secret,
+  red_use: "…" }]`. Values are fixed in the content for now. Generating them for each attempt (and
+  substituting them into the body) is left for later.
+- The player **saves a note** by highlighting words in a message (the same highlight as flagging, in a
+  "save to notes" mode, with the same keyboard and screen-reader route as flagging). The note becomes a
+  chip with the words as its label. Like flags, notes are taken from a message while it's still in the
+  inbox. The server matches the highlight against the authored details with
+  the red-flag coverage rules, privately: a note that matches nothing is just a note, and the page never
+  says whether a note "counts".
+- The importer checks a detail is in the inbox before any message that needs or wants it (as with
+  `answer_in`).
+- This builds on M6b's `answer_in`: a question can be answered by sharing a saved note, as well as by
+  picking a canned reply.
+
+**Sharing: chips, never typing**
+- **Every message the player can reply to** offers a **Send details** composer alongside its canned
+  replies: pick chips from the card and from saved notes, then send. Whether the composer appears depends
+  only on the channel (anything with replies has it), never on whether the message needs or wants
+  anything, so its presence gives nothing away. Portal and bait pages have labelled fields, each filled
+  by picking a chip.
+- Sharing **part** of what's asked is allowed and scores on its own merits: sending the staff number but
+  holding back the memorable word beats refusing everything.
+- Every reply set gains a **"Why do you need this?"** reply (outcome `ask_why`). Genuine askers answer
+  with a sensible reason or point to the proper channel ("It's for your payroll record; you can enter it
+  in the HR portal instead"); phishes push harder ("No time, the CEO needs it NOW"). The message stays
+  open, so the player can still decide. Asking costs the same as any reply.
+- No free-text field anywhere, so nobody can type a real password into the game. Rule 5 holds: the
+  server records which chips were shared with which message, never anything typed.
+- New moves: `share_details` (an `AttemptAction` with the detail keys and the message or page) and
+  `save_note`. Both are resources with a one-line `create`, like the other moves.
+
+**Sensitivity, channels and scoring** (hidden until the debrief, like `legit`):
+
+| Sensitivity | Examples | Who may have it, and how |
+|---|---|---|
+| `public` | Name, role, desk | Anyone: it's on the intranet |
+| `internal` | Staff number, extension, supplier name | Genuine colleagues and systems that need it, by reply or on a portal |
+| `secret` | Memorable word, codeword, travel times | Only the genuine system that needs it, **on its portal page**, or in person. Never in an email, text or chat reply |
+| `never` | MFA code | Nobody, ever, except the sign-in page that asked for it |
+
+- Genuine messages declare what they `need:`; phishes declare what they `want:`. Both stay on the server.
+  A genuine message can only `need:` a `secret` detail through its portal (`act`), never by reply. The
+  importer checks this, so the rule players learn ("secrets go into the system, never into a message")
+  is always true.
+- **What's asked for doesn't tell you who's asking.** Within a shift, every `internal` detail that a phish
+  wants is also needed by some genuine message, and the other way round, so "it asked for my staff number"
+  is never the giveaway. `secret` details are the deliberate exception: a *message* asking for one is
+  always a red flag, which is the lesson. The importer checks both rules.
+- **To a genuine message:** sharing everything it needs means done. Sharing nothing, or refusing, means
+  not done, as now. Sharing details it didn't need is **oversharing**: −5 per `internal`, −15 per `secret`.
+  Sharing a `secret` by reply, even with a genuine colleague, counts as oversharing it. Sharing a `never`
+  detail with anyone is a compromise.
+- **To a phish:** sharing anything above `public` is falling for it, costing −20 per `internal`, −50 per
+  `secret` or `never` detail, capped at the compromise cost per message. It counts as a compromise, so the
+  M6b rule applies: a compromised attempt gets at most 2 stars.
+- **Lazy play** gains three strategies. **Share everything with everyone** (every phish is a compromise)
+  and **share whatever's asked** (give each asker exactly what it requests, then archive it: the realistic
+  careless player) must stay below one star. **Share nothing** must earn fewer stars than careful play:
+  it only loses the jobs that needed details, so "below one star" would demand that nearly every genuine
+  message needs one.
+
+**MFA fatigue.** One phish in the milestone's content triggers a run of "Approve sign-in?" prompts on the
+in-game phone (ATT&CK T1621, multi-factor authentication request generation), each with Approve and Deny.
+Each prompt is a message with two canned replies; approving any of them is a compromise, and the right
+move is to deny and report. They arrive on a normal trigger, like any other message.
+
+**The debrief: "What Red now knows."** A panel listing every detail the player gave a phish, and what
+Red could do with it: "You gave away your staff number and memorable word. With those, Red could call
+the IT service desk as you and reset your password." Each genuine message says whether it got what it
+needed, and what was overshared. The panel links to the Red's Workshop target for the same company
+("See how Red builds this attack"), since both sides share the same fictional companies.
+
+**Never sent to the browser:** what a message needs or wants, sensitivities, which notes match a detail,
+which details exist in a message, or the outcome of "Why do you need this?" beyond its scripted answer.
+The persona's own values are the player's and are shown. The one exception is a page's own fields: a
+portal or lookalike page the player chose to open shows a labelled field for each detail it asks for,
+the same way for both.
+
+**Content.** Re-author the shifts so each has a genuine message that needs a card detail (HR's form
+needs your staff number) and a phish that wants one (the "IT" chat wants your staff number). Across the
+track, include:
+- a detail learned from a message that's needed later by a genuine portal and wanted by a phish (Priya
+  tells you the payment codeword; the supplier portal needs it; the fake supplier asks for it by email);
+- the MFA-fatigue run, in the phone shift.
+
+**Also update** CLAUDE.md (the new moves, and the secrets list) and the README's content guide.
+
+**Follow-up (M7b+, after this milestone):** a Red's Workshop "ask for details" card that targets a
+sensitivity level. It needs a new bot outcome (`leaked`) and its own balance tests, so it ships separately.
+
+**Done when:**
+- Unit tests cover persona generation (stable per attempt, different between attempts, stored), note
+  matching, sharing and its scoring (including partial sharing and secrets by reply), MFA use versus
+  sharing, "Why do you need this?", the three new lazy-play strategies and the importer rules.
+- System tests: start a shift and read the card and directory; save a note from a message and share it
+  with the genuine portal that needs it; give a detail to a phish and see it in "What Red now knows";
+  deny an MFA-fatigue prompt; and check that no needs, wants, sensitivities or note matches reach the page
+  mid-shift.
+
 ### M8 — Progression: XP, levels, streaks, badges
 - XpEvent (with `side`) on scored completion; update that side's XP and level and `xp_total` in one transaction.
 - Onboarding: "Which side do you want to try first?" Then a side switcher on the dashboard.
@@ -618,6 +751,11 @@ hints:
    - **Briefings move the story on, the same for everyone** ("after last week's invoice scare, Finance now
      calls every new supplier back"). The story never branches on how the player did: that would hint at
      their mistakes and break the "triggers never depend on being right" rule.
+   - **Leaked details used against you (parked).** Once M7b lets players give details away, a later
+     phish could use what they leaked ("Hi, staff #48213…") to look more convincing, as real attackers do.
+     Within a shift this would break "content never depends on being right": a sharp player could work
+     out that the earlier message was a phish. Across shifts it fits the one-attacker arc, but it makes the
+     story branch on how the player did. Revisit once the arc exists.
    - Smaller ideas from KC7: a recurring narrator for the Purple debrief, guest play without saved
      progress (for classrooms), and educator-hosted competitions (with item 6).
 5. **Kill chain board** (MITRE ATT&CK stages), **simulated company** with NPC staff, **seasons** where everyone swaps sides.
