@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -341,7 +341,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.check_constraint "blue_level >= 1 AND red_level >= 1", name: "users_levels_positive"
     t.check_constraint "blue_xp >= 0 AND red_xp >= 0", name: "users_xp_non_negative"
     t.check_constraint "current_streak >= 0 AND longest_streak >= current_streak", name: "users_streaks"
-    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "users_preferred_side"
+    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "users_preferred_side"
     t.check_constraint "xp_total = (blue_xp + red_xp)", name: "users_xp_total_is_the_sum"
   end
 
@@ -355,14 +355,15 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_130001) do
     t.datetime "occurred_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "relaxed", default: false, null: false
     t.index ["side", "occurred_at"], name: "index_xp_events_on_side_and_occurred_at"
     t.index ["source_type", "source_id"], name: "index_xp_events_on_source"
     t.index ["user_id", "occurred_at"], name: "index_xp_events_on_user_id_and_occurred_at"
     t.index ["user_id", "reason", "source_type", "source_id"], name: "index_xp_events_once_per_source", unique: true
     t.index ["user_id"], name: "index_xp_events_on_user_id"
     t.check_constraint "amount >= 0", name: "xp_events_amount_non_negative"
-    t.check_constraint "reason::text = ANY (ARRAY['shift_completed'::character varying, 'workshop_completed'::character varying, 'streak_bonus'::character varying, 'badge_awarded'::character varying]::text[])", name: "xp_events_reason"
-    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "xp_events_side"
+    t.check_constraint "reason::text = ANY (ARRAY['shift_completed'::character varying::text, 'workshop_completed'::character varying::text, 'streak_bonus'::character varying::text, 'badge_awarded'::character varying::text])", name: "xp_events_reason"
+    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "xp_events_side"
   end
 
   add_foreign_key "attempt_actions", "shift_attempts"

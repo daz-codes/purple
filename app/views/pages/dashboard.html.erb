@@ -43,6 +43,8 @@
           <%= link_to "Resume “#{@open_attempt.shift.title}”", @open_attempt, class: "btn-blue" %>
         <% elsif !blue && @draft_campaign %>
           <%= link_to "Resume your campaign at “#{@draft_campaign.target.title}”", @draft_campaign, class: "btn-red" %>
+        <% elsif (suggestion = blue ? @next_shift : @next_target) %>
+          <%= link_to "Next up: “#{suggestion.title}”", suggestion, class: blue ? "btn-blue" : "btn-red", data: { testid: "#{side}-suggestion" } %>
         <% else %>
           <%= link_to blue ? "Pick a shift" : "Pick a target", blue ? tracks_path : targets_path, class: blue ? "btn-blue" : "btn-red" %>
         <% end %>

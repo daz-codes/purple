@@ -13,6 +13,7 @@
     <ul class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
       <li><%= link_to "Shifts", tracks_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
       <li><%= link_to "Workshop", targets_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
+      <li><%= link_to "Leaderboard", leaderboard_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
       <% if authenticated? %>
         <li><%= link_to Current.user.display_name, account_path, class: "px-3 py-2 rounded-lg font-semibold hover:bg-surface-raised",
               aria: { label: "Your account (#{Current.user.display_name})" }, data: { testid: "current-user" } %></li>

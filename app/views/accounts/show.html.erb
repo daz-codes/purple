@@ -36,6 +36,13 @@
           </p>
         </div>
       </div>
+      <div class="flex items-start gap-3">
+        <%= form.check_box :leaderboard_opt_out, class: "mt-1 size-5 accent-purple-team" %>
+        <div>
+          <%= form.label :leaderboard_opt_out, "Keep me off the leaderboards", class: "font-semibold" %>
+          <p class="text-sm text-ink-muted">You'll still earn XP and badges, and your profile stays visible.</p>
+        </div>
+      </div>
       <%= form.submit "Save settings", class: "btn-primary" %>
     <% end %>
   </section>

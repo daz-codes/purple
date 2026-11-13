@@ -16,7 +16,13 @@ class Account::PreferencesControllerTest < ActionDispatch::IntegrationTest
     assert_not users(:one).reload.relaxed_mode?
   end
 
-  test "only the relaxed setting can be changed here" do
+  test "opting out of the leaderboards" do
+    patch account_preferences_path, params: { user: { leaderboard_opt_out: "1" } }
+
+    assert users(:one).reload.leaderboard_opt_out?
+  end
+
+  test "only the player's settings can be changed here" do
     patch account_preferences_path, params: { user: { relaxed_mode: "1", admin: "1" } }
 
     assert_not users(:one).reload.admin?
