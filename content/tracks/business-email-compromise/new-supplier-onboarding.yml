@@ -1,0 +1,143 @@
+slug: new-supplier-onboarding
+title: "A new supplier"
+kind: inbox
+difficulty: intermediate
+par_minutes: 10
+position: 2
+briefing: >
+  Larkhill has just signed up a new cleaning contractor, Brightwell Services. You're setting them
+  up as a supplier this week: their bank details, their first invoice, and the questions that come
+  with it. A new supplier is the perfect moment for Red, because nobody knows what normal looks like yet.
+learning_summary: >
+  New suppliers are a favourite target: nobody knows their real address or bank yet. Get bank
+  details only through the supplier's own portal, confirm them by phone on a number from the
+  contract, and treat any "please use this account instead" as fraud until it's proved otherwise.
+
+persona:
+  name: "Robin Ashby"
+  role: "Supplier set-up, Finance"
+  staff_prefix: LH
+  security_question: "Street you grew up on?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "Brightwell Services", team: "Supplier", contact: "0117 496 0754, from the signed contract" }
+  - { name: "Facilities", team: "Facilities", contact: "Ext 4300" }
+
+messages:
+  - key: supplier_setup
+    channel: email
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Larkhill Procurement"
+    from_address: "procurement@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Set up Brightwell Services as a supplier"
+    body_html: |
+      <p>Brightwell Services signed their contract yesterday. Please set them up in the supplier portal today.</p>
+      <p>Their bank details are already in the portal, checked by phone against the contract. Bank details are never accepted by email.</p>
+      <p><a href="https://suppliers.larkhill.example/new/brightwell">Set up Brightwell</a></p>
+    links:
+      - { match: "suppliers.larkhill.example", outcome: portal, action: "Approve Brightwell's supplier record" }
+    verify_result: "Procurement confirms Brightwell signed yesterday and needs setting up."
+
+  - key: fake_bank_details
+    channel: email
+    legit: false
+    imitates: supplier_setup
+    wants: [staff_number]
+    techniques: [lookalike_domain, payment_change_pretext, malicious_link, credential_harvest]
+    from_name: "Brightwell Services"
+    from_address: "accounts@brightwell-services.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Our bank details for your records"
+    body_html: |
+      <p>Welcome aboard! Please use the bank details on the attached page for all payments to us, not the ones in your portal.</p>
+      <p><a href="https://brightwell-services.example.net/larkhill/bank">See our bank details</a></p>
+    links:
+      - { match: "brightwell-services.example.net", outcome: bait_landing }
+    verify_result: "Brightwell (on the contract number): \"We didn't send that. Our details are the ones in your portal.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Unverified sender domain",
+          explanation: "You've never had an email from Brightwell before, and this domain isn't in the contract." }
+      - { key: not_portal, quote: "not the ones in your portal", points: 15, label: "Overrides the checked bank details",
+          explanation: "The portal's details were checked by phone. Anyone asking you to ignore them is after the money.",
+          contradicts: { message: supplier_setup, quote: "Bank details are never accepted by email." } }
+
+  - key: cleaning_schedule
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill Facilities"
+    from_address: "facilities@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "New cleaners start Monday"
+    body_html: |
+      <p>Brightwell Services start cleaning the office from Monday, every weekday evening after 6pm.</p>
+      <p>Please clear your desk before you go home.</p>
+    verify_result: "Facilities confirms the new cleaning contract."
+
+  - key: priya_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Brightwell start date"
+    body_html: |
+      <p>When do Brightwell actually start? I need it for the budget forecast. Reply when you can.</p>
+    answer_in: { message: cleaning_schedule, quote: "from Monday" }
+    replies:
+      - { text: "They start on Monday, weekday evenings after 6pm.", outcome: safe, response: "Thanks, that's what I needed." }
+      - { text: "Not until next month, I think.", outcome: poor, response: "Really? Facilities said soon. I'll ask them." }
+    verify_result: "Priya is your team lead."
+
+  - key: fake_first_invoice
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [display_name_spoof, malicious_attachment, malware_download]
+    from_name: "Brightwell Services"
+    from_address: "brightwell.invoices@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "Invoice 0001: first month's cleaning"
+    body_html: |
+      <p>Please find attached our first invoice for this month's cleaning.</p>
+      <p>Payment is due on receipt.</p>
+    attachments:
+      - { name: "Brightwell_Invoice_0001.pdf.exe", type: "application/x-msdownload", size: "288 KB", outcome: malware }
+    verify_result: "Brightwell: \"We haven't invoiced you yet: we haven't started!\""
+    red_flags:
+      - { key: webmail, anchor: from, points: 10, label: "Free webmail address",
+          explanation: "A real supplier invoices from its own domain, not a free webmail account." }
+      - { key: disguised, anchor: a1, points: 15, label: "Disguised attachment",
+          explanation: "The file ends in .exe: it's a program pretending to be a PDF." }
+      - { key: too_soon, quote: "this month's cleaning", points: 5, label: "An invoice for work not done yet",
+          explanation: "Brightwell only start on Monday, so there's nothing to invoice." }
+
+  - key: bank_chaser
+    channel: email
+    arrives: { after: fake_bank_details }
+    legit: false
+    techniques: [lookalike_domain, payment_change_pretext, urgency_pretext]
+    from_name: "Brightwell Services"
+    from_address: "accounts@brightwell-services.example.net"
+    to_address: "you@larkhill.example"
+    subject: "RE: our bank details"
+    body_html: |
+      <p>Have you updated our bank details yet? Our first payment must go to the new account, or our staff won't be paid.</p>
+    verify_result: "Brightwell: \"Still not us. Please report it.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Same unverified domain",
+          explanation: "Still brightwell-services.example.net." }
+      - { key: guilt, quote: "or our staff won't be paid", points: 5, label: "Guilt and pressure",
+          explanation: "Making you feel responsible for someone's wages is a pressure tactic." }
+
+hints:
+  - { body: "Where did Larkhill say Brightwell's bank details come from?", penalty_percent: 20 }
+  - { body: "When do Brightwell start? Could they have invoiced you already?", penalty_percent: 20 }

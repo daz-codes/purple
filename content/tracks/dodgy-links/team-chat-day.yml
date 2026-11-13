@@ -1,0 +1,125 @@
+slug: team-chat-day
+title: "Team chat day"
+kind: messages
+difficulty: intermediate
+par_minutes: 9
+position: 4
+briefing: >
+  You're working from home and most of today happens in Workchat: your team, the IT bot, a
+  supplier you've never spoken to before. Chat feels friendly and informal, which is exactly why
+  Red likes it.
+learning_summary: >
+  Chat makes impostors feel like colleagues. Check who an account really is (internal or
+  external), keep requests for details to the proper systems, and remember that a casual tone
+  doesn't make a request safe.
+
+persona:
+  name: "Robin Ashby"
+  role: "Analyst, Finance, working from home"
+  staff_prefix: LH
+  security_question: "Name of your first manager?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }
+
+messages:
+  - key: laptop_check
+    channel: chat
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Larkhill IT Bot"
+    from_address: "it-bot@larkhill.example"
+    body_html: |
+      <p>Hi! Your home laptop needs its monthly health check. Run it from the IT portal with your staff number: <a href="https://itportal.larkhill.example/health">Run my health check</a>. The IT bot will never ask for your password.</p>
+    links:
+      - { match: "itportal.larkhill.example", outcome: portal, action: "Run my laptop health check" }
+    verify_result: "The service desk confirms the IT bot runs monthly checks."
+
+  - key: fake_it_bot
+    channel: chat
+    legit: false
+    imitates: laptop_check
+    wants: [staff_number]
+    techniques: [it_support_pretext, display_name_spoof, credential_harvest]
+    from_name: "Larkhill IT Support Bot"
+    from_address: "it.support.bot@freemail.test"
+    body_html: |
+      <p>Your laptop failed its health check. Re-enter your password and staff number here to fix it: <a href="https://larkhill-it-fix.example.net">larkhill-it-fix.example.net</a></p>
+    links:
+      - { match: "larkhill-it-fix.example.net", outcome: bait_landing }
+    verify_result: "The service desk: \"That's an external account, not our bot.\""
+    red_flags:
+      - { key: external, anchor: from, points: 10, label: "An external chat account",
+          explanation: "The real bot is it-bot@larkhill.example." }
+      - { key: password, quote: "Re-enter your password", points: 15, label: "Asks for your password",
+          explanation: "The real IT bot said it will never ask for your password.",
+          contradicts: { message: laptop_check, quote: "The IT bot will never ask for your password." } }
+
+  - key: standup_time
+    channel: chat
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    body_html: |
+      <p>Morning all! Stand-up is at 9:45 today instead of 9:30. No need to reply.</p>
+    verify_result: "Priya is your team lead."
+
+  - key: jamie_chat
+    channel: chat
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    urgent_within_minutes: 5
+    from_name: "Jamie Cole"
+    from_address: "jamie.cole@larkhill.example"
+    body_html: |
+      <p>What time's stand-up today? I missed Priya's message.</p>
+    answer_in: { message: standup_time, quote: "9:45" }
+    replies:
+      - { text: "9:45 today, not 9:30.", outcome: safe, response: "Thanks, see you there." }
+      - { text: "Usual time, 9:30.", outcome: poor, response: "Ah, everyone's late... it's 9:45 apparently!" }
+    verify_result: "Jamie is in your team."
+
+  - key: fake_hr_chat
+    channel: chat
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [display_name_spoof, payment_change_pretext, credential_harvest]
+    from_name: "HR Team"
+    from_address: "larkhill.hr@freemail.test"
+    body_html: |
+      <p>Hi, we're updating payroll records. Can you confirm your bank details using this form? <a href="https://hr-records.example.org/larkhill">hr-records.example.org/larkhill</a></p>
+    links:
+      - { match: "hr-records.example.org", outcome: bait_landing }
+    verify_result: "HR: \"We don't collect bank details in chat. You change them yourself on the HR portal.\""
+    red_flags:
+      - { key: external, anchor: from, points: 10, label: "An external chat account",
+          explanation: "HR's chat account is on larkhill.example." }
+      - { key: bank, quote: "confirm your bank details", points: 10, label: "Bank details over chat",
+          explanation: "HR never collects bank details in a chat." }
+
+  - key: it_bot_chaser
+    channel: chat
+    arrives: { after: fake_it_bot }
+    legit: false
+    techniques: [it_support_pretext, urgency_pretext]
+    from_name: "Larkhill IT Support Bot"
+    from_address: "it.support.bot@freemail.test"
+    body_html: |
+      <p>Your laptop will be locked in 15 minutes unless the fix is applied. Please do it now.</p>
+    verify_result: "The service desk: \"Still not us.\""
+    red_flags:
+      - { key: external, anchor: from, points: 10, label: "Same external account",
+          explanation: "Still not the real IT bot." }
+      - { key: locked, quote: "locked in 15 minutes", points: 5, label: "A threat to rush you",
+          explanation: "A countdown is there to stop you checking." }
+
+hints:
+  - { body: "What did the real IT bot say it would never ask for?", penalty_percent: 20 }
+  - { body: "Look at the account address under each name, not just the name.", penalty_percent: 20 }

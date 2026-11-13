@@ -1,0 +1,155 @@
+slug: your-first-five-minutes
+title: "Your first five minutes (tutorial)"
+kind: inbox
+difficulty: beginner
+par_minutes: 6
+position: 0
+briefing: >
+  A quick, gentle start. This inbox teaches you how to play: open each email and decide what it
+  needs. Reply when someone asks you something, use a link when there's a job to do (then archive),
+  archive what needs nothing, and report anything that's phishing. Flag the parts that give a phish
+  away for extra points. The shift ends when your inbox is empty, and the debrief tells you how you did.
+learning_summary: >
+  Every email gets a decision: reply, act, archive or report. Phishing copies the jobs you're
+  expecting, so compare it with the genuine message: who sent it, where its link really goes, and
+  whether the details match. Your staff number goes into Larkhill's own portals, never into a page a
+  stranger sent you.
+
+persona:
+  name: "Robin Ashby"
+  role: "Trainee, Finance"
+  staff_prefix: LH
+  security_question: "Name of your first pet?"
+directory:
+  - { name: "Morgan Lee", team: "Training", contact: "Ext 4105" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "Larkhill Social Club", team: "Social", contact: "The intranet events page" }
+
+messages:
+  - key: welcome
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Morgan Lee"
+    from_address: "morgan.lee@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Welcome! Start here"
+    body_html: |
+      <p>Welcome to your practice inbox. I'm Morgan, and I run training at Larkhill.</p>
+      <p>Your practice session is in the Willow Room at 3pm. Once you've read this, archive it: nothing else to do.</p>
+    verify_result: "Morgan from Training confirms she sent your welcome email."
+
+  - key: training_portal
+    channel: email
+    legit: true
+    expects: act
+    points: 30
+    needs: [staff_number]
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Register for your training account"
+    body_html: |
+      <p>Please register for your training account on the IT portal. It asks for your staff number, which is on your card.</p>
+      <p>We will only ever ask for it on itportal.larkhill.example.</p>
+      <p><a href="https://itportal.larkhill.example/training/register">Register on the IT portal</a></p>
+    links:
+      - { match: "itportal.larkhill.example", outcome: portal, action: "Register my training account" }
+    verify_result: "The IT service desk confirms every trainee registers this way."
+
+  - key: fake_registration
+    channel: email
+    legit: false
+    imitates: training_portal
+    wants: [staff_number]
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill-it.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Training account: register in the next 10 minutes"
+    body_html: |
+      <p>Your training account will be deleted unless you register in the next 10 minutes.</p>
+      <p>Enter your staff number here: <a href="https://larkhill-it.example.net/register">https://itportal.larkhill.example/training/register</a></p>
+    links:
+      - { match: "larkhill-it.example.net", outcome: bait_landing }
+    verify_result: "The IT service desk: \"That isn't us. Nothing gets deleted, and we only use itportal.larkhill.example.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "larkhill-it.example.net isn't larkhill.example. Read the part after the @ from right to left." }
+      - { key: deadline, quote: "in the next 10 minutes", points: 5, label: "Urgency or pressure",
+          explanation: "A ten-minute deadline is there to stop you checking." }
+      - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
+          explanation: "The text shows the real portal, but hover over it: it goes to larkhill-it.example.net.",
+          contradicts: { message: training_portal, quote: "We will only ever ask for it on itportal.larkhill.example." } }
+
+  - key: session_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Morgan Lee"
+    from_address: "morgan.lee@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Quick check"
+    body_html: |
+      <p>Quick check that you read my welcome email: which room is your practice session in? Just reply.</p>
+    answer_in: { message: welcome, quote: "Willow Room" }
+    replies:
+      - { text: "The Willow Room, at 3pm.", outcome: safe, response: "Perfect, see you there. You're getting the hang of this!" }
+      - { text: "The Oak Room, at 3pm.", outcome: poor, response: "Not quite: have another look at my first email." }
+    verify_result: "Morgan from Training confirms she's checking everyone read their welcome."
+
+  - key: prize_draw
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [display_name_spoof, malicious_link, credential_harvest]
+    from_name: "Larkhill Social Club"
+    from_address: "larkhill.social.club@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "You've won a £100 voucher!"
+    body_html: |
+      <p>Congratulations, you've been picked to win a £100 voucher as a new starter!</p>
+      <p>Sign in with your Larkhill account to claim it: <a href="https://larkhill-rewards.example.org/claim">Claim my voucher</a></p>
+    links:
+      - { match: "larkhill-rewards.example.org", outcome: bait_landing }
+    verify_result: "The social club: \"We don't run prize draws, and we'd never ask you to sign in.\""
+    red_flags:
+      - { key: webmail, anchor: from, points: 10, label: "Display name doesn't match the address",
+          explanation: "It says Larkhill Social Club, but it's a free webmail account." }
+      - { key: too_good, quote: "you've been picked to win a £100 voucher", points: 5, label: "Too good to be true",
+          explanation: "You didn't enter anything, so you can't have won anything." }
+      - { key: sign_in, quote: "Sign in with your Larkhill account", points: 5, label: "Asks you to sign in from a link",
+          explanation: "A prize never needs your work password." }
+
+  - key: registration_chaser
+    channel: email
+    arrives: { after: fake_registration }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext]
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill-it.example.net"
+    to_address: "you@larkhill.example"
+    subject: "FINAL NOTICE: training account"
+    body_html: |
+      <p>You still haven't registered. Your account will be deleted at the end of today.</p>
+      <p>Reply with your staff number and we'll register you ourselves.</p>
+    wants: [staff_number]
+    replies:
+      - { text: "Here it is.", outcome: compromise, response: "Thanks, you're all registered." }
+      - { text: "I'll register on the IT portal myself.", outcome: safe, response: "That won't work in time. Just send the number." }
+      - { text: "Why do you need my staff number by email?", outcome: ask_why,
+          response: "It's quicker this way. Please send it now." }
+    verify_result: "The IT service desk: \"Still not us. Report it.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Same lookalike domain",
+          explanation: "Still larkhill-it.example.net, chasing you." }
+      - { key: by_email, quote: "Reply with your staff number", points: 10, label: "Asks for a detail by email",
+          explanation: "IT only asks for your staff number on its own portal.",
+          contradicts: { message: training_portal, quote: "We will only ever ask for it on itportal.larkhill.example." } }
+
+hints:
+  - { body: "Two emails ask you to register. Compare the address after the @ sign in each.", penalty_percent: 10 }
+  - { body: "Morgan's question is answered in her first email.", penalty_percent: 10 }

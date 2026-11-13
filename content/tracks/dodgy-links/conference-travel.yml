@@ -1,0 +1,129 @@
+slug: conference-travel
+title: "Conference trip"
+kind: messages
+difficulty: beginner
+par_minutes: 8
+position: 2
+briefing: >
+  You're travelling to a finance conference in Kestrel Bay, phone in hand, between trains and
+  check-ins. Travel texts arrive all day, and so do fake ones. Red knows a traveller in a hurry
+  taps whatever says "your booking".
+learning_summary: >
+  Travel brings genuine texts from people you don't normally hear from, which is exactly what
+  scammers copy. Check the sender, compare details with the booking you already have, and do
+  anything important in the travel company's own app or site, not from a link in a text.
+
+persona:
+  name: "Robin Ashby"
+  role: "Analyst, Finance, travelling"
+  staff_prefix: LH
+  security_question: "Name of your favourite holiday town?"
+directory:
+  - { name: "Larkhill travel desk", team: "Travel", contact: "Ext 4350, or the travel portal" }
+  - { name: "Jamie Cole", team: "Finance", contact: "Ext 4215" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400" }
+
+messages:
+  - key: hotel_checkin
+    channel: sms
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Larkhill Travel"
+    from_address: "LarkTravel"
+    body_html: |
+      <p>Larkhill Travel: your room at the Quayside Hotel, Kestrel Bay, is booked for 2 nights. Check in online with your staff number: <a href="https://travel.larkhill.example/checkin/88">travel.larkhill.example/checkin/88</a>. We never ask for card details by text.</p>
+    links:
+      - { match: "travel.larkhill.example", outcome: portal, action: "Check in to the Quayside Hotel" }
+    verify_result: "The travel desk confirms your hotel booking."
+
+  - key: fake_booking
+    channel: sms
+    legit: false
+    imitates: hotel_checkin
+    wants: [staff_number]
+    techniques: [smishing, urgency_pretext, credential_harvest]
+    from_name: "07700 900372"
+    from_address: "07700 900372"
+    body_html: |
+      <p>Your hotel booking will be cancelled in 2 hours unless you confirm your card details: <a href="https://hotel-confirm.example.net/k">hotel-confirm.example.net/k</a></p>
+    links:
+      - { match: "hotel-confirm.example.net", outcome: bait_landing }
+    verify_result: "The travel desk: \"Your booking is fine. We'd never text you for card details.\""
+    red_flags:
+      - { key: number, anchor: from, points: 10, label: "Sent from a personal mobile number",
+          explanation: "Larkhill Travel texts as LarkTravel, not from a random number." }
+      - { key: card, quote: "confirm your card details", points: 15, label: "Asks for card details by text",
+          explanation: "The real travel text said they never ask for card details by text.",
+          contradicts: { message: hotel_checkin, quote: "We never ask for card details by text." } }
+      - { key: deadline, quote: "cancelled in 2 hours", points: 5, label: "Urgency or pressure",
+          explanation: "The deadline is there to rush you." }
+
+  - key: train_platform
+    channel: sms
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill Travel"
+    from_address: "LarkTravel"
+    body_html: |
+      <p>Larkhill Travel: your 08:12 train to Kestrel Bay leaves from platform 4. No need to reply.</p>
+    verify_result: "The travel desk confirms your train."
+
+  - key: jamie_text
+    channel: sms
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    urgent_within_minutes: 5
+    from_name: "Jamie (Finance)"
+    from_address: "07700 900215"
+    body_html: |
+      <p>Morning! Which platform is our train from? I'm running for it.</p>
+    answer_in: { message: train_platform, quote: "platform 4" }
+    replies:
+      - { text: "Platform 4, the 08:12. See you on board!", outcome: safe, response: "Made it! Thanks." }
+      - { text: "Platform 2, I think.", outcome: poor, response: "Not there... found it on the board, it's 4!" }
+    verify_result: "Jamie is in your contacts."
+
+  - key: wifi_chat
+    channel: chat
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [it_support_pretext, credential_harvest]
+    from_name: "Conference Wi-Fi"
+    from_address: "conference.wifi@freemail.test"
+    body_html: |
+      <p>Welcome to the conference! To use the free Wi-Fi, sign in with your work email and password here: <a href="https://kestrel-wifi.example.org/login">kestrel-wifi.example.org/login</a></p>
+    links:
+      - { match: "kestrel-wifi.example.org", outcome: bait_landing }
+    verify_result: "The conference Wi-Fi has a printed code at reception. It never asks for your work password."
+    red_flags:
+      - { key: external, anchor: from, points: 10, label: "An external chat account",
+          explanation: "A free webmail account messaging you in Workchat isn't the conference." }
+      - { key: work_password, quote: "sign in with your work email and password", points: 15, label: "Wants your work password",
+          explanation: "Public Wi-Fi never needs your work password." }
+
+  - key: booking_chaser
+    channel: sms
+    arrives: { after: fake_booking }
+    legit: false
+    techniques: [smishing, urgency_pretext]
+    from_name: "07700 900388"
+    from_address: "07700 900388"
+    body_html: |
+      <p>FINAL NOTICE: your room is being released NOW. Confirm at <a href="https://hotel-confirm.example.net/final">hotel-confirm.example.net/final</a></p>
+    links:
+      - { match: "hotel-confirm.example.net", outcome: bait_landing }
+    verify_result: "The travel desk: \"Still fine. Report it.\""
+    red_flags:
+      - { key: number, anchor: from, points: 10, label: "Another random number",
+          explanation: "Scammers rotate numbers." }
+      - { key: now, quote: "your room is being released NOW", points: 5, label: "Escalating pressure",
+          explanation: "Shouting and a tighter deadline are signs of a scam." }
+
+hints:
+  - { body: "What did Larkhill Travel's own text say it never asks for?", penalty_percent: 20 }
+  - { body: "Jamie's question is answered in a text you've already got.", penalty_percent: 20 }

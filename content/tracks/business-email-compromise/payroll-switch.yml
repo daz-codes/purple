@@ -1,0 +1,144 @@
+slug: payroll-switch
+title: "Payroll day"
+kind: inbox
+difficulty: intermediate
+par_minutes: 10
+position: 3
+briefing: >
+  You're covering payroll this week. Salaries go out on Friday, so today is the last day for any
+  changes. A colleague emails to say they've changed banks. Red knows that one quiet change to a
+  salary's destination is all it takes.
+learning_summary: >
+  Payroll diversion is simple: someone pretending to be a colleague asks for their salary to go
+  to a new account. Bank changes only happen through the HR portal, by the person themselves, and
+  are confirmed on a number you already hold. A friendly email from a personal address isn't proof
+  of anything.
+
+persona:
+  name: "Robin Ashby"
+  role: "Payroll assistant, People team"
+  staff_prefix: LH
+  security_question: "Name of your childhood best friend?"
+directory:
+  - { name: "Sam Okafor", team: "Operations", contact: "Ext 4610" }
+  - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }
+  - { name: "Priya Shah", team: "Finance", contact: "Ext 4210" }
+
+messages:
+  - key: payroll_run
+    channel: email
+    legit: true
+    expects: act
+    points: 40
+    urgent_within_minutes: 15
+    needs: [staff_number]
+    from_name: "Larkhill HR"
+    from_address: "hr@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Please approve this month's payroll"
+    body_html: |
+      <p>This month's payroll is ready for approval on the HR portal. 214 people are being paid this month.</p>
+      <p>Staff change their bank details themselves on the HR portal. We never change them because of an email.</p>
+      <p><a href="https://hr.larkhill.example/payroll/approve">Review and approve payroll</a></p>
+    links:
+      - { match: "hr.larkhill.example", outcome: portal, action: "Approve payroll for 214 people" }
+    verify_result: "HR confirms payroll is waiting for your approval."
+
+  - key: fake_bank_change
+    channel: email
+    legit: false
+    wants: [staff_number]
+    techniques: [display_name_spoof, payment_change_pretext, malicious_link, credential_harvest]
+    from_name: "Sam Okafor"
+    from_address: "sam.okafor.home@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "New bank for my salary"
+    body_html: |
+      <p>Hi, I've switched banks. Can you change my salary to my new account before Friday? I'm locked out of the HR portal.</p>
+      <p>I've put the details here: <a href="https://my-bank-details.example.org/sam">My new bank details</a></p>
+    links:
+      - { match: "my-bank-details.example.org", outcome: bait_landing }
+    verify_result: "Sam (on Ext 4610): \"I haven't changed banks. That isn't me.\""
+    red_flags:
+      - { key: personal, anchor: from, points: 10, label: "Personal address, not Sam's work one",
+          explanation: "Sam's work address is on larkhill.example. Anyone can make a webmail account in his name." }
+      - { key: by_email, quote: "change my salary to my new account", points: 15, label: "A bank change by email",
+          explanation: "HR never changes bank details because of an email.",
+          contradicts: { message: payroll_run, quote: "We never change them because of an email." } }
+      - { key: locked_out, quote: "I'm locked out of the HR portal", points: 5, label: "An excuse to skip the process",
+          explanation: "The excuse is there to get you to bypass the one safe route." }
+
+  - key: payroll_dates
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill HR"
+    from_address: "hr@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "Pay day this month"
+    body_html: |
+      <p>Salaries will reach your account on Friday the 26th.</p>
+      <p>No action needed.</p>
+    verify_result: "HR confirms the pay date."
+
+  - key: sam_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Sam Okafor"
+    from_address: "sam.okafor@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Pay day?"
+    body_html: |
+      <p>Silly question, but which day do we get paid this month? I've got a big bill coming. Reply if you know.</p>
+    answer_in: { message: payroll_dates, quote: "Friday the 26th" }
+    replies:
+      - { text: "Friday the 26th.", outcome: safe, response: "Phew, thanks!" }
+      - { text: "Monday the 29th, I think.", outcome: poor, response: "Oh no, really? I'll check with HR." }
+    verify_result: "Sam is in Operations, and this is his work address."
+
+  - key: fake_payslip
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [it_support_pretext, malicious_link, credential_harvest]
+    from_name: "Payslips"
+    from_address: "payslips@larkhill-pay.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Your payslip is ready"
+    body_html: |
+      <p>Your payslip is ready to view. Sign in to see it.</p>
+      <p><a href="https://larkhill-pay.example.net/payslip">View my payslip</a></p>
+    links:
+      - { match: "larkhill-pay.example.net", outcome: bait_landing }
+    verify_result: "HR: \"Payslips are on the HR portal. We don't email links to them.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike domain",
+          explanation: "larkhill-pay.example.net isn't larkhill.example." }
+      - { key: too_early, quote: "Your payslip is ready to view", points: 5, label: "Before payroll has even run",
+          explanation: "You haven't approved payroll yet, so there can't be a payslip." }
+
+  - key: bank_change_chaser
+    channel: email
+    arrives: { after: fake_bank_change }
+    legit: false
+    techniques: [display_name_spoof, urgency_pretext]
+    from_name: "Sam Okafor"
+    from_address: "sam.okafor.home@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "RE: New bank for my salary"
+    body_html: |
+      <p>Did you manage to change it? Please do it today, I really need this month's pay to go to the new account.</p>
+    verify_result: "Sam: \"Still not me!\""
+    red_flags:
+      - { key: personal, anchor: from, points: 10, label: "Still a personal address",
+          explanation: "Same webmail account, chasing you." }
+      - { key: pressure, quote: "Please do it today", points: 5, label: "Pressure",
+          explanation: "Real colleagues can wait for the proper process." }
+
+hints:
+  - { body: "How does HR say bank details are changed?", penalty_percent: 20 }
+  - { body: "Look at the address, not the name, on anything asking for money to move.", penalty_percent: 20 }

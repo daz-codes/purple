@@ -37,8 +37,8 @@ class Content::ImportTest < ActiveSupport::TestCase
       assert messages.any? { |message| message.phish? && message.wants.any? }, "#{shift.slug} needs a phish that wants a detail"
       assert shift.directory.any?, "#{shift.slug} needs a staff directory"
     end
-    assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
-    assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
+    assert_equal 10, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
+    assert_equal 5, Shift.where(slug: shipped_shift_slugs).kind_messages.count
     shipped = Message.joins(:shift).where(shifts: { slug: shipped_shift_slugs })
     assert shipped.any? { |message| message.details.any? }, "a shift needs a detail learned from a message"
     assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a shift needs an MFA-fatigue run"

@@ -1,0 +1,142 @@
+slug: audit-season
+title: "Audit season"
+kind: inbox
+difficulty: advanced
+par_minutes: 12
+position: 5
+briefing: >
+  The external auditors arrive next week, and they want documents from everyone. Requests for
+  account lists, statements and sign-offs are flying around. Red knows an "auditor" asking for
+  information never looks out of place in audit season.
+learning_summary: >
+  Auditors are real, but so are fake ones. Real audit requests come through the agreed audit
+  portal, from the firm's real domain, and are coordinated by your own finance team. Anyone who
+  wants data sent somewhere else, quickly and quietly, isn't auditing anything.
+
+persona:
+  name: "Robin Ashby"
+  role: "Senior accountant, Finance"
+  staff_prefix: LH
+  security_question: "Name of your primary school?"
+directory:
+  - { name: "Priya Shah", team: "Finance, audit coordinator", contact: "Ext 4210" }
+  - { name: "Calder & Wynn", team: "External auditors", contact: "0117 496 0911, from the audit letter" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+
+messages:
+  - key: audit_request
+    channel: email
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Audit: please upload the bank reconciliations"
+    body_html: |
+      <p>Calder &amp; Wynn need our bank reconciliations for the audit. Please upload them to the audit portal today.</p>
+      <p>All audit documents go through the audit portal, and nowhere else.</p>
+      <p><a href="https://audit.larkhill.example/requests/18">Upload to the audit portal</a></p>
+    links:
+      - { match: "audit.larkhill.example", outcome: portal, action: "Upload the bank reconciliations" }
+    verify_result: "Priya confirms she's coordinating the audit requests."
+
+  - key: fake_auditor
+    channel: email
+    legit: false
+    wants: [staff_number]
+    techniques: [lookalike_domain, authority_pretext, malicious_link, credential_harvest]
+    from_name: "Calder & Wynn Audit"
+    from_address: "audit@calderwynn-audit.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Urgent audit request: customer bank details"
+    body_html: |
+      <p>As part of the audit, please share the full list of customer bank details using our secure file share today.</p>
+      <p><a href="https://calderwynn-audit.example.net/share">Open the secure file share</a></p>
+    links:
+      - { match: "calderwynn-audit.example.net", outcome: bait_landing }
+    verify_result: "Calder & Wynn (audit letter number): \"We don't use a file share, and we'd never ask for that.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike auditor domain",
+          explanation: "The audit letter gives Calder & Wynn's real details. This isn't them." }
+      - { key: elsewhere, quote: "using our secure file share", points: 15, label: "Data sent outside the audit portal",
+          explanation: "Priya said everything goes through the audit portal.",
+          contradicts: { message: audit_request, quote: "All audit documents go through the audit portal, and nowhere else." } }
+      - { key: sensitive, quote: "the full list of customer bank details", points: 10, label: "Asks for far too much",
+          explanation: "Auditors sample records; they don't need every customer's bank details emailed out." }
+
+  - key: audit_timetable
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "finance-team@larkhill.example"
+    subject: "Audit timetable"
+    body_html: |
+      <p>The auditors are on site from Tuesday for two weeks, in Meeting Room 3.</p>
+      <p>Nothing to do: just so you know where they'll be.</p>
+    verify_result: "Priya confirms the audit timetable."
+
+  - key: jamie_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Jamie Cole"
+    from_address: "jamie.cole@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Auditors"
+    body_html: |
+      <p>When do the auditors arrive? I want to make sure my files are tidy. Reply when you get a moment.</p>
+    answer_in: { message: audit_timetable, quote: "from Tuesday" }
+    replies:
+      - { text: "They're on site from Tuesday, for two weeks.", outcome: safe, response: "Thanks, I've got until Monday then." }
+      - { text: "Not until next month.", outcome: poor, response: "Oh, I thought it was sooner. I'll check with Priya." }
+    verify_result: "Jamie is in Finance."
+
+  - key: fake_it_audit
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [it_support_pretext, mfa_fatigue, malicious_link, credential_harvest]
+    from_name: "Larkhill IT Security"
+    from_address: "it.security@larkhill-secure.example.org"
+    to_address: "you@larkhill.example"
+    subject: "Security audit: re-verify your account"
+    body_html: |
+      <p>As part of the audit, all finance accounts must be re-verified today. You'll get several sign-in prompts: approve them all.</p>
+      <p><a href="https://larkhill-secure.example.org/verify">Start re-verification</a></p>
+    links:
+      - { match: "larkhill-secure.example.org", outcome: bait_landing }
+    verify_result: "The IT service desk: \"There's no re-verification. Never approve a sign-in prompt you didn't start.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Not Larkhill's domain",
+          explanation: "larkhill-secure.example.org isn't larkhill.example." }
+      - { key: approve_all, quote: "approve them all", points: 15, label: "Asks you to approve sign-in prompts",
+          explanation: "Approving prompts you didn't start lets an attacker in. It's called MFA fatigue." }
+
+  - key: auditor_chaser
+    channel: email
+    arrives: { after: fake_auditor }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext]
+    from_name: "Calder & Wynn Audit"
+    from_address: "audit@calderwynn-audit.example.net"
+    to_address: "you@larkhill.example"
+    subject: "RE: audit request"
+    body_html: |
+      <p>We're still waiting for the customer list. Without it today, we'll have to note a finding against your team.</p>
+    verify_result: "Calder & Wynn: \"Not us. Report it.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Same lookalike domain",
+          explanation: "Still calderwynn-audit.example.net." }
+      - { key: threat, quote: "we'll have to note a finding against your team", points: 5, label: "A threat",
+          explanation: "Threatening your team's record is a pressure tactic." }
+
+hints:
+  - { body: "Where did Priya say all audit documents go?", penalty_percent: 20 }
+  - { body: "Would anyone genuine ask you to approve sign-in prompts you didn't start?", penalty_percent: 20 }

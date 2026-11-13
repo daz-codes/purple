@@ -1,0 +1,144 @@
+slug: it-migration-week
+title: "IT migration week"
+kind: inbox
+difficulty: intermediate
+par_minutes: 10
+position: 4
+briefing: >
+  Larkhill is moving everyone to a new email system this week. Genuine IT emails are everywhere,
+  asking you to do things, and that's exactly the cover Red needs. Sort the real migration steps
+  from the fakes riding on their coat-tails.
+learning_summary: >
+  During a real IT change, fake IT emails are hard to tell apart. Real instructions come from the
+  real address, point to the real portal and tell you what IT will never ask for. Hold them to
+  that: anything that asks for your password or a code by email is a fake, however busy the week is.
+
+persona:
+  name: "Robin Ashby"
+  role: "Analyst, Finance"
+  staff_prefix: LH
+  security_question: "Your favourite teacher's surname?"
+directory:
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "Dev Patel", team: "IT, migration lead", contact: "Ext 4412" }
+
+messages:
+  - key: migration_steps
+    channel: email
+    legit: true
+    expects: act
+    points: 30
+    needs: [staff_number]
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "Your mailbox moves on Wednesday: book your slot"
+    body_html: |
+      <p>Your mailbox moves to the new system on Wednesday. Please book a migration slot on the IT portal using your staff number.</p>
+      <p>We will never ask for your password, by email or anywhere else.</p>
+      <p><a href="https://itportal.larkhill.example/migration/book">Book my migration slot</a></p>
+    links:
+      - { match: "itportal.larkhill.example", outcome: portal, action: "Book Wednesday 2pm" }
+    verify_result: "The service desk confirms everyone needs to book a slot."
+
+  - key: fake_migration
+    channel: email
+    legit: false
+    imitates: migration_steps
+    wants: [staff_number]
+    techniques: [lookalike_domain, it_support_pretext, malicious_link, credential_harvest]
+    from_name: "Larkhill IT Migration"
+    from_address: "migration@larkhill-mail.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Action required: confirm your password before the move"
+    body_html: |
+      <p>To move your mailbox safely, confirm your current password and staff number on the migration page.</p>
+      <p>If you don't, your old emails will be lost.</p>
+      <p><a href="https://larkhill-mail.example.net/confirm">Confirm and keep my emails</a></p>
+    links:
+      - { match: "larkhill-mail.example.net", outcome: bait_landing }
+    verify_result: "Dev from IT: \"That's not ours. The migration never needs your password.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "larkhill-mail.example.net isn't larkhill.example." }
+      - { key: password, quote: "confirm your current password", points: 15, label: "Asks for your password",
+          explanation: "IT said in its own email that it will never ask for your password.",
+          contradicts: { message: migration_steps, quote: "We will never ask for your password, by email or anywhere else." } }
+      - { key: threat, quote: "your old emails will be lost", points: 5, label: "A threat to rush you",
+          explanation: "Fear of losing your emails is there to make you click." }
+
+  - key: what_moves
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Dev Patel"
+    from_address: "dev.patel@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "What moves, and what doesn't"
+    body_html: |
+      <p>Everything in your inbox moves automatically. Shared calendars move a day later, on Thursday.</p>
+      <p>Nothing for you to do here: this is just so you know.</p>
+    verify_result: "Dev is leading the migration for IT."
+
+  - key: priya_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Priya Shah"
+    from_address: "priya.shah@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Team calendar"
+    body_html: |
+      <p>When does our shared team calendar move over? I want to warn everyone. Reply when you know.</p>
+    answer_in: { message: what_moves, quote: "on Thursday" }
+    replies:
+      - { text: "Shared calendars move on Thursday, a day after our mailboxes.", outcome: safe, response: "Great, I'll let the team know." }
+      - { text: "Same day as the mailboxes, Wednesday.", outcome: poor, response: "Are you sure? I'll double-check with IT." }
+    verify_result: "Priya is your team lead."
+
+  - key: storage_full
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [display_name_spoof, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Mail Administrator"
+    from_address: "mail.admin@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "Mailbox storage 99% full"
+    body_html: |
+      <p>Your mailbox is 99% full and will stop receiving email today.</p>
+      <p>Click below to get 10GB of free storage: <a href="https://storage-upgrade.example.org/larkhill">Upgrade my storage</a></p>
+    links:
+      - { match: "storage-upgrade.example.org", outcome: bait_landing }
+    verify_result: "The service desk: \"Your mailbox is fine, and that's not one of ours.\""
+    red_flags:
+      - { key: webmail, anchor: from, points: 10, label: "Not a Larkhill address",
+          explanation: "\"Mail Administrator\" on a free webmail account isn't Larkhill IT." }
+      - { key: full, quote: "will stop receiving email today", points: 5, label: "Urgency or pressure",
+          explanation: "A full mailbox is a classic scare." }
+
+  - key: migration_chaser
+    channel: email
+    arrives: { after: fake_migration }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext]
+    from_name: "Larkhill IT Migration"
+    from_address: "migration@larkhill-mail.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Reminder: confirm before your move"
+    body_html: |
+      <p>Your migration is tomorrow and we still haven't had your confirmation. Please do it now so nothing is lost.</p>
+    verify_result: "Dev from IT: \"Same fake. Report it.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Same lookalike domain",
+          explanation: "Still larkhill-mail.example.net." }
+      - { key: wrong_day, quote: "Your migration is tomorrow", points: 5, label: "The date doesn't match",
+          explanation: "Your slot is on Wednesday, and you choose it yourself on the IT portal." }
+
+hints:
+  - { body: "What did IT's own email say it would never ask for?", penalty_percent: 20 }
+  - { body: "Priya's question is answered in an email you've already read.", penalty_percent: 20 }
