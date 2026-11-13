@@ -24,4 +24,16 @@ class ShiftAttempts::Tabs::PortalSubmissionsControllerTest < ActionDispatch::Int
 
     assert_response :unprocessable_content
   end
+
+  test "a portal that needs details has a field for each, filled by picking a chip, and only the chip's id is posted" do
+    messages(:real_invoice).update!(needs: %w[ staff_number ])
+    get shift_attempt_path(@attempt)
+    assert_select "dialog select[name='details[]'] option[value=staff_number]"
+    assert_select "dialog input[type=text]", count: 0
+
+    post shift_attempt_tab_portal_submission_path(@attempt), params: { details: [ "staff_number" ] }, as: :turbo_stream
+
+    assert_response :success
+    assert @attempt.reload.scorecard.message_result_for("real_invoice").done?
+  end
 end

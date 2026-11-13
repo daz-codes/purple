@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying::text, 'expand_headers'::character varying::text, 'verify_sender'::character varying::text, 'click_link'::character varying::text, 'close_landing'::character varying::text, 'submit_credentials'::character varying::text, 'open_attachment'::character varying::text, 'run_download'::character varying::text, 'use_portal'::character varying::text, 'report_message'::character varying::text, 'archive_message'::character varying::text, 'flag_element'::character varying::text, 'send_reply'::character varying::text, 'use_hint'::character varying::text, 'clock_off'::character varying::text])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying::text, 'expand_headers'::character varying::text, 'verify_sender'::character varying::text, 'click_link'::character varying::text, 'close_landing'::character varying::text, 'submit_credentials'::character varying::text, 'open_attachment'::character varying::text, 'run_download'::character varying::text, 'use_portal'::character varying::text, 'report_message'::character varying::text, 'archive_message'::character varying::text, 'flag_element'::character varying::text, 'send_reply'::character varying::text, 'use_hint'::character varying::text, 'clock_off'::character varying::text, 'save_note'::character varying::text, 'share_details'::character varying::text, 'ask_why'::character varying::text])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -115,6 +115,10 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
     t.integer "urgent_within_minutes"
     t.string "answer_in_key"
     t.text "answer_in_quote"
+    t.jsonb "needs", default: [], null: false
+    t.jsonb "wants", default: [], null: false
+    t.jsonb "details", default: [], null: false
+    t.text "share_response"
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
     t.check_constraint "(answer_in_key IS NULL) = (answer_in_quote IS NULL)", name: "messages_answer_in_complete"
@@ -203,6 +207,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
     t.datetime "updated_at", null: false
     t.integer "penalty_seconds", default: 0, null: false
     t.boolean "relaxed", default: false, null: false
+    t.jsonb "persona_details", default: {}, null: false
     t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
     t.index ["token"], name: "index_shift_attempts_on_token", unique: true
     t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"
@@ -230,6 +235,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "par_minutes", default: 10, null: false
+    t.jsonb "persona", default: {}, null: false
+    t.jsonb "directory", default: [], null: false
     t.index ["slug"], name: "index_shifts_on_slug", unique: true
     t.index ["track_id"], name: "index_shifts_on_track_id"
     t.check_constraint "author_side::text = 'red'::text", name: "shifts_author_side"

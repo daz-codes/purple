@@ -80,6 +80,17 @@ class ShiftAttempt::Tab
     name.include?(".") ? name : "document.zip"
   end
 
+  # The details the page asks for, as labelled fields each filled by picking a chip: what a genuine
+  # portal needs, or what a lookalike page wants. Only shown on the page the player chose to open.
+  def fields
+    keys = case landing
+    when "portal" then message.needs
+    when "credential_harvest" then message.wants
+    else []
+    end
+    keys.filter_map { |key| message.shift.detail(key) }
+  end
+
   # The button on a portal page.
   def portal_action
     link&.portal_action if landing == "portal"

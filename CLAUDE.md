@@ -57,14 +57,17 @@ Rails connects over the default socket, so that doesn't matter for the app.
 ## Game rules that must never be broken
 
 - **The server is the single source of truth.** Every game action (open message, expand headers,
-  verify, click link, use a portal, submit credentials, reply, flag, report, archive, use hint, clock
-  off) is a POST that the server records as an `AttemptAction`, stamped with the attempt's elapsed time
+  verify, click link, use a portal, submit credentials, reply, ask why, flag, save a note, share details,
+  report, archive, use hint, clock off) is a POST that the server records as an `AttemptAction`, stamped with the attempt's elapsed time
   (real time plus penalties, measured only on the server). The client never computes the score, the
   time, what arrives next or the outcome.
 - **Never send hidden answers to the browser** before the debrief: no `legit` flags, what a message
   expects or is worth, arrival triggers, red flags or their quotes, which earlier message a red flag
-  contradicts or a question's answer was in, link, attachment or reply outcomes,
-  or technique tags in HTML, data attributes, JSON or Turbo Streams. System tests assert this.
+  contradicts or a question's answer was in, link, attachment or reply outcomes, what a message
+  needs or wants, detail sensitivities, which details a message holds or whether a note matches one,
+  or technique tags in HTML, data attributes, JSON or Turbo Streams. System tests assert this. (A page
+  the player opened shows a field for each detail it asks for, the same way on genuine and lookalike
+  pages.)
 - The browser refers to messages only by `ShiftAttempt#message_ref`, an opaque HMAC of the attempt
   token and message key that's stable across content re-imports and different in every attempt, never
   by their authored `key` (`fake_invoice` would give the answer away). Nothing on the play screen says
@@ -87,7 +90,9 @@ Rails connects over the default socket, so that doesn't matter for the app.
 4. **Fiction only:** reserved domains (`example.com`, `.example`, `.test`, `.invalid`) and invented
    companies. The importer rejects any other URL. No real brands.
 5. Mock login pages never collect anything: the server records only *that* a password was submitted,
-   never what was typed. Placeholder: "Never enter a real password".
+   never what was typed. Placeholder: "Never enter a real password". Private details (M7b) are shared
+   only by picking chips of the player's generated persona values and saved notes, posted as chip ids:
+   there is no free-text field anywhere in play.
 6. Strict CSP with per-request nonces and `frame-ancestors 'none'`
    (`config/initializers/content_security_policy.rb`), `force_ssl`, secure cookies.
 7. Rails 8 `rate_limit` on sessions, registrations, password resets and game actions.

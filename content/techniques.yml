@@ -150,6 +150,16 @@ techniques:
     stealth: 4
     red_flag_label: Asks you to download or open a file
 
+  - key: mfa_fatigue
+    name: MFA fatigue
+    attack_id: T1621
+    category: payload
+    description: With your password already stolen, the attacker sets off sign-in prompt after prompt, hoping you'll press Approve just to make them stop.
+    defence_tip: Never approve a sign-in you didn't start. Deny it, report it, and change your password, because someone already has it.
+    red_cost: 3
+    stealth: 4
+    red_flag_label: A sign-in you didn't start
+
   - key: mfa_code_theft
     name: One-time code theft
     attack_id: T1111

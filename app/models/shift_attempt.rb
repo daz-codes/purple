@@ -1,10 +1,12 @@
 # A player's run through a shift. Created on the server with a random token. The player acts on it
-# through the methods its concerns add: read, expand_headers, verify_sender, flag, send_reply, visit,
-# open_attachment, close_tab, use_portal, submit_credentials, run_download, report, archive, use_hint
-# and clock_off. Each one is logged as an AttemptAction with the time it was made.
+# through the methods its concerns add: read, expand_headers, verify_sender, flag, save_note, send_reply
+# (including asking why), share_details, visit, open_attachment, close_tab, use_portal,
+# submit_credentials, run_download, report, archive, use_hint and clock_off. Each one is logged as an AttemptAction with the time it was made.
 #
 # The shift ends when every message has been dealt with (reported or archived), when the player clocks
 # off early, or when it's left open too long.
+#
+# Each attempt has its own persona (ShiftAttempt::Identified): the private details the player works with.
 #
 # Everything here describes what the player can already see. Nothing answers whether a message is
 # phishing, or what it needed, until the shift is over and scored.
@@ -13,8 +15,8 @@ class ShiftAttempt < ApplicationRecord
   # so on. The message is shown to the player.
   class Rejected < StandardError; end
 
-  include Timed, Logged, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Replyable, Hintable,
-    Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
+  include Timed, Logged, Identified, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Notable, Replyable,
+    Sharing, Hintable, Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
 
   enum :status, { open: "open", completed: "completed", clocked_off: "clocked_off", timed_out: "timed_out" }, validate: true
 

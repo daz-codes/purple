@@ -14,7 +14,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   SHIFT_SECRETS = %w[
     legit outcome expects arrives_after bait_landing credential_harvest malware harmless file_preview
     real_invoice fake_invoice newsletter supplier_thanks sam_text it_chat lookalike_domain T1583 lookalike
-    pay_today code_request compromise
+    pay_today code_request compromise sensitivity ask_why canteen_menu
   ].freeze
 
   private

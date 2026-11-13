@@ -1,26 +1,37 @@
 <%# An email's canned replies, as a reply box under the message. Only each reply's text is shown;
-    once one is sent, what came back. %>
+    once one is sent, what came back. "Why do you need this?" isn't the reply: its answer shows here and
+    the other replies stay. %>
 <% reply = attempt.sent_reply(message) %>
-<% if reply %>
-  <div class="mx-5 mb-5 space-y-2 rounded-lg border border-line p-4 text-sm" data-testid="email-reply">
-    <p><span class="font-semibold">You replied:</span> <span data-testid="sent-reply"><%= reply["text"] %></span></p>
-    <% if reply["response"] %>
-      <p><span class="font-semibold"><%= message.from_name %>:</span> <span data-testid="reply-response"><%= reply["response"] %></span></p>
+<% why = attempt.why_answer(message) %>
+<% if reply || why || message.replies.any? %>
+  <div class="mx-5 mb-5 space-y-3 rounded-lg border border-line p-4 text-sm" data-testid="email-reply">
+    <% if why %>
+      <p><span class="font-semibold">You asked:</span> <%= why["text"] %></p>
+      <p><span class="font-semibold"><%= message.from_name %>:</span> <span data-testid="why-answer"><%= why["response"] %></span></p>
     <% end %>
-    <% if reply["check"] %>
-      <p class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-3 py-2" data-testid="reply-check">
-        <span class="font-semibold">You checked with someone you already trust.</span> <%= reply["check"] %>
-      </p>
-    <% end %>
-  </div>
-<% elsif message.replies.any? %>
-  <div class="mx-5 mb-5 rounded-lg border border-line p-4" role="group" aria-label="Reply with">
-    <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">Reply with</p>
-    <div class="mt-2 flex flex-wrap gap-2">
-      <% message.visible_replies.each do |option| %>
-        <%= shift_action_button option["text"], shift_attempt_message_reply_path(attempt, ref), params: { reply: option["id"] },
-              class: "rounded-lg border border-blue-team px-3 py-1.5 text-left text-sm text-blue-team cursor-pointer hover:bg-blue-team-soft" %>
+
+    <% if reply %>
+      <p><span class="font-semibold">You replied:</span> <span data-testid="sent-reply"><%= reply["text"] %></span></p>
+      <% if reply["response"] %>
+        <p><span class="font-semibold"><%= message.from_name %>:</span> <span data-testid="reply-response"><%= reply["response"] %></span></p>
       <% end %>
-    </div>
+      <% if reply["check"] %>
+        <p class="rounded-lg border border-purple-team/60 bg-purple-team-soft px-3 py-2" data-testid="reply-check">
+          <span class="font-semibold">You checked with someone you already trust.</span> <%= reply["check"] %>
+        </p>
+      <% end %>
+    <% elsif message.replies.any? %>
+      <div role="group" aria-label="Reply with">
+        <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">Reply with</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <% reply_options(attempt, message).each do |option| %>
+            <%= shift_action_button option["text"], shift_attempt_message_reply_path(attempt, ref), params: { reply: option["id"] },
+                  class: "rounded-lg border border-blue-team px-3 py-1.5 text-left text-sm text-blue-team cursor-pointer hover:bg-blue-team-soft" %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <%= render "shift_attempts/reader/details", attempt:, message:, ref: %>
   </div>
 <% end %>

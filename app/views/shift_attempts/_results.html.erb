@@ -34,6 +34,10 @@
           <%= debrief_points(ShiftAttempt::Scorecard::NEAR_MISS) %> per close call,
           <%= debrief_points(ShiftAttempt::Scorecard::COMPROMISED) %> each time you fell for one.
           Each red flag you spot earns its points, and each wrong flag costs <%= ShiftAttempt::Scorecard::FALSE_FLAG.abs %>.
+          <% if shift.asks_for_details? %>
+            Details: <%= debrief_points(Shift::Detail::OVERSHARE_POINTS["internal"]) %> or <%= debrief_points(Shift::Detail::OVERSHARE_POINTS["secret"]) %>
+            for each one a genuine message didn't need, and up to <%= debrief_points(ShiftAttempt::Scorecard::COMPROMISED) %> for giving a phish anything.
+          <% end %>
         </dd>
       </div>
       <div class="rounded-xl border border-line p-4">
@@ -64,6 +68,26 @@
       <p class="mt-4 text-sm text-ink-muted">Three stars need a shift where you don't fall for anything.</p>
     <% end %>
   </section>
+
+  <% if shift.asks_for_details? %>
+    <% red_knows = debrief_red_knows(scorecard, shift) %>
+    <section class="card <%= red_knows.any? ? "border-red-team/60" : "border-safe/60" %>" aria-labelledby="red-knows-heading" data-testid="red-knows">
+      <h2 id="red-knows-heading" class="text-xl font-bold">What Red now knows</h2>
+      <% if red_knows.any? %>
+        <p class="mt-1 text-sm text-ink-muted">Everything you handed to a phish, and what an attacker could do with it.</p>
+        <ul class="mt-3 space-y-2">
+          <% red_knows.each do |line| %>
+            <li>🕵️ <%= line %></li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="mt-2">Nothing. You didn't give a phish anything it could use.</p>
+      <% end %>
+      <% if (target = Target.published.find_by(shift:)) %>
+        <p class="mt-4 text-sm"><%= link_to "See how Red builds this attack in the Workshop", target, class: "text-red-team underline" %></p>
+      <% end %>
+    </section>
+  <% end %>
 
   <section aria-labelledby="messages-heading">
     <h2 id="messages-heading" class="text-xl font-bold">Message by message</h2>

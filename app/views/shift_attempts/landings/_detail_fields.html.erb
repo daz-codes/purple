@@ -1,0 +1,13 @@
+<%# The details a page asks for, each filled by picking one of the player's chips. There's no text box:
+    only the chip's id is posted. A genuine portal and a lookalike page render these the same way. %>
+<% chips = attempt.chips %>
+<% tab.fields.each_with_index do |field, index| %>
+  <label class="block text-sm font-medium"><%= field.label %>
+    <select name="details[]" class="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2" data-testid="page-field">
+      <option value="">Choose from your details…</option>
+      <% chips.each do |chip| %>
+        <option value="<%= chip.id %>"><%= chip.label %>: <%= chip.value %></option>
+      <% end %>
+    </select>
+  </label>
+<% end %>

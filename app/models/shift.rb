@@ -21,4 +21,18 @@ class Shift < ApplicationRecord
   def to_param
     slug
   end
+
+  # Every private detail in play: the persona card's, then those learned from messages (Shift::Detail).
+  def details
+    Shift::Detail::CARD + messages.flat_map(&:learned_details)
+  end
+
+  def detail(key)
+    details.find { |detail| detail.key == key.to_s }
+  end
+
+  # Whether any message needs or wants a detail, so the details rules apply.
+  def asks_for_details?
+    messages.any? { |message| message.needs.any? || message.wants.any? }
+  end
 end

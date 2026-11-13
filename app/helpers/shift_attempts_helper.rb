@@ -5,6 +5,12 @@ module ShiftAttemptsHelper
     button_to label, path, params:, class: options.fetch(:class, "btn-ghost"), form: { class: "contents" }
   end
 
+  # The replies the player can still pick: "Why do you need this?" only until it's been asked.
+  def reply_options(attempt, message)
+    asked = attempt.asked_why?(message) && message.ask_why_reply
+    message.visible_replies.reject { |option| asked && option["id"] == asked["id"] }
+  end
+
   # The partials for the list of messages and the open message: an email client for an inbox shift,
   # a phone for a message shift. Their outer ids are the same, so every move's Turbo Stream works for both.
   PANE_PARTIALS = {
@@ -70,5 +76,10 @@ module ShiftAttemptsHelper
   # ranges. Never anything about red flags.
   def flags_json(flags)
     flags.map(&:to_result).to_json
+  end
+
+  # The player's notes on a message, as highlight ranges only: never whether they match a detail.
+  def notes_json(notes)
+    notes.map { |note| { anchor: note.anchor, from: note.from, to: note.to } }.to_json
   end
 end

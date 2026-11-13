@@ -10,9 +10,11 @@ module ShiftAttempt::Compromisable
 
   COMPROMISING_KINDS = %w[ submit_credentials run_download ].freeze
 
-  def submit_credentials
+  # details: chips picked for any other fields the page asks for (a memorable word, a staff number).
+  def submit_credentials(details: [])
     acting_on do
       tab = current_tab_showing!("credential_harvest", "There's no sign-in page open.")
+      share_on_page(tab, details)
       record :submit_credentials, message: tab.message, result: tab.source
     end
   end

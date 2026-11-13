@@ -58,11 +58,17 @@ class Badge::Rulebook
     end
 
     # Three bait pages or downloads closed before entering anything, across all the player's shifts.
+    # Only attempts where a link or attachment was opened can have one, and counting stops at three.
     def three_near_misses?
       return false unless attempt
 
-      @user.shift_attempts.finished.includes(:shift, :attempt_actions).sum { |finished| finished.scorecard.messages.sum { |result| result.near_misses.size } } >=
-        NEAR_MISSES_FOR_NINJA
+      opened = AttemptAction.where(kind: ShiftAttempt::Browsing::TAB_OPENERS).select(:shift_attempt_id)
+      count = 0
+      @user.shift_attempts.finished.where(id: opened).includes(:shift, :attempt_actions).find_each do |finished|
+        count += finished.scorecard.messages.sum { |result| result.near_misses.size }
+        return true if count >= NEAR_MISSES_FOR_NINJA
+      end
+      false
     end
 
     def seven_day_streak?

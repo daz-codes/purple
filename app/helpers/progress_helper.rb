@@ -9,6 +9,7 @@ module ProgressHelper
 
   def xp_note(source)
     return "Confirm your email address to earn XP." unless Current.user.earns_xp?
+    return "This shift was left open until it closed, so it doesn't earn XP." if source.is_a?(ShiftAttempt) && source.timed_out?
     return "This replay doesn't earn XP: only your first finished attempt does." if xp_earned_by(source).none? { |_, words| words != "first play today" }
 
     nil

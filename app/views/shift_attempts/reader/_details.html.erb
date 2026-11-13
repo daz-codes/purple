@@ -1,0 +1,36 @@
+<%# The "Send details" box. It sits with the replies on every message that has them, whatever the
+    message asks for, so its being here gives nothing away. Details are picked as chips (card details,
+    the MFA code once it has appeared, saved notes): there's no text box. Shared by the email reader and
+    the phone. %>
+<% if message.replies.any? %>
+  <% chips = attempt.chips %>
+  <div class="space-y-2" data-testid="details-box">
+    <% attempt.shared_with(message).each do |share| %>
+      <p class="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-blue-team px-4 py-2 text-sm text-surface" data-testid="sent-details">
+        <span class="font-semibold">You sent:</span>
+        <%= share["shared"].map { |shared| "#{shared["label"]}: #{shared["value"]}" }.join(" · ") %>
+      </p>
+      <p class="max-w-[85%] rounded-2xl rounded-bl-sm bg-surface-raised px-4 py-2 text-sm" data-testid="details-response"><%= share["response"] %></p>
+    <% end %>
+
+    <details class="rounded-lg border border-line p-3">
+      <summary class="cursor-pointer text-sm font-semibold text-blue-team">Send details</summary>
+      <%= form_with url: shift_attempt_message_details_share_path(attempt, ref), class: "mt-2 space-y-2" do %>
+        <fieldset>
+          <legend class="text-xs text-ink-muted">Pick what to send. You can send some and hold back the rest.</legend>
+          <ul class="mt-2 flex flex-wrap gap-2">
+            <% chips.each do |chip| %>
+              <li>
+                <label class="flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-1 text-sm has-checked:border-blue-team has-checked:bg-blue-team-soft">
+                  <input type="checkbox" name="chips[]" value="<%= chip.id %>" class="accent-blue-team">
+                  <span><span class="font-semibold"><%= chip.label %>:</span> <%= chip.value %></span>
+                </label>
+              </li>
+            <% end %>
+          </ul>
+        </fieldset>
+        <button type="submit" class="btn-blue">Send details</button>
+      <% end %>
+    </details>
+  </div>
+<% end %>
