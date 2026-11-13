@@ -17,6 +17,17 @@ Rails.application.routes.draw do
     resource :preferences, only: :update
   end
 
+  # Red: the Workshop's targets, and the campaigns that attack them. Each move is its own resource.
+  resources :targets, path: "workshop", only: %i[ index show ] do
+    resources :campaigns, only: :create, controller: "red_campaigns"
+  end
+  resources :red_campaigns, path: "campaigns", param: :token, only: :show do
+    scope module: :red_campaigns do
+      resources :choices, param: :option_id, only: %i[ create destroy ]
+      resource :launch, only: :create
+    end
+  end
+
   # Blue: tracks of shifts, and the attempts that play them.
   resources :tracks, only: %i[ index show ]
   resources :shifts, only: :show do
