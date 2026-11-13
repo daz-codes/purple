@@ -59,6 +59,14 @@ download compromises you (`ShiftAttempt::Compromisable`), but nothing says so un
 submitted sign-in page shows the same plain confirmation a real portal does. The lookalike page's
 fields have no names, so nothing typed is ever sent.
 
+Each attempt gives you a persona (`ShiftAttempt::Identified`): a staff number, extension, memorable word
+and security answer generated for that attempt, plus a staff directory and an authenticator that shows
+an MFA code once a sign-in page asks for one. Some genuine jobs need these details and some phishes want
+them. You hand them over by picking chips, never by typing: in a message's "Send details" box, or in the
+fields of a portal or lookalike page (`ShiftAttempt::Sharing`). You can save words from a message as a
+note to share later (`ShiftAttempt::Notable`), and ask "Why do you need this?" before deciding. The
+debrief scores what you shared by its sensitivity and ends with "What Red now knows".
+
 ## Red's Workshop
 
 Pick a target at `/workshop`: one of Blue's fictional companies, with a recon brief and a budget. Build
@@ -119,7 +127,18 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
   on exactly the same trigger, so the player has to choose between them rather than spot a late
   duplicate.
 - Optional `replies:` (2 to 4, each `text`, `outcome`: `safe`, `poor` (genuine only), `compromise`
-  (phishing only) or `verify`, and an optional `response`).
+  (phishing only), `verify` or `ask_why` ("Why do you need this?", which needs a `response`), and an
+  optional `response`).
+- **Who the player is** (per shift): `persona: { name, role, staff_prefix: LH, security_question }` (the
+  question is answered with a name) and a `directory:` of `{ name, team, contact }`, where contact is an
+  extension or a portal, never an email address.
+- **Private details:** a genuine message can say what it `needs: [staff_number]` and a phish what it
+  `wants:`. Card details are `name`, `role` (public), `staff_number`, `extension` (internal),
+  `memorable_word`, `security_answer` (secret) and `mfa_code` (never). A message can also hold details to
+  learn, quoted like a red flag: `details: [{ key: payment_codeword, label: "Payment codeword", quote:
+  "BLUEBELL", sensitivity: secret, red_use: "approve fake invoices as you" }]`. A genuine `act` message
+  asks for its needs in fields on its portal page; a lookalike page asks for what its phish wants.
+  Optional `share_response:` is what comes back when details are sent (the same default otherwise).
 - **Read it, you'll need it later.** Facts set up early should pay off later, so the player has to
   read everything:
   - A red flag can say which genuine message it contradicts:
@@ -161,9 +180,14 @@ The importer enforces these rules:
   dealing with everything that arrives must eventually bring the rest (no loops).
 - **If a genuine message has a follow-up, so does at least one phish** (the attacker chasing), so a
   follow-up never shows which message was genuine.
+- **Private details stay honest:** every detail asked for exists; a learned detail is always in the
+  inbox before anything asks for it; secrets and the MFA code are only ever needed on a portal page
+  (`expects: act`), never by reply; a message that asks for details by reply offers exactly one `ask_why`
+  reply; and every `internal` detail a phish wants is needed by a genuine message, and the other way round.
 - **Lazy play never pays:** reporting everything, archiving everything, clocking off at once, and
   flagging every sentence then reporting everything must each score below one star
-  (`Shift::LazyPlay`).
+  (`Shift::LazyPlay`). In a shift that asks for details, so must sharing everything with everyone and
+  sharing whatever's asked, and sharing nothing must earn fewer stars than careful play.
 - Every shift has at least one phishing message.
 
 ## Deployment

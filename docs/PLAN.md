@@ -498,8 +498,9 @@ do they need this?" rather than "never share".
   player can check with, and how: "IT service desk: ext 4400, or the IT portal"). Both are keyboard and
   screen-reader reachable, and on the phone layout too. Looking things up is part of the job, and the
   directory is how a player checks a request through a known channel.
-- **The MFA code is live:** a code appears on the in-game phone when a real sign-in happens (using a
-  portal that asks for it), and a phish may ask for it moments later. Typing it into the genuine sign-in
+- **The MFA code is live:** a code appears on the authenticator in the persona panel when a page that
+  asks for it is opened. That includes a lookalike page, which relays the sign-in as attackers' kits do, so
+  a code arriving says nothing about the page. A phish may ask for it moments later. Typing it into the genuine sign-in
   page that asked for it is **using** it, not sharing it: that's the genuine task, and it never counts as
   a compromise.
 
@@ -507,11 +508,13 @@ do they need this?" rather than "never share".
 things they'll need later, or must keep to themselves: the manager's codeword for approving payments,
 the time the CEO's flight leaves, the room the board meets in, the name of a new supplier.
 - Authored as a quote in the message, like a red flag:
-  `details: [{ key: wire_codeword, quote: "BLUEBELL", sensitivity: secret }]`. A detail's value can be
-  fixed, or generated for each attempt (`value: word`), and is substituted into the body.
+  `details: [{ key: payment_codeword, label: "Payment codeword", quote: "BLUEBELL", sensitivity: secret,
+  red_use: "…" }]`. Values are fixed in the content for now. Generating them for each attempt (and
+  substituting them into the body) is left for later.
 - The player **saves a note** by highlighting words in a message (the same highlight as flagging, in a
   "save to notes" mode, with the same keyboard and screen-reader route as flagging). The note becomes a
-  chip with the words as its label. The server matches the highlight against the authored details with
+  chip with the words as its label. Like flags, notes are taken from a message while it's still in the
+  inbox. The server matches the highlight against the authored details with
   the red-flag coverage rules, privately: a note that matches nothing is just a note, and the page never
   says whether a note "counts".
 - The importer checks a detail is in the inbox before any message that needs or wants it (as with
@@ -549,7 +552,7 @@ the time the CEO's flight leaves, the room the board meets in, the name of a new
   A genuine message can only `need:` a `secret` detail through its portal (`act`), never by reply. The
   importer checks this, so the rule players learn ("secrets go into the system, never into a message")
   is always true.
-- **What's asked for doesn't tell you who's asking.** Within a track, every `internal` detail that a phish
+- **What's asked for doesn't tell you who's asking.** Within a shift, every `internal` detail that a phish
   wants is also needed by some genuine message, and the other way round, so "it asked for my staff number"
   is never the giveaway. `secret` details are the deliberate exception: a *message* asking for one is
   always a red flag, which is the lesson. The importer checks both rules.
@@ -560,10 +563,11 @@ the time the CEO's flight leaves, the room the board meets in, the name of a new
 - **To a phish:** sharing anything above `public` is falling for it, costing −20 per `internal`, −50 per
   `secret` or `never` detail, capped at the compromise cost per message. It counts as a compromise, so the
   M6b rule applies: a compromised attempt gets at most 2 stars.
-- **Lazy play** gains three strategies that must stay below one star: **share nothing** (genuine jobs
-  aren't done), **share everything with everyone** (every phish is a compromise), and **share whatever's
-  asked** (give each asker exactly what it requests, the realistic careless player and the one most likely
-  to slip through these numbers).
+- **Lazy play** gains three strategies. **Share everything with everyone** (every phish is a compromise)
+  and **share whatever's asked** (give each asker exactly what it requests, then archive it: the realistic
+  careless player) must stay below one star. **Share nothing** must earn fewer stars than careful play:
+  it only loses the jobs that needed details, so "below one star" would demand that nearly every genuine
+  message needs one.
 
 **MFA fatigue.** One phish in the milestone's content triggers a run of "Approve sign-in?" prompts on the
 in-game phone (ATT&CK T1621, multi-factor authentication request generation), each with Approve and Deny.
@@ -578,15 +582,16 @@ needed, and what was overshared. The panel links to the Red's Workshop target fo
 
 **Never sent to the browser:** what a message needs or wants, sensitivities, which notes match a detail,
 which details exist in a message, or the outcome of "Why do you need this?" beyond its scripted answer.
-The persona's own values are the player's and are shown.
+The persona's own values are the player's and are shown. The one exception is a page's own fields: a
+portal or lookalike page the player chose to open shows a labelled field for each detail it asks for,
+the same way for both.
 
-**Content.** Re-author the shifts so each has:
-- a genuine message that needs a card detail (HR's form needs your staff number);
-- a phish that wants a card detail (the "IT" chat wants your memorable word or MFA code);
-- a detail learned from a message that's needed later by a genuine portal, and wanted by a phish
-  (Priya tells you the payment codeword; the payments portal needs it; a fake "Priya" asks you to confirm
-  it by chat);
-- and, in one shift, the MFA-fatigue run.
+**Content.** Re-author the shifts so each has a genuine message that needs a card detail (HR's form
+needs your staff number) and a phish that wants one (the "IT" chat wants your staff number). Across the
+track, include:
+- a detail learned from a message that's needed later by a genuine portal and wanted by a phish (Priya
+  tells you the payment codeword; the supplier portal needs it; the fake supplier asks for it by email);
+- the MFA-fatigue run, in the phone shift.
 
 **Also update** CLAUDE.md (the new moves, and the secrets list) and the README's content guide.
 

@@ -112,6 +112,54 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_import_error "not an email address"
   end
 
+  test "private details: needs, wants and learned details are stored with the message" do
+    real, canteen, fake = @shift["messages"]
+    real["needs"] = %w[ staff_number soup ]
+    canteen["details"] = [ { "key" => "soup", "label" => "Soup of the day", "quote" => "Soup of the day", "sensitivity" => "internal",
+                             "red_use" => "sound like an insider" } ]
+    fake["wants"] = %w[ staff_number soup ]
+    import!
+
+    shift = Shift.find_by!(slug: "month-end")
+    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "real_invoice").needs
+    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "fake_invoice").wants
+    soup = shift.detail("soup")
+    assert_equal [ "internal", "p1", 0, 15, "canteen_news" ], [ soup.sensitivity, soup.anchor, soup.quote_start, soup.quote_end, soup.message_key ]
+  end
+
+  test "private details rules" do
+    real, canteen, fake = @shift["messages"]
+    reply_options = [ { "text" => "OK", "outcome" => "safe" }, { "text" => "Why?", "outcome" => "ask_why", "response" => "Because." } ]
+    cases = [
+      [ "needs on a phish", -> { fake["needs"] = %w[ staff_number ] }, /needs isn't allowed here/ ],
+      [ "wants on a genuine message", -> { real["wants"] = %w[ staff_number ] }, /wants isn't allowed here/ ],
+      [ "an unknown detail", -> { real["needs"] = %w[ shoe_size ] }, /unknown detail "shoe_size"/ ],
+      [ "a learned detail with a card key", -> { canteen["details"] = [ { "key" => "staff_number", "label" => "X", "quote" => "Soup", "sensitivity" => "internal" } ] },
+        /is a persona card detail/ ],
+      [ "a secret needed by reply", -> {
+        canteen.merge!("expects" => "reply", "needs" => %w[ memorable_word ], "replies" => reply_options)
+      }, /can only be needed on a portal page/ ],
+      [ "a message that asks by reply without an ask_why reply", -> {
+        canteen.merge!("expects" => "reply", "needs" => %w[ extension ], "replies" => reply_options.first(1) + [ { "text" => "Fine", "outcome" => "safe" } ])
+        fake["wants"] = %w[ extension ]
+      }, /exactly one "Why do you need this\?" reply/ ],
+      [ "an ask_why reply on a message that asks for nothing", -> { canteen["replies"] = reply_options }, /only a message that asks for details/ ],
+      [ "an internal detail needed but never wanted", -> { real["needs"] = %w[ staff_number ] }, /needed by genuine messages only: staff_number/ ],
+      [ "a learned detail asked for before it arrives", -> {
+        fake["details"] = [ { "key" => "pay", "label" => "Pay", "quote" => "Please pay today", "sensitivity" => "secret" } ]
+        real["needs"] = %w[ pay ]
+      }, /could arrive before fake_invoice/ ]
+    ]
+
+    cases.each do |description, mutate, expected|
+      @shift = valid_shift
+      real, canteen, fake = @shift["messages"]
+      instance_exec(&mutate)
+      error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
+      assert_match expected, error.message, "wrong error for #{description}"
+    end
+  end
+
   test "arrivals: after a count, or after another message, with phishes following up too" do
     @shift["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
     @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
