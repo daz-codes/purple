@@ -26,7 +26,7 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     Shift.where(slug: shipped_shift_slugs).each do |shift|
       messages = shift.messages.includes(:red_flags)
-      assert_includes 5..9, messages.size, "#{shift.slug} should have 5-9 messages"
+      assert_includes 5..10, messages.size, "#{shift.slug} should have 5-10 messages"
       assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
       assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
       assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
@@ -103,6 +103,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     @shift["messages"].last["arrives"] = { "after" => "canteen_news" }
     @shift["messages"][2]["red_flags"].last.delete("contradicts")
     @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser_two", "arrives" => { "after" => "fake_chaser" })
     assert_nothing_raised { import! }
 
     with_story(@shift = valid_shift)
@@ -271,12 +272,20 @@ class Content::ImportTest < ActiveSupport::TestCase
                                            /imitates "fake_invoice", which isn't a genuine message/ ],
       "a genuine message imitating something" => [ ->(s) { s["messages"].first["imitates"] = "canteen_news" },
                                                    /only phishing messages can imitate another message/ ],
+      "more genuine follow-ups than phish ones" => [
+        ->(s) {
+          s["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
+          s["messages"] << newsletter.merge("key" => "newsletter_two", "arrives" => { "after" => "canteen_news" })
+          s["messages"] << s["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+        },
+        /2 genuine messages have follow-up .* but only 1 phish does/ ],
       "a genuine follow-up with no phish follow-up" => [ ->(s) { s["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" }) },
-                                                         /genuine messages have follow-ups .*, so at least one phish needs one too/ ],
+                                                         /1 genuine message has a follow-up .* but no phish does/ ],
       "a quote across two sentences" => [ ->(s) { s["messages"].last["red_flags"].last["quote"] = "today. Our bank" },
                                           /quote "today. Our bank" crosses from one sentence into the next/ ],
-      "lazy play that pays" => [ ->(s) { s["messages"].delete_at(1); s["messages"].first["points"] = 5 },
-                                 /lazy play scores too well: report everything scores \d+ of 65 \(1 star\)/ ],
+      "lazy play that pays" => [
+        ->(s) { s["messages"].delete_at(1); s["messages"].first["points"] = 5; s["messages"] << s["messages"].last.deep_dup.merge("key" => "fake_two") },
+        /lazy play scores too well: report everything scores \d+ of 125 \(1 star\)/ ],
       "a link no rule matches" => [ ->(s) { s["messages"].first["links"].first["match"] = "nowhere.example" },
                                     /link l1 \(.*\) matches 0 link rules/ ],
       "a rule matching no link" => [ ->(s) { s["messages"].first["links"] << { "match" => "nowhere.example", "outcome" => "harmless" } },

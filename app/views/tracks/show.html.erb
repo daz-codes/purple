@@ -20,7 +20,7 @@
           <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="shift-progress">
             <span class="rounded-full border px-2 py-0.5 font-semibold <%= debrief_tone_classes(best.completed? ? :good : :warn) %>"><%= debrief_status(best) %></span>
             <span class="text-lg"><%= debrief_stars(scorecard.stars) %></span>
-            <span>Best score <strong><%= scorecard.total %></strong> <span class="text-ink-muted">out of <%= scorecard.total_max %></span></span>
+            <span>Best score <strong><%= scorecard.total %></strong> <span class="text-ink-muted">out of <%= scorecard.best_possible %></span></span>
             <%= link_to "See debrief", best, class: "text-purple-team underline" %>
           </p>
         <% end %>

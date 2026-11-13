@@ -56,7 +56,7 @@ class Shift::LazyPlay
 
       moves = case message.expects
       when "act" then [ action("use_portal", message) ]
-      when "reply" then [ action("send_reply", message, result: message.replies.find { |reply| reply["outcome"] == "safe" }) ]
+      when "reply" then [ action("send_reply", message, result: message.replies.find { |reply| reply["outcome"].in?(%w[ safe verify ]) }) ]
       else []
       end
       moves + [ action("archive_message", message) ]

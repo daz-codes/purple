@@ -474,11 +474,12 @@ module Content
       # If a genuine message has a follow-up, so must a phish (the attacker chasing: "Did you get my
       # invoice?"). Otherwise "something arrived after I dealt with that" would mean it was genuine.
       def check_phishes_have_follow_ups_too
-        return unless @messages.any? { |message| message.legit? && message.arrives_after }
-        return if @messages.any? { |message| message.phish? && message.arrives_after }
+        genuine, phish = @messages.select(&:arrives_after).partition(&:legit?).map(&:size)
+        return if phish >= genuine
 
-        @node.error!("genuine messages have follow-ups (arrives: { after: … }), so at least one phish needs one too, " \
-                     "or a follow-up would show which message was genuine")
+        @node.error!("#{genuine} #{"genuine message".pluralize(genuine)} #{genuine == 1 ? "has a" : "have"} follow-up (arrives: { after: … }) but " \
+                     "#{phish.zero? ? "no phish does" : "only #{phish} phish #{phish == 1 ? "does" : "do"}"}: phishes need at least as many, " \
+                     "or a follow-up would hint that a message was genuine")
       end
 
       # Lazy play must never pay: reporting everything, archiving everything, clocking off at once, and

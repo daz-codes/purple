@@ -156,6 +156,25 @@ messages:
       - { key: returned_today, quote: "returned to sender today", points: 5, label: "Urgency or pressure",
           explanation: "The threat of losing the parcel is there to rush you." }
 
+  - key: it_chat_chaser
+    channel: chat
+    arrives: { after: fake_it_chat }
+    legit: false
+    techniques: [it_support_pretext, urgency_pretext, mfa_code_theft]
+    from_name: "IT Support (Larkhill)"
+    from_address: "it.support.larkhill@freemail.test"
+    body_html: |
+      <p>Hello?? We still need that code. Your account will be suspended in 5 minutes if we don't get it.</p>
+    replies:
+      - { text: "OK, here it is: 731 204", outcome: compromise, response: "Thank you. All sorted now." }
+      - { text: "I've told you, I'm not sharing a code.", outcome: safe, response: "Your manager will hear about this." }
+    verify_result: "The IT service desk: \"Still not us. Report it, and don't reply.\""
+    red_flags:
+      - { key: external_account, anchor: from, points: 10, label: "Still an external chat account",
+          explanation: "The same free webmail account, now chasing you. Real IT doesn't nag for codes." }
+      - { key: suspended, quote: "suspended in 5 minutes", points: 5, label: "Escalating pressure",
+          explanation: "A shorter, scarier deadline is a sign of a scam, not a reason to give in." }
+
   - key: sam_followup
     channel: sms
     arrives: { after: laptop_ready }

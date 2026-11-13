@@ -109,6 +109,18 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal 0, scorecard(*careful_play, elapsed: 0, cleared: true, relaxed: true).speed_bonus
   end
 
+  test "stars ignore the speed bonus, and the score is shown out of the best possible including it" do
+    # Approve the invoice and archive the newsletter only, very fast: 50 of 105 from messages, so one
+    # star; with the bonus counted it would be two.
+    card = scorecard(action("use_portal", "real_invoice"), archive("newsletter"), archive("real_invoice"),
+      archive("fake_invoice"), archive("supplier_thanks"), elapsed: 0, cleared: true)
+
+    assert_operator card.total, :>=, 105 * 0.6
+    assert_equal 1, card.stars
+    assert_equal 105 + 40, card.best_possible
+    assert_equal 105, scorecard(relaxed: true).best_possible
+  end
+
   test "the speed bonus is scaled by the share of messages handled as expected" do
     rushed = scorecard(archive("newsletter"), archive("real_invoice"), archive("fake_invoice"), archive("supplier_thanks"),
       elapsed: 0, cleared: true)
@@ -132,11 +144,14 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert perfect.perfect?
     assert_equal [ 105, 3 ], [ perfect.total, perfect.stars ]
 
-    # Everything right but the sign-in, plus the full speed bonus: 95, over 90%, but capped at two stars.
+    # Everything right but the sign-in: 55 of 105 from the messages (the speed bonus doesn't count).
     compromised = scorecard(*careful_play, action("click_link", "fake_invoice", result: { "link" => "l1" }),
       action("submit_credentials", "fake_invoice", result: { "link" => "l1" }), elapsed: 0, cleared: true)
     assert compromised.compromised?
-    assert_equal 95, compromised.total
+    assert_equal 1, compromised.stars
+
+    # However well the rest went, a compromise caps it at two stars.
+    compromised.define_singleton_method(:total) { 105 }
     assert_equal 2, compromised.stars
   end
 
