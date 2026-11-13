@@ -1,5 +1,5 @@
 # The end of a shift. It ends by itself once every message has been dealt with (the inbox is empty and
-# nothing more is coming), when the player gives up, or when it's left open too long. Anything not
+# nothing more is coming), when the player clocks off early, or when it's left open too long. Anything not
 # dealt with by then counts as ignored. Finishing scores the attempt from its log.
 module ShiftAttempt::Finishable
   extend ActiveSupport::Concern
@@ -24,10 +24,10 @@ module ShiftAttempt::Finishable
     !open?
   end
 
-  def give_up
+  def clock_off
     acting_on do
-      record :give_up
-      finish :gave_up
+      record :clock_off
+      finish :clocked_off
     end
   end
 

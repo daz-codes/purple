@@ -10,7 +10,7 @@
     <p class="text-sm text-ink-muted" data-testid="inbox-count">
       <%= pluralize(attempt.inbox_messages.size, attempt.shift.kind_inbox? ? "email" : "message") %> to deal with
     </p>
-    <%= button_to "Give up", shift_attempt_give_up_path(attempt), class: "btn-ghost",
-          form: { data: { turbo_confirm: "Give up this shift? Anything you haven't dealt with counts as ignored." } } %>
+    <%= button_to "Clock off early", shift_attempt_clock_off_path(attempt), class: "btn-ghost",
+          form: { data: { turbo_confirm: "Clock off early? Anything you haven't dealt with counts as ignored." } } %>
   </div>
 </header>

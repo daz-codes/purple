@@ -108,9 +108,9 @@ class DebriefsHelperTest < ActionView::TestCase
 
   test "how the shift ended" do
     attempt = ShiftAttempt.start(user: users(:one), shift: @shift)
-    attempt.give_up
+    attempt.clock_off
 
-    assert_match(/\AYou gave up after \d+ s\./, debrief_ending(attempt, attempt.scorecard))
+    assert_match(/\AYou clocked off after \d+ s\./, debrief_ending(attempt, attempt.scorecard))
   end
 
   test "points and durations read naturally" do

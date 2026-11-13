@@ -46,7 +46,7 @@ class ShiftFlagsAndHintsTest < ApplicationSystemTestCase
     end
 
     within("#shift_reader") { click_on "Report phishing" }
-    accept_confirm { click_on "Give up" }
+    accept_confirm { click_on "Clock off early" }
 
     assert_selector "[data-testid=debrief-hints]", text: "Hints: −21"
     phish = all("[data-testid=debrief-message]").find { |card| card.has_text?("URGENT invoice") }

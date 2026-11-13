@@ -33,7 +33,8 @@ class RedFlagTest < ActiveSupport::TestCase
     quote = red_flags(:pay_today) # "Please pay today" is 0...16 of "Please pay today. Our bank details have changed."
 
     assert quote.found_by?(flag("p1", 0, 16))
-    assert quote.found_by?(flag("p1", 7, 16)), "\"pay today\" covers 9 of 16 characters"
+    assert quote.found_by?(flag("p1", 3, 16)), "\"ase pay today\" covers 13 of 16 characters"
+    assert_not quote.found_by?(flag("p1", 7, 16)), "\"pay today\" covers 9 of 16 characters: under 60%"
     assert quote.found_by?(flag("p1", 0, 17)), "the sentence"
     assert_not quote.found_by?(flag("p1", 11, 16)), "\"today\" alone is too little"
     assert_not quote.found_by?(flag("p1", 18, 48)), "the wrong sentence"

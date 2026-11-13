@@ -13,7 +13,7 @@ class RelaxedModeTest < ApplicationSystemTestCase
     click_on "Start shift"
     assert_selector "#shift_status", text: /relaxed mode/i
 
-    accept_confirm { click_on "Give up" }
+    accept_confirm { click_on "Clock off early" }
     assert_selector "[data-testid=speed-bonus]", text: "0"
     assert_text "Not timed: you played in relaxed mode."
   end

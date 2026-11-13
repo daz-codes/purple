@@ -20,10 +20,10 @@ class ShiftDebriefTest < ApplicationSystemTestCase
     within("#shift_reader") { click_on "Report phishing" }
     within("#shift_inbox") { assert_text "Reported (1)" }
 
-    accept_confirm { click_on "Give up" }
+    accept_confirm { click_on "Clock off early" }
 
     assert_selector "h2", text: "Message by message"
-    assert_selector "[data-testid=debrief-ending]", text: /You gave up after/
+    assert_selector "[data-testid=debrief-ending]", text: /You clocked off after/
     # -20 for the unapproved invoice, -5 for the newsletter left in the inbox, 30 - 50 for the phish,
     # 5 for archiving the thank-you: -40, so 0.
     assert_selector "[data-testid=score]", text: "0"
@@ -51,7 +51,7 @@ class ShiftDebriefTest < ApplicationSystemTestCase
     within("[data-testid=debrief-timeline]") do
       assert_text "Archived “Invoice ready”"
       assert_text "Ran Remittance_4471.pdf.exe: compromised"
-      assert_text "Gave up"
+      assert_text "Clocked off early"
     end
   end
 end

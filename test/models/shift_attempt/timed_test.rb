@@ -18,7 +18,7 @@ class ShiftAttempt::TimedTest < ActiveSupport::TestCase
 
   test "a finished attempt's time stops when it finished" do
     travel 60.seconds
-    @attempt.give_up
+    @attempt.clock_off
     travel 1.hour
 
     assert_equal 60, @attempt.reload.elapsed_seconds

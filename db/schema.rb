@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_13_150000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_150000) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'give_up'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'clock_off'::character varying]::text[])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -160,7 +160,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_150000) do
     t.check_constraint "(status::text = 'open'::text) = (score IS NULL)", name: "shift_attempts_score_when_finished"
     t.check_constraint "NOT scored OR status::text <> 'open'::text", name: "shift_attempts_scored_only_when_finished"
     t.check_constraint "penalty_seconds >= 0", name: "shift_attempts_penalty_seconds_non_negative"
-    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'gave_up'::character varying, 'timed_out'::character varying]::text[])", name: "shift_attempts_status"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'clocked_off'::character varying, 'timed_out'::character varying]::text[])", name: "shift_attempts_status"
   end
 
   create_table "shifts", force: :cascade do |t|

@@ -69,7 +69,7 @@ module DebriefsHelper
 
   # A finished attempt's status, for the track page.
   def debrief_status(attempt)
-    { "completed" => "Completed", "gave_up" => "Gave up", "timed_out" => "Left unfinished" }.fetch(attempt.status, "In progress")
+    { "completed" => "Completed", "clocked_off" => "Clocked off early", "timed_out" => "Left unfinished" }.fetch(attempt.status, "In progress")
   end
 
   # How the shift ended, and how long it took.
@@ -82,8 +82,8 @@ module DebriefsHelper
       else
         "#{time}. The target was #{attempt.shift.par_minutes} minutes."
       end
-    when "gave_up"
-      "You gave up after #{debrief_duration(scorecard.elapsed_seconds)}. Anything you hadn't dealt with counts as ignored."
+    when "clocked_off"
+      "You clocked off after #{debrief_duration(scorecard.elapsed_seconds)}. Anything you hadn't dealt with counts as ignored."
     else
       "This shift was left open too long and closed. Anything you hadn't dealt with counts as ignored."
     end
@@ -217,7 +217,7 @@ module DebriefsHelper
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "archive_message" then [ "Archived #{subject}", result.nil? || result.phish? || result.done? ? :neutral : :warn ]
-      when "give_up" then [ "Gave up", :neutral ]
+      when "clock_off" then [ "Clocked off early", :neutral ]
       else [ action.kind.humanize, :neutral ]
       end
 

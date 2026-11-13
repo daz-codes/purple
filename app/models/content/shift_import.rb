@@ -318,7 +318,7 @@ module Content
           return { anchor:, quote: nil, quote_start: nil, quote_end: nil }
         end
 
-        quote = fictional(flag_node, :quote, quote)
+        quote = fictional(flag_node, :quote, Message::Paragraph.normalize(quote))
         within = flag_node.optional(:in)
         paragraphs = message.paragraphs.values
         if within
@@ -332,6 +332,9 @@ module Content
         end
 
         paragraph, start = found.first
+        unless paragraph.sentence_containing(start, start + quote.length)
+          flag_node.error!("quote \"#{quote}\" crosses from one sentence into the next; quote words from a single sentence")
+        end
         { anchor: paragraph.anchor, quote:, quote_start: start, quote_end: start + quote.length }
       end
 

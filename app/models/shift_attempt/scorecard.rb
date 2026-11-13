@@ -7,7 +7,7 @@
 # - A genuine message is worth its points when the player did what it needed: sent a reply that wasn't
 #   poor, did the thing on its portal page, or (for one that needed nothing) archived it. Half if it
 #   was urgent and done late. Not done (archived without doing it, left in the inbox, or still to
-#   arrive when the player gave up) loses half its points. Reporting it costs 15.
+#   arrive when the player clocked off) loses half its points. Reporting it costs 15.
 # - A phish is worth 30 when reported. Each near miss (a bait page or malware download opened but not
 #   fallen for) costs 10, and each compromise (a password entered, a file run, or a reply that handed
 #   something over) costs 50.
@@ -124,7 +124,7 @@ class ShiftAttempt::Scorecard
   end
 
   # elapsed_seconds: how long the attempt took, penalties included. cleared: whether the player dealt
-  # with every message (rather than giving up or leaving it to expire); only a cleared inbox earns the
+  # with every message (rather than clocking off early or leaving it to expire); only a cleared inbox earns the
   # speed bonus.
   def initialize(shift:, actions:, elapsed_seconds: nil, cleared: false, relaxed: false)
     @shift = shift

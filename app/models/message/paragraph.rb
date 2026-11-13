@@ -1,8 +1,10 @@
 # The text of one paragraph-like block of a message body (p1, p2…), as the player sees it, with the
 # importer's sentence anchors (p1s1, p1s2…) and where each sentence starts and ends in that text.
 #
-# Highlights and quoted red flags are character ranges in this text. The browser measures a selection
-# against the same text (the block's textContent), so the two agree.
+# Highlights and quoted red flags are character ranges in this text. The text is normalised the same
+# way on both sides: the block's text nodes in order, with every run of whitespace collapsed to one
+# space and the ends trimmed. The browser applies the same rule to the element's textContent (see
+# flag_mode_controller.js), so a selection's offsets mean the same characters to both.
 class Message::Paragraph
   Sentence = Data.define(:anchor, :from, :to)
 
@@ -23,32 +25,50 @@ class Message::Paragraph
       next unless node["data-anchor"].match?(BLOCK_ANCHOR)
       next if node.css("[data-anchor]").any? { |inner| inner["data-anchor"].match?(BLOCK_ANCHOR) }
 
-      new(anchor: node["data-anchor"], text: node.text, sentences: sentences_in(node))
+      raw = node.text
+      sentences = raw_sentences_in(node).map do |anchor, from, to|
+        Sentence.new(anchor:, from: normalized_offset(raw, from), to: normalized_offset(raw, to))
+      end
+      new(anchor: node["data-anchor"], text: normalize(raw), sentences:)
     end
   end
 
-  def self.sentences_in(node, sentences = [], offset = [ 0 ])
+  def self.normalize(text)
+    text.gsub(/\s+/, " ").strip
+  end
+
+  # Where raw position p of the text falls in its normalised form.
+  def self.normalized_offset(raw, position)
+    [ raw[0...position].gsub(/\s+/, " ").sub(/\A /, "").length, normalize(raw).length ].min
+  end
+
+  def self.raw_sentences_in(node, sentences = [], offset = [ 0 ])
     node.children.each do |child|
       if child.text?
         offset[0] += child.text.length
       elsif child.element? && child["data-anchor"].to_s.match?(SENTENCE_ANCHOR)
-        sentences << Sentence.new(anchor: child["data-anchor"], from: offset[0], to: offset[0] + child.text.length)
+        sentences << [ child["data-anchor"], offset[0], offset[0] + child.text.length ]
         offset[0] += child.text.length
       elsif child.element?
-        sentences_in(child, sentences, offset)
+        raw_sentences_in(child, sentences, offset)
       end
     end
     sentences
   end
-  private_class_method :sentences_in
+  private_class_method :raw_sentences_in
 
   def sentence(anchor)
     sentences.find { |sentence| sentence.anchor == anchor }
   end
 
-  # Whether the range from...to lies inside a single sentence.
-  def within_one_sentence?(from, to)
-    sentences.any? { |sentence| sentence.from <= from && to <= sentence.to }
+  # The sentence that the range from...to lies inside, if any.
+  def sentence_containing(from, to)
+    sentences.find { |sentence| sentence.from <= from && to <= sentence.to }
+  end
+
+  # Whether the range is exactly one whole sentence: a sentence click, or the same words dragged over.
+  def whole_sentence?(from, to)
+    sentences.any? { |sentence| trim(sentence.from, sentence.to) == [ from, to ] }
   end
 
   # The range narrowed to leave out whitespace at either end, or nil if it's out of bounds or nothing

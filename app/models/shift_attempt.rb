@@ -1,10 +1,10 @@
 # A player's run through a shift. Created on the server with a random token. The player acts on it
 # through the methods its concerns add: read, expand_headers, verify_sender, flag, send_reply, visit,
 # open_attachment, close_tab, use_portal, submit_credentials, run_download, report, archive, use_hint
-# and give_up. Each one is logged as an AttemptAction with the time it was made.
+# and clock_off. Each one is logged as an AttemptAction with the time it was made.
 #
-# The shift ends when every message has been dealt with (reported or archived), when the player gives
-# up, or when it's left open too long.
+# The shift ends when every message has been dealt with (reported or archived), when the player clocks
+# off early, or when it's left open too long.
 #
 # Everything here describes what the player can already see. Nothing answers whether a message is
 # phishing, or what it needed, until the shift is over and scored.
@@ -16,7 +16,7 @@ class ShiftAttempt < ApplicationRecord
   include Timed, Logged, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Replyable, Hintable,
     Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
 
-  enum :status, { open: "open", completed: "completed", gave_up: "gave_up", timed_out: "timed_out" }, validate: true
+  enum :status, { open: "open", completed: "completed", clocked_off: "clocked_off", timed_out: "timed_out" }, validate: true
 
   belongs_to :user
   belongs_to :shift
