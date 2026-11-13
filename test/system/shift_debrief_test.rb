@@ -24,10 +24,10 @@ class ShiftDebriefTest < ApplicationSystemTestCase
 
     assert_selector "h2", text: "Message by message"
     assert_selector "[data-testid=debrief-ending]", text: /You clocked off after/
-    # -20 for the unapproved invoice, -5 for the newsletter left in the inbox, 30 - 50 for the phish,
-    # 5 for archiving the thank-you: -40, so 0.
+    # -20 for the unapproved invoice, nothing for the newsletter left in the inbox, 30 - 50 for the phish,
+    # nothing for the thank-you left in the inbox (it only needed archiving): -40, so 0.
     assert_selector "[data-testid=score]", text: "0"
-    assert_text "out of 105"
+    assert_text "out of 145"
     assert_selector "[data-testid=speed-bonus]", text: "0"
     assert_selector "[data-testid=stars]", text: "☆☆☆"
 
@@ -44,7 +44,7 @@ class ShiftDebriefTest < ApplicationSystemTestCase
       assert_text "needed you to “Approve invoice” through its link, but you archived it without doing that (−20)"
     end
     within(cards.find { |card| card.has_text?("This week at Larkhill") }) do
-      assert_text "it was still in your inbox when you stopped"
+      assert_text "It was still in your inbox when you stopped, which costs nothing for a message like this."
     end
 
     find("summary", text: "Your shift, move by move").click

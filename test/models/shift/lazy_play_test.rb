@@ -16,6 +16,13 @@ class Shift::LazyPlayTest < ActiveSupport::TestCase
     end
   end
 
+  test "careful play replies with a check-first reply when that's the only good one" do
+    messages(:sam_text).update!(replies: [ { "id" => "r1", "text" => "Let me check first", "outcome" => "verify" },
+                                           { "id" => "r2", "text" => "No", "outcome" => "poor" } ])
+
+    assert Shift::LazyPlay.new(shifts(:site_visit)).careful.perfect?
+  end
+
   test "reporting everything deals with every message as it arrives, so the speed bonus is in play, scaled by accuracy" do
     card = Shift::LazyPlay.new(shifts(:month_end)).scorecard(:report_everything)
 

@@ -186,6 +186,27 @@ messages:
       - { key: final_warning, quote: "This is your final warning", points: 10, label: "Escalating pressure",
           explanation: "Attackers chase when you don't bite. A second, scarier message is a sign of a scam, not a reason to act." }
 
+  - key: delivery_last_chance
+    channel: email
+    arrives: { after: missed_delivery }
+    legit: false
+    techniques: [malicious_attachment, malware_download, urgency_pretext]
+    from_name: "ParcelPoint Deliveries"
+    from_address: "no-reply@parcelpoint-tracking.test"
+    to_address: "you@larkhill.example"
+    subject: "Last chance to rebook your delivery"
+    body_html: |
+      <p>Dear Customer,</p>
+      <p>This is your last chance to rebook. Open the attached form today or your parcel will be destroyed.</p>
+    attachments:
+      - { name: "Rebook_Form_4471.pdf.exe", type: "application/x-msdownload", size: "318 KB", outcome: malware }
+    verify_result: "You still haven't ordered anything. It's the same fake courier, chasing."
+    red_flags:
+      - { key: double_extension, anchor: a1, points: 15, label: "Disguised attachment",
+          explanation: "Rebook_Form_4471.pdf.exe ends in .exe: another program pretending to be a PDF." }
+      - { key: destroyed, quote: "your parcel will be destroyed", points: 5, label: "Escalating threat",
+          explanation: "Chasing with a bigger threat is how scams push you past your doubts." }
+
   - key: social_club
     channel: email
     arrives: { after_handled: 4 }

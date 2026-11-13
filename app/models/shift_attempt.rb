@@ -25,7 +25,10 @@ class ShiftAttempt < ApplicationRecord
 
   before_validation -> { self.started_at ||= Time.current }, on: :create
 
+  # Starts a shift, or resumes the one in progress. An attempt left idle too long is closed first, so the
+  # player gets a fresh shift rather than a debrief for one they walked away from.
   def self.start(user:, shift:)
+    user.shift_attempts.open.where(shift:).each(&:expire_if_stale)
     user.shift_attempts.open.find_or_create_by!(shift:) { |attempt| attempt.relaxed = user.relaxed_mode }
   rescue ActiveRecord::RecordNotUnique
     user.shift_attempts.open.find_by!(shift:)

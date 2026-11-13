@@ -314,6 +314,9 @@ module DebriefsHelper
         end
         story << "Trusting the real #{noun} matters as much as spotting the fake one." if message.expects_act?
         story
+      elsif result.handling_points.zero?
+        [ "This was genuine and #{need}. It was still in your #{result.message.email? ? "inbox" : "messages"} when you stopped, " \
+          "which costs nothing for a message like this." ]
       else
         [ "This was genuine and #{need}, but #{not_done_reason(result)} (#{debrief_points(result.handling_points)})." ]
       end

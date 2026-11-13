@@ -40,7 +40,8 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_includes story("real_invoice", action("use_portal", "real_invoice")).join,
       "This was genuine and needed you to “Approve invoice” through its link. You did it, through its link."
     assert_includes story("real_invoice", archive("real_invoice")).join, "but you archived it without doing that (−20)"
-    assert_includes story("newsletter").join, "it was still in your inbox when you stopped"
+    assert_includes story("newsletter").join, "It was still in your inbox when you stopped, which costs nothing"
+    assert_includes story("real_invoice").join, "it was still in your inbox when you stopped (−20)"
     assert_includes story("real_invoice", action("report_message", "real_invoice")).join, "but you reported it. False alarms"
   end
 

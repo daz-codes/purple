@@ -52,10 +52,6 @@ class ShiftAttempt::Scorecard
     def replied_well? = reply.present? && reply["outcome"].in?(%w[ safe verify ])
     def replied_poorly? = reply&.dig("outcome") == "poor"
 
-    def handled_at_seconds
-      actions.find { |action| action.handling? }&.at_seconds
-    end
-
     # When the player did what a genuine message needed, in seconds into the attempt, or nil.
     def done_at_seconds
       action = case message.expects
@@ -136,9 +132,11 @@ class ShiftAttempt::Scorecard
   # elapsed_seconds: how long the attempt took, penalties included. cleared: whether the player dealt
   # with every message (rather than clocking off early or leaving it to expire); only a cleared inbox earns the
   # speed bonus.
-  def initialize(shift:, actions:, elapsed_seconds: nil, cleared: false, relaxed: false)
+  # arrivals: the attempt's ShiftAttempt::Arrivals, if it has already worked them out.
+  def initialize(shift:, actions:, arrivals: nil, elapsed_seconds: nil, cleared: false, relaxed: false)
     @shift = shift
     @actions = actions
+    @arrivals = arrivals
     @elapsed_seconds = elapsed_seconds
     @cleared = cleared
     @relaxed = relaxed
@@ -181,9 +179,20 @@ class ShiftAttempt::Scorecard
     hints.sum(&:penalty)
   end
 
-  # The best the messages can score. The speed bonus is extra on top.
+  # The best the messages can score. Stars and hint penalties are judged against this; the speed bonus
+  # is extra on top.
   def total_max
     messages.sum(&:best_points)
+  end
+
+  # The most the speed bonus could add: clearing everything correctly in no time.
+  def speed_bonus_max
+    relaxed? ? 0 : (@shift.par_minutes * 60 / SPEED_BLOCK_SECONDS) * SPEED_BLOCK_POINTS
+  end
+
+  # What the total is shown out of, so a score can never read as more than its maximum.
+  def best_possible
+    total_max + speed_bonus_max
   end
 
   def perfect?
@@ -199,16 +208,19 @@ class ShiftAttempt::Scorecard
     return 3 if perfect?
     return 0 unless total_max.positive?
 
-    stars = STAR_THRESHOLDS.count { |threshold| total >= total_max * threshold }
+    # Judged without the speed bonus, so rushing can't buy stars.
+    without_bonus = [ total - speed_bonus, 0 ].max
+    stars = STAR_THRESHOLDS.count { |threshold| without_bonus >= total_max * threshold }
     compromised? ? [ stars, 2 ].min : stars
   end
 
   # Every message in the shift: those that arrived, in the order they did, then any that never did.
   def messages
     @messages ||= begin
-      arrivals = ShiftAttempt::Arrivals.new(shift_messages, @actions)
-      ordered = arrivals.messages + (shift_messages - arrivals.messages)
-      ordered.map { |message| message_result(message, arrivals.at_seconds(message)) }
+      arrivals = @arrivals || ShiftAttempt::Arrivals.new(shift_messages, @actions)
+      arrived_at = arrivals.all.to_h { |arrival| [ arrival.message.key, arrival.at_seconds ] }
+      ordered = shift_messages.sort_by { |message| [ arrived_at.key?(message.key) ? 0 : 1, arrived_at.keys.index(message.key) || message.position ] }
+      ordered.map { |message| message_result(message, arrived_at[message.key]) }
     end
   end
 

@@ -32,7 +32,7 @@ module ShiftAttempt::Finishable
   end
 
   def scorecard
-    ShiftAttempt::Scorecard.new(shift:, actions:, elapsed_seconds:, cleared: completed? || (open? && inbox_messages.empty?), relaxed:)
+    ShiftAttempt::Scorecard.new(shift:, actions:, arrivals:, elapsed_seconds:, cleared: completed?, relaxed:)
   end
 
   private
@@ -45,10 +45,11 @@ module ShiftAttempt::Finishable
 
       self.status = status
       self.completed_at = Time.current
-      update! scored: first_scored_attempt?, score: scorecard.total
+      update! scored: !timed_out? && first_scored_attempt?, score: scorecard.total
     end
 
-    # XP (from M8) is only for confirmed players' first finished attempt at each shift.
+    # XP (from M8) is only for confirmed players' first finished attempt at each shift. One that expired
+    # because the player walked away doesn't use it up.
     def first_scored_attempt?
       user.earns_xp? && !user.shift_attempts.scored.where.not(id:).exists?(shift_id:)
     end

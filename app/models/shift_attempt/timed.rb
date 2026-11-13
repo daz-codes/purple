@@ -3,7 +3,8 @@
 # shown to the player; time only counts in the debrief, as a speed bonus against the shift's target.
 #
 # Relaxed mode (copied from the player's setting when the attempt starts) turns timing off: no speed
-# bonus and no urgency penalties. An attempt left open for two hours expires.
+# bonus and no urgency penalties. An attempt left idle for two hours (no move made) expires, in relaxed
+# mode too: taking as long as you like means as long as you keep playing.
 module ShiftAttempt::Timed
   extend ActiveSupport::Concern
 
@@ -20,11 +21,19 @@ module ShiftAttempt::Timed
   end
 
   def stale?(now: Time.current)
-    open? && now - started_at > EXPIRES_AFTER
+    open? && now - last_active_at > EXPIRES_AFTER
   end
 
-  # Closes an attempt left open too long. Anything still in the inbox counts as ignored.
+  # When the player last made a move, or started the shift.
+  def last_active_at
+    actions.last&.created_at || started_at
+  end
+
+  # Closes an attempt left idle too long. Anything still in the inbox counts as ignored. Only takes the
+  # lock when it looks stale, and checks again once it has it.
   def expire_if_stale
+    return unless stale?
+
     with_lock { finish :timed_out if stale? }
   end
 end
