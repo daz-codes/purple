@@ -29,12 +29,13 @@ messages:
     channel: sms
     legit: true
     expects: act
-    points: 30
+    points: 40
     urgent_within_minutes: 10
+    needs: [staff_number]
     from_name: "Tidemark Logistics"
     from_address: "Tidemark"
     body_html: |
-      <p>Tidemark Logistics: your Larkhill delivery (3 laptops) is ready. Choose a delivery slot: <a href="https://track.tidemark.example/slot/2231">track.tidemark.example/slot/2231</a></p>
+      <p>Tidemark Logistics: your Larkhill delivery (3 laptops) is ready. Choose a delivery slot and add your Larkhill staff number for the delivery record: <a href="https://track.tidemark.example/slot/2231">track.tidemark.example/slot/2231</a></p>
     links:
       - { match: "track.tidemark.example", outcome: portal, action: "Confirm Thursday 10am delivery" }
     verify_result: "The IT team confirms Tidemark is delivering the new laptops this week."
@@ -66,7 +67,7 @@ messages:
     channel: sms
     legit: true
     expects: reply
-    points: 20
+    points: 25
     urgent_within_minutes: 5
     from_name: "Sam (Ops)"
     from_address: "07700 900118"
@@ -82,7 +83,7 @@ messages:
     arrives: { after_handled: 1 }
     legit: true
     expects: act
-    points: 20
+    points: 30
     from_name: "Larkhill Facilities Bot"
     from_address: "facilities-bot@larkhill.example"
     body_html: |
@@ -90,6 +91,7 @@ messages:
       <p><a href="https://desks.larkhill.example/book">Book a desk</a></p>
     links:
       - { match: "desks.larkhill.example", outcome: portal, action: "Book a hot desk for tomorrow" }
+    needs: [staff_number]
     verify_result: "Facilities confirms the desk bot posts every morning."
 
   - key: laptop_ready
@@ -109,11 +111,12 @@ messages:
     arrives: { after_handled: 2 }
     legit: false
     techniques: [it_support_pretext, urgency_pretext, mfa_code_theft]
+    wants: [staff_number]
     from_name: "IT Support (Larkhill)"
     from_address: "it.support.larkhill@freemail.test"
     body_html: |
       <p>Hi, this is Larkhill IT. We're seeing unusual sign-ins on your account from abroad.</p>
-      <p>To lock it down, please reply with the 6-digit code we've just sent to your phone.</p>
+      <p>To lock it down, please send your staff number and reply with the 6-digit code we've just sent to your phone.</p>
     replies:
       - { text: "Sure, it's 482 913", outcome: compromise,
           response: "Perfect, thanks! That's your account locked down. Nothing else you need to do 👍" }
@@ -121,6 +124,8 @@ messages:
           response: "This is urgent!! If you don't send it now your account will be suspended in 10 minutes." }
       - { text: "Let me check with the service desk first.", outcome: verify,
           response: "There's no time for that, someone is in your account RIGHT NOW." }
+      - { text: "Why do you need my staff number?", outcome: ask_why,
+          response: "To verify it's really you. Quickly please, the attacker is still in your account!" }
     verify_result: "The IT service desk: \"That isn't us. We never ask for codes, and this chat account is external.\""
     red_flags:
       - { key: external_account, anchor: from, points: 10, label: "External chat account",
@@ -202,6 +207,41 @@ messages:
       - { text: "No idea, sorry.", outcome: poor, response: "No worries, I'll ask IT." }
     verify_result: "Sam is in your contacts."
 
+  - key: mfa_push
+    channel: sms
+    arrives: { after_handled: 6 }
+    legit: false
+    techniques: [mfa_fatigue]
+    from_name: "Larkhill Authenticator"
+    from_address: "LarkhillMFA"
+    body_html: |
+      <p>Sign-in request: approve sign-in to your Larkhill account from a new device? If this wasn't you, deny it.</p>
+    replies:
+      - { text: "Approve", outcome: compromise, response: "Sign-in approved." }
+      - { text: "Deny", outcome: safe, response: "Sign-in denied." }
+    verify_result: "The IT service desk: \"Nobody here is signing in as you. If you didn't start that sign-in, someone has your password.\""
+    red_flags:
+      - { key: not_you, quote: "approve sign-in to your Larkhill account from a new device", points: 15, label: "A sign-in you didn't start",
+          explanation: "You're on a client site, not signing in anywhere. A prompt you didn't start means someone else has your password." }
+
+  - key: mfa_push_again
+    channel: sms
+    arrives: { after: mfa_push }
+    legit: false
+    techniques: [mfa_fatigue]
+    from_name: "Larkhill Authenticator"
+    from_address: "LarkhillMFA"
+    body_html: |
+      <p>Sign-in request (3rd in 2 minutes): approve sign-in to your Larkhill account from a new device?</p>
+    replies:
+      - { text: "Approve", outcome: compromise, response: "Sign-in approved." }
+      - { text: "Deny", outcome: safe, response: "Sign-in denied." }
+    verify_result: "The IT service desk: \"Still not us. Deny it, report it, and we'll reset your password.\""
+    red_flags:
+      - { key: again_and_again, quote: "3rd in 2 minutes", points: 15, label: "Prompt after prompt",
+          explanation: "MFA fatigue: the attacker keeps asking, hoping you'll press Approve just to make it stop. Deny and report." }
+
 hints:
   - { body: "Which texts are you actually expecting today? Your laptops are coming from Tidemark.", penalty_percent: 20 }
   - { body: "Would the real IT team ever need a code that was sent to your phone?", penalty_percent: 20 }
+  - { body: "Did you start a sign-in? If not, who's asking you to approve one?", penalty_percent: 20 }

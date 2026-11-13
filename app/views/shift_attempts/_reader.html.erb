@@ -1,12 +1,16 @@
 <% message = attempt.current_message %>
-<% flag_mode = local_assigns[:flag_mode] && message %>
+<% note_mode = local_assigns[:note_mode] && message %>
+<% flag_mode = (local_assigns[:flag_mode] || note_mode) && message %>
 <% flags = message ? attempt.flags_on(message) : [] %>
+<% notes = message ? attempt.notes_on(message) : [] %>
 <%# Flag mode: every header, sentence, link and attachment carries a neutral data-anchor, and any of
     them, or any words dragged over, can be flagged, so nothing here says which parts are red flags. %>
 <section id="shift_reader" class="card p-0 overflow-hidden min-h-[28rem]" aria-labelledby="reader-heading"
          data-controller="link-status flag-mode"
          data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
+         data-flag-mode-mode-value="<%= note_mode ? "note" : "flag" %>"
          data-flag-mode-flags-value="<%= flags_json(flags) %>"
+         data-flag-mode-notes-value="<%= notes_json(notes) %>"
          data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture turbo:submit-end->flag-mode#submitted">
   <% if message %>
     <% expanded = attempt.headers_expanded?(message) %>
@@ -41,12 +45,14 @@
           <%= shift_action_button "Call the sender back", shift_attempt_message_verification_path(attempt, ref) %>
         <% end %>
         <button type="button" class="btn-ghost aria-pressed:border-red-team aria-pressed:bg-red-team-soft aria-pressed:text-red-team" data-action="flag-mode#toggle" data-flag-mode-target="toggle"
-                aria-pressed="<%= flag_mode ? "true" : "false" %>">🚩 Flag red flags</button>
+                aria-pressed="<%= flag_mode && !note_mode ? "true" : "false" %>">🚩 Flag red flags</button>
+        <button type="button" class="btn-ghost aria-pressed:border-purple-team aria-pressed:bg-purple-team-soft aria-pressed:text-purple-team" data-action="flag-mode#toggleNotes" data-flag-mode-target="noteToggle"
+                aria-pressed="<%= note_mode ? "true" : "false" %>">📝 Save to notes</button>
         <%= shift_action_button "Archive", shift_attempt_message_archive_path(attempt, ref), class: "btn-blue" %>
         <%= shift_action_button "Report phishing", shift_attempt_message_report_path(attempt, ref), class: "btn-red" %>
       </div>
 
-      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flags:, flag_mode: %>
+      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flags:, notes:, flag_mode:, note_mode: %>
       <%= render "shift_attempts/reader/verification", attempt:, message: %>
     </header>
 
@@ -64,9 +70,8 @@
         <% message.visible_attachments.each do |attachment| %>
           <li data-anchor="<%= attachment["id"] %>">
             <%= button_to shift_attempt_message_attachment_opening_path(attempt, ref, attachment["id"]),
-                  class: "rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm cursor-pointer hover:border-blue-team",
-                  aria: { label: "Open attachment #{attachment["name"]}" } do %>
-              📎 <span class="font-medium"><%= attachment["name"] %></span> <span class="text-ink-muted"><%= attachment["size"] %></span>
+                  class: "rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm cursor-pointer hover:border-blue-team" do %>
+              📎 <span class="sr-only">Open attachment </span><span class="font-medium"><%= attachment["name"] %></span> <span class="text-ink-muted"><%= attachment["size"] %></span>
             <% end %>
           </li>
         <% end %>

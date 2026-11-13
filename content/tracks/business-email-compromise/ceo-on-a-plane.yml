@@ -37,16 +37,21 @@ messages:
     body_html: |
       <p>Morning! I'm offline from 9am until Friday. Anything urgent, please check with Mo first.</p>
       <p>Could you approve Priya's expense claim from the conference? It's waiting for me in the expenses system.</p>
+      <p>Anything that needs signing on my behalf this week, use my delegate code, HERON-22, in the system itself. Keep it private.</p>
       <p><a href="https://expenses.larkhill.example/claims/3310">Priya's claim</a></p>
       <p>Thanks, Jordan</p>
     links:
       - { match: "expenses.larkhill.example", outcome: portal, action: "Approve Priya's expense claim" }
+    details:
+      - { key: delegate_code, label: "Jordan's delegate code", quote: "HERON-22", sensitivity: secret,
+          red_use: "sign contracts and approve payments as Jordan" }
     verify_result: "Jordan's assistant confirms Jordan sent this before leaving for the airport."
 
   - key: signflow_envelope
     channel: email
     legit: false
     imitates: pellowclarke_contract
+    wants: [delegate_code]
     techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
     from_name: "SignFlow Notifications"
     from_address: "notify@signfiow.example"
@@ -82,6 +87,7 @@ messages:
       <p><a href="https://rooms.larkhill.example/book?room=boardroom">Rebook the boardroom</a></p>
     links:
       - { match: "rooms.larkhill.example", outcome: portal, action: "Book the boardroom for Thursday" }
+    needs: [staff_number]
     verify_result: "Facilities confirms the new rooms portal went live today, and old bookings need redoing."
 
   - key: gift_cards
@@ -148,6 +154,7 @@ messages:
       <p>Pellow Clarke Legal</p>
     links:
       - { match: "sign.pellowclarke.example", outcome: portal, action: "Countersign the services agreement" }
+    needs: [delegate_code]
     verify_result: "Pellow Clarke Legal (on the number in your contracts file) confirms the envelope is genuine."
 
   - key: pellowclarke_bank_change
@@ -166,6 +173,7 @@ messages:
       <p><a href="https://pellowclarke-remittance.example.net/confirm">Confirm new bank details</a></p>
     links:
       - { match: "pellowclarke-remittance.example.net", outcome: bait_landing }
+    wants: [staff_number]
     verify_result: "Pellow Clarke's finance team (on the number in your supplier file): \"Our bank hasn't changed. Our mailbox may have been hacked.\""
     red_flags:
       - { key: reply_redirect, anchor: reply_to, points: 10, label: "Replies go to a different address",

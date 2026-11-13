@@ -1,6 +1,8 @@
-<%# The player's own details for this attempt, and who they can check with. All of it is the player's
-    to see: nothing here says how sensitive a detail is, or who may have it. %>
+<%# The player's own details for this attempt, their authenticator and saved notes, and who they can
+    check with. All of it is the player's to see: nothing here says how sensitive a detail is, who may
+    have it, or whether a note matters. Replaced after every move. %>
 <% persona = attempt.persona %>
+<div id="shift_persona" class="flex flex-col gap-4">
 <% if persona.present? %>
   <section class="card p-4" aria-labelledby="persona-heading" data-testid="persona-card">
     <h2 id="persona-heading" class="text-lg font-bold">Your details</h2>
@@ -12,6 +14,25 @@
       <dt class="text-ink-muted"><%= persona.security_question %></dt><dd class="font-mono"><%= persona.security_answer %></dd>
     </dl>
     <p class="mt-3 text-xs text-ink-muted">Made up for this shift. Never put your real details into the game.</p>
+
+    <div class="mt-4 rounded-lg border border-line bg-surface-sunken px-3 py-2 text-sm" data-testid="authenticator">
+      <p class="font-semibold">📱 Authenticator</p>
+      <% if (code = attempt.mfa_code) %>
+        <p class="mt-1">Sign-in code: <span class="font-mono text-lg tracking-widest" data-testid="mfa-code"><%= code %></span></p>
+      <% else %>
+        <p class="mt-1 text-ink-muted">No sign-in requests.</p>
+      <% end %>
+    </div>
+
+    <% notes = attempt.notes %>
+    <% if notes.any? %>
+      <h3 class="mt-4 text-sm font-semibold">Your notes</h3>
+      <ul class="mt-1 space-y-1 text-sm" data-testid="notes-list">
+        <% notes.each do |note| %>
+          <li class="rounded-md border border-purple-team/40 bg-purple-team-soft px-2 py-1">“<%= note.text %>”</li>
+        <% end %>
+      </ul>
+    <% end %>
   </section>
 <% end %>
 
@@ -28,3 +49,4 @@
     </ul>
   </section>
 <% end %>
+</div>

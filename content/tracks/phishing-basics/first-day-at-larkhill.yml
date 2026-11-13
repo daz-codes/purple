@@ -36,6 +36,7 @@ messages:
     from_address: "servicedesk@larkhill.example"
     to_address: "you@larkhill.example"
     subject: "Welcome to Larkhill: set up your account"
+    needs: [staff_number]
     body_html: |
       <p>Hi, and welcome to Larkhill Finance.</p>
       <p>Please set your account password on the IT portal this morning. You'll need your staff number, which is on your contract.</p>
@@ -51,13 +52,14 @@ messages:
     legit: false
     imitates: it_welcome
     techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    wants: [staff_number, extension, memorable_word]
     from_name: "Larkhill IT Support"
     from_address: "it-support@larkhill-helpdesk.example.net"
     to_address: "you@larkhill.example"
     subject: "Action required: your password expires in 30 minutes"
     body_html: |
       <p>Your password will expire in 30 minutes and your account will be locked.</p>
-      <p>To keep access, confirm your current password now:</p>
+      <p>To keep access, confirm your current password now, with your staff number, extension and memorable word:</p>
       <p><a href="https://itportal-larkhill.example.net/reset">https://itportal.larkhill.example/reset</a></p>
       <p>IT Support Team</p>
     links:
@@ -69,7 +71,7 @@ messages:
       - { key: deadline, quote: "expire in 30 minutes", points: 10, label: "Urgency or pressure",
           explanation: "A 30-minute deadline and a threat to lock you out are there to stop you thinking." }
       - { key: current_password, quote: "confirm your current password", points: 10, label: "Asks for your password",
-          explanation: "Nobody genuine asks you to confirm your current password from a link in an email.",
+          explanation: "Nobody genuine asks you to confirm your current password from a link in an email, let alone your memorable word.",
           contradicts: { message: it_welcome, quote: "we will never ask for your current password by email" } }
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
           explanation: "The text shows itportal.larkhill.example, but the link goes to itportal-larkhill.example.net." }
@@ -84,12 +86,15 @@ messages:
     from_address: "alex.morgan@larkhill.example"
     to_address: "you@larkhill.example"
     subject: "Hello from your buddy"
+    needs: [extension]
+    share_response: "Got it, you're on the team phone list now. Shout if you need anything!"
     body_html: |
       <p>Hi! I'm Alex, your buddy for your first few weeks. Welcome to the team.</p>
-      <p>Quick check: has your laptop arrived, and have you got your building pass? Just reply and let me know.</p>
+      <p>Could you send me your desk extension? I'll add you to the team phone list so people can reach you.</p>
     replies:
-      - { text: "Hi Alex! Yes, laptop and pass are both here. Thanks!", outcome: safe, response: "Brilliant. Shout if you need anything!" }
-      - { text: "Laptop's here, but I'm still waiting for my pass.", outcome: safe, response: "No problem, I'll chase reception for you." }
+      - { text: "Thanks Alex, great to meet you!", outcome: safe, response: "You too! Don't forget that extension when you get a sec." }
+      - { text: "Why do you need it?", outcome: ask_why,
+          response: "Just so the team can call you! It's on the team list anyway. You can send it, or I can wait till you're in the directory." }
     verify_result: "Alex is in the staff directory as your buddy."
 
   - key: hr_onboarding
@@ -143,9 +148,10 @@ messages:
     from_address: "servicedesk@larkhill.example"
     to_address: "you@larkhill.example"
     subject: "Next step: add your authenticator app"
+    needs: [mfa_code]
     body_html: |
-      <p>One more security step for new starters. Please add the Larkhill authenticator app to your phone today.</p>
-      <p>You'll never be asked for the codes it shows: they're only for you to type when you sign in.</p>
+      <p>One more security step for new starters. Please add the Larkhill authenticator app to your phone today, then type the code it shows into the IT portal to finish.</p>
+      <p>Nobody will ever ask you for the codes it shows: they're only for you to type into our own sign-in pages.</p>
       <p><a href="https://itportal.larkhill.example/mfa/enrol">Add my authenticator</a></p>
     links:
       - { match: "itportal.larkhill.example", outcome: portal, action: "Add my authenticator" }
@@ -179,7 +185,8 @@ messages:
     channel: email
     arrives: { after: password_expiry }
     legit: false
-    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest, mfa_code_theft]
+    wants: [mfa_code]
     from_name: "Larkhill IT Support"
     from_address: "it-support@larkhill-helpdesk.example.net"
     to_address: "you@larkhill.example"

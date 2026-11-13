@@ -8,7 +8,8 @@ module Content
     DIRECTORY_KEYS = %i[ name team contact ].freeze
     MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
                        from_address reply_to to_address subject body_html attachments replies links verify_result
-                       red_flags answer_in ].freeze
+                       red_flags answer_in needs wants details share_response ].freeze
+    DETAIL_KEYS = %i[ key label quote in sensitivity red_use ].freeze
     ARRIVAL_KEYS = %i[ after_handled after ].freeze
     LINK_KEYS = %i[ match outcome landing action ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
@@ -19,7 +20,7 @@ module Content
     MAX_REPLIES = 4
     # safe: fine. poor: answers a genuine message badly, so it doesn't count as replying. compromise:
     # hands a phisher what they asked for. verify: checks with someone trusted first.
-    REPLY_OUTCOMES = %w[ safe poor compromise verify ].freeze
+    REPLY_OUTCOMES = %w[ safe poor compromise verify ask_why ].freeze
     RED_FLAG_KEYS = %i[ key anchor quote in points label explanation contradicts ].freeze
     # answer_in: and contradicts: point at another message in the shift and quote the words that matter.
     STORY_LINK_KEYS = %i[ message quote ].freeze
@@ -55,6 +56,7 @@ module Content
       check_story_links
       check_imitations_arrive_with_their_genuine_message
       check_phishes_have_follow_ups_too
+      check_private_details
       import_hints
       check_lazy_play_doesnt_pay
 
@@ -152,9 +154,14 @@ module Content
             attachments:,
             replies:,
             verify_result: fictional(node, :verify_result, node.optional(:verify_result)),
-            answer_in_key: answer_in&.dig(:key), answer_in_quote: answer_in&.dig(:quote)
+            answer_in_key: answer_in&.dig(:key), answer_in_quote: answer_in&.dig(:quote),
+            needs: detail_keys(node, :needs, allowed: legit, hint: "a phish wants details: use wants:"),
+            wants: detail_keys(node, :wants, allowed: !legit, hint: "a genuine message needs details: use needs:"),
+            share_response: fictional(node, :share_response, node.optional(:share_response))
           )
         end
+        import_details(node, message)
+        (@message_nodes ||= {})[message.key] = node
         @story_links << answer_in.merge(dependent: message) if answer_in
 
         note_imitation(node, message)
@@ -245,6 +252,7 @@ module Content
           reply_node.allow_only!(*REPLY_KEYS)
           outcome = one_of(reply_node, :outcome, legit ? REPLY_OUTCOMES - %w[ compromise ] : REPLY_OUTCOMES - %w[ poor ],
             hint: legit ? "legitimate messages" : "phishing messages")
+          reply_node.error!("an ask_why reply needs a response: the sender's answer") if outcome == "ask_why" && reply_node.optional(:response).nil?
           {
             "id" => "r#{index + 1}",
             "text" => fictional(reply_node, :text, reply_node.required(:text)),
@@ -394,6 +402,98 @@ module Content
         index = -1
         starts << index while (index = text.index(quote, index + 1))
         starts
+      end
+
+      # --- Private details -------------------------------------------------------------------
+
+      def detail_keys(node, key, allowed:, hint:)
+        keys = node.optional(key, Array, default: []).map(&:to_s)
+        node.error!("#{key} isn't allowed here: #{hint}") if keys.any? && !allowed
+        node.check_unique!(key.to_s.singularize, keys)
+        keys
+      end
+
+      # details: [{ key: wire_codeword, label: "Payment codeword", quote: "BLUEBELL", sensitivity: secret }]:
+      # private details the player can learn from this message, quoted in its text like a red flag.
+      def import_details(node, message)
+        details = node.each_item(:details, required: false) do |detail_node|
+          detail_node.allow_only!(*DETAIL_KEYS)
+          key = detail_node.required(:key)
+          detail_node.error!("key \"#{key}\" is a persona card detail; learned details need their own keys") if key.in?(Shift::Detail::CARD_KEYS)
+          target = red_flag_target(detail_node, message)
+          detail_node.error!("a detail is quoted from the message's text: give quote:, not anchor:") unless target[:quote]
+
+          { "key" => key, "label" => fictional(detail_node, :label, detail_node.required(:label)),
+            "sensitivity" => one_of(detail_node, :sensitivity, Shift::Detail::SENSITIVITIES - %w[ never ]),
+            "red_use" => detail_node.optional(:red_use)&.then { |text| fictional(detail_node, :red_use, text) },
+            "anchor" => target[:anchor], "quote" => target[:quote], "quote_start" => target[:quote_start], "quote_end" => target[:quote_end] }.compact
+        end
+        node.saving { message.update!(details:) }
+      end
+
+      # The rules that keep sharing honest:
+      # - every detail asked for exists, and a learned one is always in the inbox before anything asks;
+      # - a genuine message can only ask for a secret (or the MFA code) on its portal page, never by
+      #   reply, so "secrets go into the system, never into a message" is always true;
+      # - each way of asking offers somewhere to answer: replies (with the "Send details" box) or a page;
+      # - a message that asks for details by reply offers "Why do you need this?" (outcome ask_why);
+      # - within the shift, every internal detail a phish wants is needed by a genuine message, and the
+      #   other way round, so being asked for one never says who's asking.
+      def check_private_details
+        learned = @messages.flat_map { |message| message.learned_details.map { |detail| [ detail, message ] } }
+        @node.check_unique!("learned detail", learned.map { |detail, _| detail.key })
+        catalogue = (Shift::Detail::CARD + learned.map(&:first)).index_by(&:key)
+
+        @messages.each do |message|
+          node = message_node(message)
+          asks = message.needs + message.wants
+          asks.each do |key|
+            detail = catalogue[key] or node.error!("unknown detail \"#{key}\" (known: #{catalogue.keys.sort.join(", ")})")
+            next if detail.card?
+
+            source = learned.find { |candidate, _| candidate.key == key }.last
+            node.error!("#{message.key} asks for #{key}, which it holds itself") if source == message
+            unless always_arrives_after?(message, source)
+              node.error!("#{message.key} could arrive before #{source.key}, where #{key} is learned: #{source.key} must arrive " \
+                          "at the start, or #{message.key} after it")
+            end
+          end
+          next if asks.empty?
+
+          if message.legit?
+            page_only = message.needs.select { |key| catalogue[key].page_only? }
+            if page_only.any? && !message.expects_act?
+              node.error!("#{page_only.join(", ")} can only be needed on a portal page (expects: act): secrets never go in a message")
+            end
+            node.error!("a message that needs details must expect act or reply") if message.expects_archive?
+            node.error!("needs details by reply, so it needs replies (the Send details box sits with them)") if message.expects_reply? && message.replies.empty?
+          elsif message.replies.empty? && message.links.none? { |link| link.landing_template == "credential_harvest" }
+            node.error!("wants details, so it needs replies or a lookalike sign-in link to give them on")
+          end
+
+          asks_ask_why = message.replies.count { |reply| reply["outcome"] == "ask_why" }
+          if message.replies.any? && asks_ask_why != 1
+            node.error!("asks for details and has replies, so it needs exactly one \"Why do you need this?\" reply (outcome: ask_why)")
+          end
+        end
+
+        @messages.each do |message|
+          next if message.needs.any? || message.wants.any?
+          message_node(message).error!("only a message that asks for details can offer an ask_why reply") if message.ask_why_reply
+        end
+
+        internal = ->(keys) { keys.select { |key| catalogue[key]&.sensitivity == "internal" }.to_set }
+        needed = internal.(@messages.select(&:legit?).flat_map(&:needs))
+        wanted = internal.(@messages.select(&:phish?).flat_map(&:wants))
+        return if needed == wanted
+
+        @node.error!("internal details must be asked for by both sides, so being asked never says who's asking: " \
+                     "needed by genuine messages only: #{(needed - wanted).to_a.sort.join(", ").presence || "none"}; " \
+                     "wanted by phishes only: #{(wanted - needed).to_a.sort.join(", ").presence || "none"}")
+      end
+
+      def message_node(message)
+        @message_nodes.fetch(message.key)
       end
 
       # --- Read it, you'll need it later ----------------------------------------------------

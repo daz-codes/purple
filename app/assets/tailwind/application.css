@@ -222,6 +222,13 @@
   text-decoration: underline 2px var(--color-red-team);
 }
 
+/* Words saved as notes. */
+::highlight(noted) {
+  background-color: var(--color-purple-team-soft);
+  color: var(--color-ink);
+  text-decoration: underline 2px dotted var(--color-purple-team);
+}
+
 /* The Workshop's bot results appear one after another. */
 @keyframes reveal {
   from { opacity: 0; transform: translateY(0.75rem); }

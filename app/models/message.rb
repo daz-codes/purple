@@ -9,7 +9,11 @@
 # A message that asks a question can say where its answer was: answer_in_key names an earlier message
 # in the shift, and answer_in_quote the words in it that answer the question.
 #
-# SECRET: legit, expects, points, urgency, links' outcomes, red flags, techniques, attachment outcomes,
+# A genuine message can need private details (needs: detail keys) and a phish can want them (wants:);
+# a message can also hold details the player learns from it (details:, quoted in its text). See
+# Shift::Detail.
+#
+# SECRET: needs, wants, the details a message holds, legit, expects, points, urgency, links' outcomes, red flags, techniques, attachment outcomes,
 # reply outcomes and where an answer was are answers. They must never reach the browser before the
 # debrief. So are the arrival triggers: they'd tell the player how many messages are still to come.
 class Message < ApplicationRecord
@@ -90,6 +94,24 @@ class Message < ApplicationRecord
   # The canned replies a text or chat message offers, by their neutral ids (r1, r2…).
   def reply(id)
     replies.find { |reply| reply["id"] == id } if id
+  end
+
+  # The private details quoted in this message's text, for the player to save as notes.
+  def learned_details
+    details.map { |stored| Shift::Detail.learned(key, stored) }
+  end
+
+  # The reply that asks why the sender needs the details (outcome ask_why), if it offers one.
+  def ask_why_reply
+    replies.find { |reply| reply["outcome"] == "ask_why" }
+  end
+
+  # The answer sent back when the player shares details. The same for every message unless the author
+  # wrote one, so it gives nothing away.
+  DEFAULT_SHARE_RESPONSE = "Thanks, got it.".freeze
+
+  def share_response_text
+    share_response.presence || DEFAULT_SHARE_RESPONSE
   end
 
   # Reply options that are safe to show: only their text. What each one leads to stays on the server.

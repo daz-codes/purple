@@ -109,10 +109,58 @@ module DebriefsHelper
 
   # What a genuine message needed, as the end of a sentence: "needed a reply".
   def debrief_need(message)
+    details = detail_labels(message, message.needs)
     case message.expects
-    when "reply" then "needed a reply"
-    when "act" then "needed you to #{portal_action_phrase(message)}"
+    when "reply" then details ? "needed your #{details}" : "needed a reply"
+    when "act" then "needed you to #{portal_action_phrase(message)}#{", with your #{details}" if details}"
     else "needed nothing more than reading and archiving"
+    end
+  end
+
+  # What happened with private details on this message, one sentence each. Never anything for a message
+  # nobody shared with and that needed nothing.
+  def debrief_details(result)
+    message = result.message
+    sentences = []
+    if result.phish?
+      if result.leaks.any?
+        sentences << "You gave them your #{shared_labels(result.leaks)}. That's falling for it, whatever you did next " \
+          "(#{debrief_points(result.detail_points)})."
+      elsif result.shares.any?
+        sentences << "You sent them only #{shared_labels(result.shares)}, which anyone could know. No harm done."
+      end
+      if message.wants.any? && result.leaks.none?
+        sentences << "They were after your #{detail_labels(message, message.wants)}, and you didn't hand it over."
+      end
+    else
+      if message.needs.any?
+        sentences << (result.needs_met? ? "It got the #{detail_labels(message, message.needs)} it needed, in the right place." :
+          "It needed your #{detail_labels(message, message.needs)}, and never got #{message.needs.size == 1 ? "it" : "them"} where it could use them.")
+      end
+      result.overshares.each do |share|
+        detail = message.shift.detail(share["detail"])
+        sentences << if share["sensitivity"] == "secret" && share["via"] == "reply"
+          "You sent your #{share["label"].downcase} in a message. Secrets like that only go into the company's own system, never in an " \
+            "email or chat, even to someone genuine (#{debrief_points(Shift::Detail::OVERSHARE_POINTS["secret"])})."
+        else
+          "You also sent your #{(detail&.label || share["label"]).downcase}, which it didn't need " \
+            "(#{debrief_points(Shift::Detail::OVERSHARE_POINTS.fetch(share["sensitivity"]))}). Only give what's asked for and needed."
+        end
+      end
+      if result.mfa_misuses.any?
+        sentences << "You gave your MFA code to something other than the sign-in page that asked for it. Nobody else ever needs it " \
+          "(#{debrief_points(ShiftAttempt::Scorecard::COMPROMISED)})."
+      end
+    end
+    sentences
+  end
+
+  # "What Red now knows": each detail given to a phish, with what Red could do with it.
+  def debrief_red_knows(scorecard, shift)
+    scorecard.leaked_details.map do |share|
+      detail = shift.detail(share["detail"])
+      use = detail&.red_use || "use it to make the next attack more convincing"
+      "Your #{(detail&.label || share["label"]).downcase} (#{share["value"]}): Red could #{use}."
     end
   end
 
@@ -124,7 +172,7 @@ module DebriefsHelper
     if !result.arrived?
       story << "This was still on its way when you stopped."
       story << (result.phish? ? "It was a phish, so no harm done, but nobody reported it." :
-        "It was genuine, and #{debrief_need(message)} (#{debrief_points(result.handling_points)}).")
+        "It was genuine, and #{debrief_need(message)} (#{debrief_points(result.action_points)}).")
     elsif result.phish?
       story << reply_sentence(result) if result.reply
       result.compromises.each { |tab| story << compromise_sentence(tab) }
@@ -214,6 +262,13 @@ module DebriefsHelper
         reply = action.result
         tone = { "compromise" => :bad, "verify" => :good, "poor" => :warn }.fetch(reply["outcome"], :neutral)
         [ "Replied “#{reply["text"]}” to #{subject}#{", and checked with someone you trust" if reply["check"]}", tone ]
+      when "save_note" then [ "Saved “#{action.result["text"]}” from #{subject} to your notes", :neutral ]
+      when "share_details"
+        labels = action.result["shared"].map { |shared| shared["label"] }.to_sentence
+        where = action.result["via"] == "page" ? "on #{tab_label(result && ShiftAttempt::Tab.new(message: result.message, source: action.result["page"]))}" : "to #{subject}"
+        leaked = result&.phish? && action.result["shared"].any? { |shared| shared["sensitivity"].in?(%w[ internal secret never ]) }
+        [ "Sent #{labels} #{where}", leaked ? :bad : :neutral ]
+      when "ask_why" then [ "Asked #{subject} why they needed it", :good ]
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "archive_message" then [ "Archived #{subject}", result.nil? || result.phish? || result.done? ? :neutral : :warn ]
@@ -314,24 +369,35 @@ module DebriefsHelper
         end
         story << "Trusting the real #{noun} matters as much as spotting the fake one." if message.expects_act?
         story
-      elsif result.handling_points.zero?
+      elsif result.action_points.zero?
         [ "This was genuine and #{need}. It was still in your #{result.message.email? ? "inbox" : "messages"} when you stopped, " \
           "which costs nothing for a message like this." ]
       else
-        [ "This was genuine and #{need}, but #{not_done_reason(result)} (#{debrief_points(result.handling_points)})." ]
+        [ "This was genuine and #{need}, but #{not_done_reason(result)} (#{debrief_points(result.action_points)})." ]
       end
+    end
+
+    def detail_labels(message, keys)
+      keys.filter_map { |key| message.shift.detail(key)&.label&.downcase }.to_sentence.presence
+    end
+
+    def shared_labels(shares)
+      shares.map { |share| share["label"].downcase }.uniq.to_sentence
     end
 
     def done_sentence(result)
       case result.message.expects
-      when "reply" then "You replied “#{result.reply["text"]}”."
+      when "reply"
+        result.message.needs.any? ? "You sent the details it needed." : "You replied “#{result.reply["text"]}”."
       when "act" then "You did it, through its link."
       else "You archived it."
       end
     end
 
     def not_done_reason(result)
-      if result.reply.present? && result.message.expects_reply?
+      if result.message.needs.any? && !result.needs_met?
+        "it never got those details"
+      elsif result.reply.present? && result.message.expects_reply?
         "your reply, “#{result.reply["text"]}”, didn't do what it asked"
       elsif result.archived?
         "you archived it without doing that"

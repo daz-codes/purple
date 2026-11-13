@@ -51,6 +51,19 @@ class ShiftAttempt::ReplyableTest < ActiveSupport::TestCase
     assert_raises(ShiftAttempt::Rejected, match: /already dealt with/) { @attempt.send_reply(messages(:sam_text), "r1") }
   end
 
+  test "asking why isn't the reply: the sender answers, and the player can still reply, once" do
+    messages(:sam_text).update!(replies: messages(:sam_text).replies + [ { "id" => "r3", "text" => "Why?", "outcome" => "ask_why", "response" => "Caffeine." } ])
+
+    @attempt.send_reply(messages(:sam_text), "r3")
+    assert_equal({ "text" => "Why?", "response" => "Caffeine." }, @attempt.why_answer(messages(:sam_text)))
+    assert @attempt.asked_why?(messages(:sam_text))
+    assert_not @attempt.replied?(messages(:sam_text))
+    assert_raises(ShiftAttempt::Rejected, match: /already asked/) { @attempt.send_reply(messages(:sam_text), "r3") }
+
+    @attempt.send_reply(messages(:sam_text), "r1")
+    assert @attempt.replied?(messages(:sam_text))
+  end
+
   private
     def bring_the_chat
       @attempt.send_reply(messages(:sam_text), "r1")

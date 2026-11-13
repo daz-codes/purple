@@ -71,6 +71,24 @@ class Message::Paragraph
     sentences.any? { |sentence| trim(sentence.from, sentence.to) == [ from, to ] }
   end
 
+  # A highlight (from...to) finds a quote (quote_start...quote_end) in this paragraph if it covers at
+  # least 60% of the quote's characters and is no longer than twice the quote, or the quote plus 20
+  # characters, whichever is longer: highlighting a whole paragraph to catch everything in it doesn't
+  # count. A whole sentence (clicked, or dragged over exactly) finds every quote inside it. Used for red
+  # flags and for notes.
+  MIN_COVERAGE = 0.6
+  LENGTH_SLACK = 20
+
+  def finds_quote?(from, to, quote_start, quote_end)
+    if whole_sentence?(from, to)
+      from <= quote_start && quote_end <= to
+    else
+      covered = [ to, quote_end ].min - [ from, quote_start ].max
+      length = quote_end - quote_start
+      covered >= length * MIN_COVERAGE && to - from <= [ 2 * length, length + LENGTH_SLACK ].max
+    end
+  end
+
   # The range narrowed to leave out whitespace at either end, or nil if it's out of bounds or nothing
   # but whitespace.
   def trim(from, to)

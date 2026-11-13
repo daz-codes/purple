@@ -38,4 +38,26 @@ class Shift::LazyPlayTest < ActiveSupport::TestCase
     assert_equal %w[ pay_today ], fake.found_flags.map(&:key)
     assert_operator card.messages.sum { |result| result.false_flags.size }, :>=, 4
   end
+
+  test "sharing everything, or whatever's asked, never pays; sharing nothing earns fewer stars than careful play" do
+    messages(:real_invoice).update!(needs: %w[ staff_number ])
+    messages(:fake_invoice).update!(wants: %w[ staff_number memorable_word ])
+    lazy = Shift::LazyPlay.new(shifts(:month_end))
+
+    assert lazy.careful.perfect?
+    Shift::LazyPlay::DETAIL_STRATEGIES.each do |strategy|
+      assert_equal 0, lazy.scorecard(strategy).stars, strategy
+    end
+    assert_operator lazy.scorecard(:share_nothing).stars, :<, lazy.careful.stars
+    assert lazy.scorecard(:share_whatever_asked).message_result_for("fake_invoice").compromised?
+    assert_empty lazy.exploits
+  end
+
+  test "sharing nothing is an exploit when what needs details is worth too little" do
+    messages(:newsletter).update!(expects: "reply", needs: %w[ name ], points: 2,
+      replies: [ { "id" => "r1", "text" => "OK", "outcome" => "safe" }, { "id" => "r2", "text" => "Why?", "outcome" => "ask_why", "response" => "Because." } ])
+    messages(:fake_invoice).update!(wants: %w[ name ])
+
+    assert_includes Shift::LazyPlay.new(shifts(:month_end)).exploits.keys, :share_nothing
+  end
 end

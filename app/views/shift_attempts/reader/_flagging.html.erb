@@ -1,11 +1,25 @@
-<%# The flag-mode banner, the player's own flags, and the hidden form a flag posts. Shared by the email
-    reader and the phone's conversation view. %>
-<p class="mt-4 rounded-lg border border-red-team/60 bg-red-team-soft px-4 py-3 text-sm" data-flag-mode-target="banner" <%= "hidden" unless flag_mode %>>
+<%# The flag-mode and notes banners, the player's own flags and notes, and the hidden forms they post.
+    Shared by the email reader and the phone's conversation view. %>
+<% note_mode = local_assigns[:note_mode] %>
+<% notes = local_assigns.fetch(:notes, []) %>
+<p class="mt-4 rounded-lg border border-red-team/60 bg-red-team-soft px-4 py-3 text-sm" data-flag-mode-target="banner" <%= "hidden" unless flag_mode && !note_mode %>>
   <span class="font-semibold">Flag mode.</span>
   <%= local_assigns.fetch(:parts, "Click the sender, subject, a link or an attachment to flag it.") %>
   Drag across any words to highlight just those, or click a sentence to flag the whole sentence.
   Click a flag again to take it off. Flags are free, but each wrong one costs points at the end.
 </p>
+
+<p class="mt-4 rounded-lg border border-purple-team/60 bg-purple-team-soft px-4 py-3 text-sm" data-flag-mode-target="noteBanner" <%= "hidden" unless note_mode %>>
+  <span class="font-semibold">Saving to notes.</span>
+  Drag across any words to save just those, or click a sentence to save it all. Saved notes appear with your
+  details, ready to send. Click a note again to take it off.
+</p>
+
+<% if notes.any? %>
+  <p class="mt-3 text-sm" data-testid="your-notes">
+    <span class="font-semibold text-purple-team">📝 Saved from this message:</span> <%= notes.map { |note| "“#{note.text}”" }.to_sentence %>
+  </p>
+<% end %>
 
 <% if flags.any? %>
   <p class="mt-3 text-sm" data-testid="your-flags">
@@ -18,4 +32,11 @@
   <%= form.hidden_field :anchor, value: "", data: { flag_mode_target: "anchor" } %>
   <%= form.hidden_field :from, value: "", data: { flag_mode_target: "from" } %>
   <%= form.hidden_field :to, value: "", data: { flag_mode_target: "to" } %>
+<% end %>
+
+<%= form_with url: shift_attempt_message_notes_path(attempt, ref), method: :post, hidden: true,
+      data: { flag_mode_target: "noteForm" } do |form| %>
+  <%= form.hidden_field :anchor, value: "" %>
+  <%= form.hidden_field :from, value: "" %>
+  <%= form.hidden_field :to, value: "" %>
 <% end %>

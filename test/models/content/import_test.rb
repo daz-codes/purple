@@ -26,17 +26,22 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     Shift.where(slug: shipped_shift_slugs).each do |shift|
       messages = shift.messages.includes(:red_flags)
-      assert_includes 5..10, messages.size, "#{shift.slug} should have 5-10 messages"
+      assert_includes 5..12, messages.size, "#{shift.slug} should have 5-12 messages"
       assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
       assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
       assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
       assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
       assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
       assert shift.persona.present?, "#{shift.slug} needs a persona"
+      assert messages.any? { |message| message.legit? && message.needs.any? }, "#{shift.slug} needs a genuine message that needs a detail"
+      assert messages.any? { |message| message.phish? && message.wants.any? }, "#{shift.slug} needs a phish that wants a detail"
       assert shift.directory.any?, "#{shift.slug} needs a staff directory"
     end
     assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
     assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
+    shipped = Message.joins(:shift).where(shifts: { slug: shipped_shift_slugs })
+    assert shipped.any? { |message| message.details.any? }, "a shift needs a detail learned from a message"
+    assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a shift needs an MFA-fatigue run"
   end
 
   # --- A minimal content folder, mutated one rule at a time ------------------------------
@@ -362,9 +367,9 @@ class Content::ImportTest < ActiveSupport::TestCase
                           /from 2 to 4 options/ ],
       "a reply that hands over on a genuine message" => [
         ->(s) { phone(s)["messages"].first["replies"] = chat_replies },
-        /outcome must be one of safe, poor, verify for legitimate messages \(got compromise\)/ ],
+        /outcome must be one of safe, poor, verify, ask_why for legitimate messages \(got compromise\)/ ],
       "a poor reply on a phish" => [ ->(s) { phone(s)["messages"].last["replies"] = poor_replies },
-                                     /outcome must be one of safe, compromise, verify for phishing messages \(got poor\)/ ],
+                                     /outcome must be one of safe, compromise, verify, ask_why for phishing messages \(got poor\)/ ],
       "an unknown reply outcome" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
                                       /outcome must be one of safe, compromise, verify/ ],
       "a repeated reply" => [ ->(s) { phone(s)["messages"].last["replies"] = [ chat_replies.first, chat_replies.first ] },

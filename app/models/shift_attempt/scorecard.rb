@@ -13,6 +13,12 @@
 #   fallen for) costs 10, and each compromise (a password entered, a file run, or a reply that handed
 #   something over) costs 50.
 # - Each red flag found earns its points, and each flag that finds nothing costs 10, on any message.
+# - Private details (Shift::Detail). A genuine message that needs details is only done once it has all
+#   of them, through the right channel: secrets and the MFA code only on its portal page, never in a
+#   message. Sharing a detail it didn't need is oversharing: -5 for an internal detail, -15 for a
+#   secret (a secret sent in a message always counts as overshared). Giving a phish anything above
+#   public costs -20 per internal detail and -50 per secret or MFA code, at most -50 in all, and counts
+#   as a compromise. The MFA code anywhere but the sign-in page that asked for it is a compromise too.
 #
 # Clearing the inbox in timed mode earns a speed bonus: 20 points for each full 5 minutes under the
 # shift's target time, times the share of messages handled as expected (phishes reported, genuine
@@ -37,7 +43,9 @@ class ShiftAttempt::Scorecard
   # ShiftAttempt::Tabs (pages or files) involved; flags are the ShiftAttempt::Flags left standing;
   # reply is the canned reply sent, as stored when it was sent; arrived_at is when it arrived (in
   # seconds into the attempt), or nil if it never did.
-  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :flags, :reply, :arrived_at, :relaxed) do
+  # shares are the details handed over to it, each as stored when shared (see ShiftAttempt::Sharing) plus
+  # how ("via": reply or page) and when ("at", in seconds).
+  MessageResult = Data.define(:message, :actions, :compromises, :near_misses, :flags, :reply, :shares, :arrived_at, :relaxed) do
     def phish? = message.phish?
     def arrived? = !arrived_at.nil?
     def opened? = actions.any?(&:open_message?)
@@ -47,20 +55,74 @@ class ShiftAttempt::Scorecard
     def archived? = actions.any?(&:archive_message?)
     def used_portal? = actions.any?(&:use_portal?)
     def gave_in? = ShiftAttempt::Replyable.gave_in?(reply)
-    def compromised? = compromises.any? || gave_in?
+    def compromised? = compromises.any? || gave_in? || leaks.any?
     def near_miss? = near_misses.any?
     def replied_well? = reply.present? && reply["outcome"].in?(%w[ safe verify ])
     def replied_poorly? = reply&.dig("outcome") == "poor"
 
-    # When the player did what a genuine message needed, in seconds into the attempt, or nil.
+    # When the player did what a genuine message needed, in seconds into the attempt, or nil. One that
+    # needs details is done once it has them all; on a portal page, once the page is used too.
     def done_at_seconds
+      return needed_details_at_seconds if message.needs.any? && message.expects_reply?
+
       action = case message.expects
       when "reply" then actions.find { |action| action.send_reply? } if replied_well?
       when "act" then actions.find(&:use_portal?)
       when "archive" then actions.find(&:archive_message?)
       end
-      action&.at_seconds
+      return action&.at_seconds if message.needs.empty? || action.nil?
+
+      needed = needed_details_at_seconds
+      [ action.at_seconds, needed ].max if needed
     end
+
+    # --- Private details -----------------------------------------------------------------
+
+    # When the last detail it needed arrived through the right channel, or nil if one never did.
+    def needed_details_at_seconds
+      given = Set.new
+      shares.each do |share|
+        given << share["detail"] if needed?(share)
+        return share["at"] if message.needs.all? { |key| given.include?(key) }
+      end
+      nil
+    end
+
+    def needs_met? = !needed_details_at_seconds.nil?
+
+    # A share this message needed, through a channel it may take: secrets and the MFA code only on a page.
+    def needed?(share)
+      share["detail"].in?(message.needs) && (share["via"] == "page" || !page_only?(share))
+    end
+
+    # What a phish was given that's above public: falling for it.
+    def leaks
+      return mfa_misuses unless phish?
+
+      shares.select { |share| share["sensitivity"].in?(%w[ internal secret never ]) }
+    end
+
+    # Details a genuine message was given that it didn't need (or a secret sent in a message).
+    def overshares
+      return [] if phish?
+
+      shares.select { |share| share["sensitivity"].in?(%w[ internal secret ]) && !needed?(share) }
+    end
+
+    # The MFA code given to a genuine message anywhere but the sign-in page that asked for it.
+    def mfa_misuses
+      shares.select { |share| share["sensitivity"] == "never" && !needed?(share) }
+    end
+
+    def detail_points
+      if phish?
+        [ leaks.sum { |share| Shift::Detail::LEAK_POINTS.fetch(share["sensitivity"]) }, COMPROMISED ].max
+      else
+        overshares.sum { |share| Shift::Detail::OVERSHARE_POINTS.fetch(share["sensitivity"]) } + (mfa_misuses.any? ? COMPROMISED : 0)
+      end
+    end
+
+    def page_only?(share) = share["sensitivity"].in?(%w[ secret never ])
 
     def done? = !phish? && !reported? && !done_at_seconds.nil?
 
@@ -97,6 +159,10 @@ class ShiftAttempt::Scorecard
     end
 
     def handling_points
+      action_points + detail_points
+    end
+
+    def action_points
       if phish?
         (reported? ? REPORTED_PHISH : 0) + near_misses.size * NEAR_MISS + (compromises.size + (gave_in? ? 1 : 0)) * COMPROMISED
       elsif reported? then REPORTED_GENUINE
@@ -203,6 +269,11 @@ class ShiftAttempt::Scorecard
     messages.any?(&:compromised?)
   end
 
+  # Every detail given to a phish, once each, for "What Red now knows".
+  def leaked_details
+    phishes.flat_map(&:leaks).uniq { |share| share["detail"] || share["chip"] }
+  end
+
   # 0 to 3.
   def stars
     return 3 if perfect?
@@ -251,8 +322,12 @@ class ShiftAttempt::Scorecard
       near_misses = tabs(message, actions, ShiftAttempt::Browsing::TAB_OPENERS).select(&:trap?)
         .reject { |tab| compromises.any? { |compromise| compromise.same_page?(tab) } }
 
+      shares = ShiftAttempt::Sharing.shares(actions).flat_map do |action|
+        action.result["shared"].map { |shared| shared.merge("via" => action.result["via"], "at" => action.at_seconds) }
+      end
+
       MessageResult.new(message:, actions:, compromises:, near_misses:, flags: ShiftAttempt::Flaggable.standing(actions),
-        reply: ShiftAttempt::Replyable.sent(actions)[message.key], arrived_at:, relaxed: @relaxed)
+        reply: ShiftAttempt::Replyable.sent(actions)[message.key], shares:, arrived_at:, relaxed: @relaxed)
     end
 
     # The pages or files the given kinds of action happened on, once each. Uses the same rules as

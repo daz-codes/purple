@@ -45,6 +45,8 @@ Rails.application.routes.draw do
           resource :archive, only: :create
           resource :reply, only: :create
           resources :flags, only: :create
+          resources :notes, only: :create
+          resource :details_share, only: :create
           resources :links, param: :key, only: [] do
             resource :visit, only: :create, module: :links
           end

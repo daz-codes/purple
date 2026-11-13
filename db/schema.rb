@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_140000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_140001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_140000) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["shift_attempt_id", "id"], name: "index_attempt_actions_on_shift_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'clock_off'::character varying]::text[])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'clock_off'::character varying, 'save_note'::character varying, 'share_details'::character varying, 'ask_why'::character varying]::text[])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -115,6 +115,10 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_140000) do
     t.integer "urgent_within_minutes"
     t.string "answer_in_key"
     t.text "answer_in_quote"
+    t.jsonb "needs", default: [], null: false
+    t.jsonb "wants", default: [], null: false
+    t.jsonb "details", default: [], null: false
+    t.text "share_response"
     t.index ["shift_id", "key"], name: "index_messages_on_shift_id_and_key", unique: true
     t.index ["shift_id"], name: "index_messages_on_shift_id"
     t.check_constraint "(answer_in_key IS NULL) = (answer_in_quote IS NULL)", name: "messages_answer_in_complete"
