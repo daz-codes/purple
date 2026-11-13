@@ -3,7 +3,7 @@ require "application_system_test_case"
 class RelaxedModeTest < ApplicationSystemTestCase
   test "turn on relaxed mode: the shift says so, and the debrief has no timing" do
     sign_in users(:one)
-    click_on "Settings"
+    find("[data-testid=current-user]").click
     check "Relaxed mode"
     click_on "Save settings"
     assert_text "Settings saved."

@@ -98,6 +98,12 @@
   @apply rounded-2xl border border-line bg-surface-raised p-6;
 }
 
+/* A whole card that is one link: it glows in Blue's colour on hover and keyboard focus. */
+@utility card-link {
+  @apply card block transition hover:border-blue-team hover:bg-blue-team-soft/40 hover:shadow-lg hover:shadow-blue-team/20
+    focus-visible:border-blue-team focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-team;
+}
+
 @utility form-label {
   @apply block text-sm font-medium text-ink-muted mb-1;
 }

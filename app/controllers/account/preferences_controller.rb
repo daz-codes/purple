@@ -1,12 +1,9 @@
 module Account
-  # The player's settings. For now, relaxed mode: shifts without timing.
+  # The player's settings, shown on the account page. For now, relaxed mode: shifts without timing.
   class PreferencesController < ApplicationController
-    def edit
-    end
-
     def update
       Current.user.update!(params.expect(user: [ :relaxed_mode ]))
-      redirect_to edit_account_preferences_path, status: :see_other, notice: "Settings saved."
+      redirect_to account_path, status: :see_other, notice: "Settings saved."
     end
   end
 end

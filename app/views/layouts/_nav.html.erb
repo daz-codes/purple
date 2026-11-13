@@ -13,9 +13,8 @@
     <ul class="flex flex-wrap items-center gap-1 sm:gap-2 text-sm">
       <li><%= link_to "Shifts", tracks_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
       <% if authenticated? %>
-        <li><span class="px-3 py-2 font-semibold" data-testid="current-user"><%= Current.user.display_name %></span></li>
-        <li><%= link_to "Devices", account_sessions_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
-        <li><%= link_to "Settings", edit_account_preferences_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>
+        <li><%= link_to Current.user.display_name, account_path, class: "px-3 py-2 rounded-lg font-semibold hover:bg-surface-raised",
+              aria: { label: "Your account (#{Current.user.display_name})" }, data: { testid: "current-user" } %></li>
         <li><%= button_to "Sign out", session_path, method: :delete, class: "px-3 py-2 rounded-lg hover:bg-surface-raised cursor-pointer" %></li>
       <% else %>
         <li><%= link_to "Sign in", new_session_path, class: "px-3 py-2 rounded-lg hover:bg-surface-raised" %></li>

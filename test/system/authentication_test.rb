@@ -60,13 +60,14 @@ class AuthenticationTest < ApplicationSystemTestCase
     assert_selector "[data-testid=current-user]", text: "rookie_blue"
   end
 
-  test "revoke another device from the devices page" do
+  test "revoke another device from your account page, reached by clicking your name" do
     user = users(:one)
     user.sessions.create!(user_agent: "Mozilla/5.0 (X11; Linux x86_64) Firefox/131.0", ip_address: "192.0.2.10")
 
     visit new_session_path
     sign_in_with user.email_address, PASSWORD
-    click_on "Devices"
+    find("[data-testid=current-user]").click
+    assert_selector "h1", text: "Your account"
 
     assert_text "Firefox on Linux"
     click_on "Sign out Firefox on Linux"

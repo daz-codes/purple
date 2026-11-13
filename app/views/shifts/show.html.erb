@@ -22,10 +22,10 @@
       <li>More arrive as you work. The shift ends when <%= @shift.kind_inbox? ? "your inbox" : "your phone" %> is clear.</li>
       <li>Calling a sender back is always allowed, but takes a little time.</li>
       <% if authenticated? && Current.user.relaxed_mode? %>
-        <li>You're in <%= link_to "relaxed mode", edit_account_preferences_path, class: "underline" %>: take as long as you like.</li>
+        <li>You're in <%= link_to "relaxed mode", account_path, class: "underline" %>: take as long as you like.</li>
       <% else %>
         <li>Clear it in under <%= @shift.par_minutes %> minutes for a speed bonus. Prefer no timing? Try
-          <%= link_to "relaxed mode", authenticated? ? edit_account_preferences_path : new_session_path, class: "underline" %>.</li>
+          <%= link_to "relaxed mode", authenticated? ? account_path : new_session_path, class: "underline" %>.</li>
       <% end %>
       <li>Nothing tells you how you're doing until the debrief.</li>
     </ul>

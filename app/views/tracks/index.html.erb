@@ -11,11 +11,11 @@
 
 <div class="grid gap-6 md:grid-cols-2">
   <% @tracks.each do |track| %>
-    <article class="card flex flex-col">
+    <%= link_to track, class: "card-link group flex flex-col" do %>
       <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted"><%= track.difficulty.humanize %></p>
-      <h2 class="mt-2 text-2xl font-bold"><%= link_to track.title, track, class: "hover:text-blue-team" %></h2>
+      <h2 class="mt-2 text-2xl font-bold group-hover:text-blue-team"><%= track.title %></h2>
       <p class="mt-3 text-ink-muted flex-1"><%= track.description %></p>
-      <p class="mt-4 text-sm text-ink-muted"><%= pluralize(track.shifts.count(&:published?), "shift") %></p>
-    </article>
+      <p class="mt-4 text-sm text-ink-muted"><%= pluralize(track.shifts.count(&:published?), "shift") %> <span aria-hidden="true">→</span></p>
+    <% end %>
   <% end %>
 </div>

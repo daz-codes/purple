@@ -3,13 +3,13 @@ require "test_helper"
 class Account::PreferencesControllerTest < ActionDispatch::IntegrationTest
   setup { sign_in_as users(:one) }
 
-  test "turning relaxed mode on and off" do
-    get edit_account_preferences_path
+  test "turning relaxed mode on and off from the account page" do
+    get account_path
     assert_response :success
     assert_select "input[type=checkbox][name='user[relaxed_mode]']"
 
     patch account_preferences_path, params: { user: { relaxed_mode: "1" } }
-    assert_redirected_to edit_account_preferences_path
+    assert_redirected_to account_path
     assert users(:one).reload.relaxed_mode?
 
     patch account_preferences_path, params: { user: { relaxed_mode: "0" } }

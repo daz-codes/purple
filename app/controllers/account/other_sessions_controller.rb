@@ -3,7 +3,7 @@ module Account
   class OtherSessionsController < ApplicationController
     def destroy
       Current.user.sessions.where.not(id: Current.session.id).destroy_all
-      redirect_to account_sessions_path, status: :see_other, notice: "All your other devices have been signed out."
+      redirect_to account_path, status: :see_other, notice: "All your other devices have been signed out."
     end
   end
 end
