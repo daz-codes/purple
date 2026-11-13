@@ -1,0 +1,59 @@
+<% content_for :title, "Your account" %>
+
+<div class="mx-auto w-full max-w-2xl space-y-10">
+  <header>
+    <h1 class="text-3xl font-extrabold tracking-tight">Your account</h1>
+    <p class="mt-1 text-ink-muted">Your details, and everywhere you're signed in.</p>
+  </header>
+
+  <section aria-labelledby="details-heading">
+    <h2 id="details-heading" class="text-xl font-bold">Details</h2>
+    <dl class="card mt-4 grid gap-x-6 gap-y-3 p-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+      <dt class="text-sm text-ink-muted">Player name</dt>
+      <dd class="font-semibold"><%= Current.user.display_name %></dd>
+      <dt class="text-sm text-ink-muted">Email address</dt>
+      <dd class="break-all">
+        <%= Current.user.email_address %>
+        <% unless Current.user.confirmed? %>
+          <span class="ml-2 rounded-full bg-purple-team-soft px-2 py-0.5 text-xs text-purple-team">Not confirmed yet</span>
+        <% end %>
+      </dd>
+      <dt class="text-sm text-ink-muted">Password</dt>
+      <dd><%= link_to "Change it by email", new_password_path, class: "text-blue-team underline" %></dd>
+    </dl>
+  </section>
+
+  <section aria-labelledby="devices-heading">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 id="devices-heading" class="text-xl font-bold">Your devices</h2>
+        <p class="mt-1 text-sm text-ink-muted">Everywhere you're signed in to Purple. Sign out of any you don't recognise.</p>
+      </div>
+      <% if @sessions.size > 1 %>
+        <%= button_to "Sign out everywhere else", account_other_sessions_path, method: :delete, class: "btn-ghost" %>
+      <% end %>
+    </div>
+
+    <ul class="mt-4 space-y-3">
+      <% @sessions.each do |session_record| %>
+        <li id="<%= dom_id(session_record) %>" class="card p-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p class="font-semibold">
+              <%= session_record.device_description %>
+              <% if session_record == Current.session %>
+                <span class="ml-2 rounded-full bg-purple-team-soft px-2 py-0.5 text-xs text-purple-team">This device</span>
+              <% end %>
+            </p>
+            <p class="text-sm text-ink-muted">
+              <%= session_record.ip_address.presence || "Unknown IP" %> ·
+              signed in <%= time_ago_in_words(session_record.created_at) %> ago ·
+              last active <%= time_ago_in_words(session_record.updated_at) %> ago
+            </p>
+          </div>
+          <%= button_to "Sign out", account_session_path(session_record), method: :delete, class: "btn-ghost",
+                aria: { label: "Sign out #{session_record.device_description}" } %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+</div>

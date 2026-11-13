@@ -37,18 +37,18 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "create returns to the page that asked for sign-in" do
-    get account_sessions_path
+    get account_path
     assert_redirected_to new_session_path
 
     post session_path, params: { email_address: @user.email_address, password: "correct horse battery" }
-    assert_redirected_to account_sessions_url
+    assert_redirected_to account_url
   end
 
   test "an idle session is no longer accepted" do
     sign_in_as(@user)
     Current.session.update_columns(updated_at: (Session::IDLE_TIMEOUT + 1.day).ago)
 
-    get account_sessions_path
+    get account_path
     assert_redirected_to new_session_path
   end
 
@@ -56,7 +56,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
     Current.session.update_columns(created_at: (Session::ABSOLUTE_TIMEOUT + 1.day).ago)
 
-    get account_sessions_path
+    get account_path
     assert_redirected_to new_session_path
   end
 
