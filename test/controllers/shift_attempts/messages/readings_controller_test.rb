@@ -6,12 +6,12 @@ class ShiftAttempts::Messages::ReadingsControllerTest < ActionDispatch::Integrat
     sign_in_as users(:one)
   end
 
-  test "reading a message updates the clock, meters and panes with Turbo Streams" do
+  test "reading a message updates the panes with Turbo Streams" do
     post shift_attempt_message_reading_path(@attempt, ref(:real_invoice)), as: :turbo_stream
 
     assert_response :success
     assert_equal messages(:real_invoice), @attempt.reload.current_message
-    %w[ shift_status shift_tasks shift_inbox shift_reader ].each do |target|
+    %w[ shift_status shift_inbox shift_reader ].each do |target|
       assert_select "turbo-stream[action=replace][target=#{target}]"
     end
   end

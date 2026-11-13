@@ -4,11 +4,12 @@
     what you get. %>
 <% message = attempt.current_message %>
 <% flag_mode = local_assigns[:flag_mode] && message %>
-<% flagged = message ? attempt.flagged_anchors(message) : [] %>
+<% flags = message ? attempt.flags_on(message) : [] %>
 <section id="shift_reader" class="flex h-full flex-col" aria-labelledby="reader-heading"
+         data-phone-target="conversation" data-empty="<%= message ? "false" : "true" %>"
          data-controller="flag-mode"
          data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
-         data-flag-mode-flagged-value="<%= flagged.to_json %>"
+         data-flag-mode-flags-value="<%= flags_json(flags) %>"
          data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture turbo:submit-end->flag-mode#submitted">
   <header class="flex shrink-0 items-center gap-3 border-b border-line px-3 pb-3">
     <button type="button" class="rounded-full px-2 py-1 text-xl text-blue-team cursor-pointer hover:bg-surface" data-action="phone#showList"
@@ -29,7 +30,6 @@
     <% ref = attempt.message_ref(message) %>
     <% reply = attempt.sent_reply(message) %>
     <div class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" data-controller="scroll-to-end">
-      <p class="text-center text-xs text-ink-muted">Minute <%= message.arrives_at_minute %></p>
       <%# Links post only their neutral key (l1, l2…) to this URL; the server decides what opens. %>
       <div class="message-body max-w-[85%] rounded-2xl rounded-bl-sm bg-surface-raised px-4 py-2 break-words"
            data-link-visit-url="<%= shift_attempt_message_link_visit_path(attempt, ref, "__key__") %>"
@@ -50,8 +50,8 @@
       <% end %>
 
       <%= render "shift_attempts/reader/verification", attempt:, message: %>
-      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flagged:, flag_mode:,
-            parts: "Tap anything that looks wrong: the sender, a line of the message or a link." %>
+      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flags:, flag_mode:,
+            parts: "Tap the sender or a link to flag it." %>
     </div>
 
     <div class="shrink-0 space-y-3 border-t border-line px-4 py-3">
@@ -59,8 +59,8 @@
         <div class="flex flex-col items-end gap-2" role="group" aria-label="Reply with">
           <p class="self-start text-xs font-semibold uppercase tracking-widest text-ink-muted">Reply with</p>
           <% message.visible_replies.each do |option| %>
-            <%= shift_action_button attempt, option["text"], shift_attempt_message_reply_path(attempt, ref),
-                  params: { reply: option["id"] }, cost: attempt.action_cost(:send_reply),
+            <%= shift_action_button option["text"], shift_attempt_message_reply_path(attempt, ref),
+                  params: { reply: option["id"] },
                   class: "rounded-2xl border border-blue-team px-3 py-1.5 text-left text-sm text-blue-team cursor-pointer hover:bg-blue-team-soft disabled:opacity-50" %>
           <% end %>
         </div>
@@ -68,13 +68,12 @@
 
       <div class="flex flex-wrap gap-2 text-sm">
         <% unless attempt.sender_verified?(message) %>
-          <%= shift_action_button attempt, "Call the sender back", shift_attempt_message_verification_path(attempt, ref),
-                cost: attempt.action_cost(:verify_sender) %>
+          <%= shift_action_button "Call the sender back", shift_attempt_message_verification_path(attempt, ref) %>
         <% end %>
         <button type="button" class="btn-ghost aria-pressed:border-red-team aria-pressed:bg-red-team-soft aria-pressed:text-red-team" data-action="flag-mode#toggle" data-flag-mode-target="toggle"
                 aria-pressed="<%= flag_mode ? "true" : "false" %>">🚩 Flag red flags</button>
-        <%= shift_action_button attempt, "Report phishing", shift_attempt_message_report_path(attempt, ref),
-              cost: attempt.action_cost(:report_message), class: "btn-red" %>
+        <%= shift_action_button "Archive", shift_attempt_message_archive_path(attempt, ref), class: "btn-blue" %>
+        <%= shift_action_button "Report phishing", shift_attempt_message_report_path(attempt, ref), class: "btn-red" %>
       </div>
     </div>
   <% else %>

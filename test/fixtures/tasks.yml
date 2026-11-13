@@ -1,6 +1,0 @@
-pay_supplier:
-  shift: month_end
-  key: pay_supplier
-  title: Approve invoice
-  due_at_minute: 20
-  points: 40

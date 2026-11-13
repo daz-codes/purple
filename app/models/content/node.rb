@@ -55,6 +55,14 @@ module Content
       end
     end
 
+    # A nested mapping, as a Node labelled with its key.
+    def child(key)
+      value = @data[key.to_s]
+      error!("#{key} must be a mapping of keys to values") unless value.is_a?(Hash)
+
+      Node.new(value, file:, path: path + [ key.to_s ])
+    end
+
     # Fails unless text is fiction only: no real or unreserved URLs, addresses, host names or brands.
     def check_fictional!(key, text)
       unreserved = ReservedNames.unreserved_names_in(text)

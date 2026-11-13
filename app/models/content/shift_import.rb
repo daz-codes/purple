@@ -1,29 +1,34 @@
 module Content
-  # Validates one shift YAML file and upserts it (and its tasks, messages, links, red flags and
-  # hints) by key, deleting children that are no longer in the file. Runs inside the importer's
+  # Validates one shift YAML file and upserts it (and its messages, links, red flags and hints) by key, deleting children that are no longer in the file. Runs inside the importer's
   # transaction, so any error leaves the database untouched.
   class ShiftImport
-    SHIFT_KEYS = %i[ slug title kind difficulty time_budget_minutes position published briefing
-                     learning_summary action_costs tasks messages hints ].freeze
-    TASK_KEYS = %i[ key title due_at_minute points ].freeze
-    MESSAGE_KEYS = %i[ key channel arrives_at_minute legit imitates techniques from_name from_address reply_to
-                       to_address subject body_html attachments replies links verify_result red_flags ].freeze
-    LINK_KEYS = %i[ match outcome task landing ].freeze
+    SHIFT_KEYS = %i[ slug title kind difficulty par_minutes position published briefing
+                     learning_summary messages hints ].freeze
+    MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
+                       from_address reply_to to_address subject body_html attachments replies links verify_result
+                       red_flags answer_in ].freeze
+    ARRIVAL_KEYS = %i[ after_handled after ].freeze
+    LINK_KEYS = %i[ match outcome landing action ].freeze
     ATTACHMENT_KEYS = %i[ name type size outcome ].freeze
     REPLY_KEYS = %i[ text outcome response ].freeze
     # An inbox shift is played in an email client and a messages shift on a phone, and each only shows
     # its own kind of message.
     CHANNELS = { "inbox" => %w[ email ], "messages" => %w[ sms chat ] }.freeze
     MAX_REPLIES = 4
-    RED_FLAG_KEYS = %i[ key anchor points label explanation ].freeze
+    # safe: fine. poor: answers a genuine message badly, so it doesn't count as replying. compromise:
+    # hands a phisher what they asked for. verify: checks with someone trusted first.
+    REPLY_OUTCOMES = %w[ safe poor compromise verify ].freeze
+    RED_FLAG_KEYS = %i[ key anchor quote in points label explanation contradicts ].freeze
+    # answer_in: and contradicts: point at another message in the shift and quote the words that matter.
+    STORY_LINK_KEYS = %i[ message quote ].freeze
     HINT_KEYS = %i[ body penalty_percent ].freeze
 
     # The landing page each link outcome opens in the in-game browser.
     LANDINGS = {
-      "completes_task" => "portal_task", "harmless" => "harmless",
+      "portal" => "portal", "harmless" => "harmless",
       "bait_landing" => "credential_harvest", "malware" => "malware_download"
     }.freeze
-    LEGIT_LINK_OUTCOMES = %w[ completes_task harmless ].freeze
+    LEGIT_LINK_OUTCOMES = %w[ portal harmless ].freeze
     PHISH_LINK_OUTCOMES = %w[ bait_landing malware harmless ].freeze
     ATTACHMENT_OUTCOMES = %w[ harmless malware ].freeze
 
@@ -43,11 +48,13 @@ module Content
       @shift = Shift.find_or_initialize_by(slug:)
       @node.saving { @shift.update!(shift_attributes) }
 
-      @tasks = import_tasks
       import_messages
-      check_every_task_is_completable
-      check_imitations_arrive_first
+      check_every_message_can_arrive
+      check_story_links
+      check_imitations_arrive_with_their_genuine_message
+      check_phishes_have_follow_ups_too
       import_hints
+      check_lazy_play_doesnt_pay
 
       @shift
     end
@@ -59,70 +66,47 @@ module Content
           title: fictional(@node, :title, @node.required(:title)),
           kind: one_of(@node, :kind, Shift.kinds.keys),
           difficulty: one_of(@node, :difficulty, Shift.difficulties.keys),
-          time_budget_minutes: positive(@node, :time_budget_minutes),
+          par_minutes: positive(@node, :par_minutes),
           position: @node.optional(:position, Integer, default: 0),
           published: @node.optional(:published, Node::BOOLEAN, default: true),
           briefing: fictional(@node, :briefing, @node.required(:briefing)),
           learning_summary: fictional(@node, :learning_summary, @node.required(:learning_summary)),
-          action_costs: @node.optional(:action_costs, Hash, default: {}),
           author_side: "red",
           author_type: "system"
         }
       end
 
-      def time_budget
-        @shift.time_budget_minutes
-      end
-
-      # --- Tasks ---------------------------------------------------------------------------
-
-      def import_tasks
-        tasks = @node.each_item(:tasks) do |task_node|
-          task_node.allow_only!(*TASK_KEYS)
-          due = positive(task_node, :due_at_minute)
-          task_node.error!("due_at_minute (#{due}) is after the shift ends (#{time_budget})") if due > time_budget
-
-          task = @shift.tasks.find_or_initialize_by(key: task_node.required(:key))
-          task_node.saving do
-            task.update!(title: fictional(task_node, :title, task_node.required(:title)),
-                         due_at_minute: due, points: positive(task_node, :points))
-          end
-          task
-        end
-
-        @node.check_unique!("task", tasks.map(&:key))
-        @shift.tasks.where.not(id: tasks.map(&:id)).each { |stale| stale.links.destroy_all && stale.destroy! }
-        tasks.index_by(&:key)
-      end
-
       # --- Messages ------------------------------------------------------------------------
 
       def import_messages
-        @imitations = []
+        @imitations = {}
+        @story_links = []
         messages = @node.each_item(:messages) { |message_node, index| import_message(message_node, index + 1) }
 
         keys = messages.map(&:key)
         @node.check_unique!("message", keys)
         @node.error!("needs at least one phishing message (legit: false)") if messages.all?(&:legit?)
         @shift.messages.where.not(id: messages.map(&:id)).destroy_all
+        @messages = messages
       end
 
       def import_message(node, position)
         node.allow_only!(*MESSAGE_KEYS)
         channel = one_of(node, :channel, CHANNELS.fetch(@shift.kind), hint: "#{@shift.kind} shifts")
         legit = node.required(:legit, Node::BOOLEAN)
-        arrives = node.optional(:arrives_at_minute, Integer, default: 0)
-        node.error!("arrives_at_minute (#{arrives}) must be from 0 to before the shift ends (#{time_budget})") unless arrives.between?(0, time_budget - 1)
+        arrival = arrival_for(node)
+        expectation = expectation_for(node, legit:)
 
         body = processed_body(node)
         attachments = attachments_for(node)
         node.error!("attachments are only for emails") if attachments.any? && channel != "email"
         replies = replies_for(node, channel:, legit:)
+        answer_in = answer_in_for(node, legit:, expectation:, replies:)
         message = @shift.messages.find_or_initialize_by(key: node.required(:key))
 
         node.saving do
           message.update!(
-            channel:, legit:, position:, arrives_at_minute: arrives,
+            channel:, legit:, position:, **arrival, **expectation,
             from_name: fictional(node, :from_name, node.required(:from_name)),
             from_address: address(node, :from_address, required: true),
             reply_to: address(node, :reply_to),
@@ -131,15 +115,66 @@ module Content
             body_html: body.html,
             attachments:,
             replies:,
-            verify_result: fictional(node, :verify_result, node.optional(:verify_result))
+            verify_result: fictional(node, :verify_result, node.optional(:verify_result)),
+            answer_in_key: answer_in&.dig(:key), answer_in_quote: answer_in&.dig(:quote)
           )
         end
+        @story_links << answer_in.merge(dependent: message) if answer_in
 
         note_imitation(node, message)
         import_links(node, message, body.links)
+        check_expectation_can_be_met(node, message)
         import_techniques(node, message)
-        import_red_flags(node, message, anchors: message.anchors)
+        import_red_flags(node, message)
         message
+      end
+
+      # arrives: start (the default), { after_handled: 2 } (once any 2 messages have been dealt with),
+      # or { after: other_key } (once that message has been dealt with). Checked across the whole shift
+      # in check_every_message_can_arrive.
+      def arrival_for(node)
+        value = node.optional(:arrives, Object, default: "start")
+        return { arrives_after_handled: nil, arrives_after: nil } if value == "start"
+        node.error!("arrives must be start, { after_handled: N } or { after: message_key } (got #{value.inspect})") unless value.is_a?(Hash)
+
+        arrival = node.child(:arrives)
+        arrival.allow_only!(*ARRIVAL_KEYS)
+        arrival.error!("give exactly one of after_handled or after") unless value.size == 1
+
+        if value.key?("after_handled")
+          { arrives_after_handled: positive(arrival, :after_handled), arrives_after: nil }
+        else
+          { arrives_after_handled: nil, arrives_after: arrival.required(:after) }
+        end
+      end
+
+      # What a genuine message expects, and what it's worth. A phish always expects a report, which is
+      # scored the same for every phish, so it sets none of these.
+      def expectation_for(node, legit:)
+        if legit
+          urgent = (positive(node, :urgent_within_minutes) unless node.optional(:urgent_within_minutes, Object).nil?)
+          { expects: one_of(node, :expects, Message.expects.keys), points: positive(node, :points), urgent_within_minutes: urgent }
+        else
+          %i[ expects points urgent_within_minutes ].each do |key|
+            node.error!("#{key} is only for genuine messages: a phish always expects a report") unless node.optional(key, Object).nil?
+          end
+          { expects: nil, points: 0, urgent_within_minutes: nil }
+        end
+      end
+
+      # A message that expects a reply must offer one that isn't poor, and one that expects an action
+      # must have exactly one portal link to do it on. Portal links are only for those.
+      def check_expectation_can_be_met(node, message)
+        portals = message.links.count(&:outcome_portal?)
+        if message.expects_act?
+          node.error!("expects: act needs exactly one portal link to act on (found #{portals})") unless portals == 1
+        elsif portals.positive?
+          node.error!("portal links are only for messages that expect: act")
+        end
+
+        if message.expects_reply? && message.replies.none? { |reply| reply["outcome"].in?(%w[ safe verify ]) }
+          node.error!("expects: reply needs at least one reply that isn't poor")
+        end
       end
 
       def processed_body(node)
@@ -167,12 +202,12 @@ module Content
         end
       end
 
-      # Canned replies, for texts and chats only. Each gets a neutral id (r1, r2…); its outcome stays on
+      # Canned replies. Each gets a neutral id (r1, r2…); its outcome stays on
       # the server. Only a phishing message can have a reply that hands something over.
       def replies_for(node, channel:, legit:)
         replies = node.each_item(:replies, required: false) do |reply_node, index|
           reply_node.allow_only!(*REPLY_KEYS)
-          outcome = one_of(reply_node, :outcome, legit ? ShiftAttempt::Replyable::OUTCOMES - %w[ compromise ] : ShiftAttempt::Replyable::OUTCOMES,
+          outcome = one_of(reply_node, :outcome, legit ? REPLY_OUTCOMES - %w[ compromise ] : REPLY_OUTCOMES - %w[ poor ],
             hint: legit ? "legitimate messages" : "phishing messages")
           {
             "id" => "r#{index + 1}",
@@ -183,7 +218,6 @@ module Content
         end
         return replies if replies.empty?
 
-        node.error!("replies are only for sms and chat messages") if channel == "email"
         node.error!("replies must have from 2 to #{MAX_REPLIES} options") unless replies.size.between?(2, MAX_REPLIES)
         node.error!("each reply needs different text") if replies.map { |reply| reply["text"] }.uniq.size < replies.size
         replies
@@ -196,7 +230,7 @@ module Content
           rule_node.allow_only!(*LINK_KEYS)
           outcome = one_of(rule_node, :outcome, allowed_outcomes,
             hint: message.legit? ? "legitimate messages" : "phishing messages")
-          { node: rule_node, match: rule_node.required(:match), outcome:, task: task_for(rule_node, outcome),
+          { node: rule_node, match: rule_node.required(:match), outcome:, portal_action: portal_action_for(rule_node, outcome),
             landing: landing_for(rule_node, outcome) }
         end
 
@@ -210,7 +244,7 @@ module Content
           link = message.links.find_or_initialize_by(key: extracted.key)
           rule[:node].saving do
             link.update!(display_url: extracted.text, actual_url: extracted.href, outcome: rule[:outcome],
-                         task: rule[:task], landing_template: rule[:landing])
+                         portal_action: rule[:portal_action], landing_template: rule[:landing])
           end
           link
         end
@@ -223,13 +257,14 @@ module Content
         message.links.where.not(id: links.map(&:id)).destroy_all
       end
 
-      def task_for(rule_node, outcome)
-        task_key = rule_node.optional(:task)
-        if outcome == "completes_task"
-          rule_node.error!("task is required when outcome is completes_task") unless task_key
-          @tasks.fetch(task_key) { rule_node.error!("task \"#{task_key}\" isn't in this shift's tasks (#{@tasks.keys.join(", ")})") }
-        elsif task_key
-          rule_node.error!("task can only be set when outcome is completes_task")
+      # The button on a portal page: what the player does there ("Confirm the delivery slot").
+      def portal_action_for(rule_node, outcome)
+        action = rule_node.optional(:action)
+        if outcome == "portal"
+          rule_node.error!("action is required when outcome is portal (the button on the portal page)") unless action
+          fictional(rule_node, :action, action)
+        elsif action
+          rule_node.error!("action can only be set when outcome is portal")
         end
       end
 
@@ -258,24 +293,22 @@ module Content
       end
 
 
-      def import_red_flags(node, message, anchors:)
+      def import_red_flags(node, message)
         has_flags = node.optional(:red_flags, Array, default: []).any?
         node.error!("legitimate messages can't have red flags") if message.legit? && has_flags
         node.error!("phishing messages need at least one red flag") if message.phish? && !has_flags
 
         flags = node.each_item(:red_flags, required: message.phish?) do |flag_node|
           flag_node.allow_only!(*RED_FLAG_KEYS)
-          anchor = flag_node.required(:anchor)
-          unless anchors.include?(anchor)
-            flag_node.error!("anchor \"#{anchor}\" doesn't exist in this message (available: #{anchors.join(", ")})")
-          end
-
           flag = message.red_flags.find_or_initialize_by(key: flag_node.required(:key))
+          contradicts = story_link(flag_node, :contradicts)
           flag_node.saving do
-            flag.update!(anchor:, points: positive(flag_node, :points),
+            flag.update!(**red_flag_target(flag_node, message), points: positive(flag_node, :points),
                          label: fictional(flag_node, :label, flag_node.required(:label)),
-                         explanation: fictional(flag_node, :explanation, flag_node.required(:explanation)))
+                         explanation: fictional(flag_node, :explanation, flag_node.required(:explanation)),
+                         contradicts_key: contradicts&.dig(:key), contradicts_quote: contradicts&.dig(:quote))
           end
+          @story_links << contradicts.merge(dependent: message) if contradicts
           flag
         end
 
@@ -283,36 +316,181 @@ module Content
         message.red_flags.where.not(id: flags.map(&:id)).destroy_all
       end
 
-      # imitates: the task a phishing message pretends to be about. Only checked here, never stored.
-      def note_imitation(node, message)
-        task_key = node.optional(:imitates) or return
-        node.error!("only phishing messages can imitate a task") if message.legit?
-        task = @tasks.fetch(task_key) { node.error!("imitates \"#{task_key}\", which isn't in this shift's tasks (#{@tasks.keys.join(", ")})") }
-        @imitations << [ node, message, task ]
+      # Either anchor: a whole part (from, reply_to, to, subject, l1, a1), or quote: a phrase in the body,
+      # found exactly once (in the paragraph named by in:, if given). Body text is always flagged by
+      # quote, so a red flag never covers a whole paragraph.
+      def red_flag_target(flag_node, message)
+        anchor = flag_node.optional(:anchor)
+        quote = flag_node.optional(:quote)
+        flag_node.error!("give either anchor (a header, link or attachment) or quote (a phrase in the body), not both") if anchor && quote
+        flag_node.error!("needs an anchor (a header, link or attachment) or a quote (a phrase in the body)") unless anchor || quote
+
+        if anchor
+          unless message.whole_anchors.include?(anchor)
+            hint = " Body text is flagged with quote: \"the exact words\"." if anchor.match?(/\Ap\d+/)
+            flag_node.error!("anchor \"#{anchor}\" doesn't exist in this message (available: #{message.whole_anchors.join(", ")}).#{hint}")
+          end
+          return { anchor:, quote: nil, quote_start: nil, quote_end: nil }
+        end
+
+        quote = fictional(flag_node, :quote, Message::Paragraph.normalize(quote))
+        within = flag_node.optional(:in)
+        paragraphs = message.paragraphs.values
+        if within
+          paragraphs = paragraphs.select { |paragraph| paragraph.anchor == within }
+          flag_node.error!("in: \"#{within}\" isn't a paragraph of this message (#{message.paragraphs.keys.join(", ")})") if paragraphs.empty?
+        end
+        found = paragraphs.flat_map { |paragraph| occurrences(paragraph.text, quote).map { |start| [ paragraph, start ] } }
+        unless found.size == 1
+          flag_node.error!("quote \"#{quote}\" must appear exactly once#{" in #{within}" if within} (found #{found.size}); " \
+                           "quote more words, or say which paragraph with in:")
+        end
+
+        paragraph, start = found.first
+        unless paragraph.sentence_containing(start, start + quote.length)
+          flag_node.error!("quote \"#{quote}\" crosses from one sentence into the next; quote words from a single sentence")
+        end
+        { anchor: paragraph.anchor, quote:, quote_start: start, quote_end: start + quote.length }
+      end
+
+      def occurrences(text, quote)
+        starts = []
+        index = -1
+        starts << index while (index = text.index(quote, index + 1))
+        starts
+      end
+
+      # --- Read it, you'll need it later ----------------------------------------------------
+
+      # answer_in: { message: hr_onboarding, quote: "Room 4B" }: this message asks a question, and the
+      # right answer was in that earlier message. Only for a genuine message that expects a reply, with a
+      # wrong (poor) answer among its replies, so getting it wrong costs something.
+      def answer_in_for(node, legit:, expectation:, replies:)
+        return unless node.key?(:answer_in)
+
+        node.error!("answer_in is only for genuine messages that expect a reply") unless legit && expectation[:expects] == "reply"
+        node.error!("answer_in needs a wrong answer among the replies (outcome: poor)") if replies.none? { |reply| reply["outcome"] == "poor" }
+        story_link(node, :answer_in)
+      end
+
+      # { message: key, quote: "the words" }, checked against the other message once the whole shift is
+      # imported (check_story_links).
+      def story_link(node, key)
+        return unless node.key?(key)
+        node.error!("#{key} must be { message: other_key, quote: \"the words\" }") unless node.optional(key, Object).is_a?(Hash)
+
+        link = node.child(key)
+        link.allow_only!(*STORY_LINK_KEYS)
+        { key: link.required(:message), quote: fictional(link, :quote, Message::Paragraph.normalize(link.required(:quote))),
+          kind: key, node: link }
+      end
+
+      # Each answer_in and contradicts names another message in the shift whose text holds its quote
+      # exactly once, and that message is always in the inbox before the one that relies on it. The truth
+      # a phish contradicts comes from a genuine message. An answer may only be in a phish if the question
+      # arrives last, once every decision has been made, so asking it gives nothing away.
+      def check_story_links
+        @story_links.each do |link|
+          node, dependent = link[:node], link[:dependent]
+          source = @messages.find { |message| message.key == link[:key] }
+          node.error!("message \"#{link[:key]}\" isn't another message in this shift") if source.nil? || source == dependent
+          node.error!("contradicts must point at a genuine message: the truth comes from the real company") if link[:kind] == :contradicts && source.phish?
+
+          found = source.paragraphs.values.sum { |paragraph| occurrences(paragraph.text, link[:quote]).size }
+          node.error!("quote \"#{link[:quote]}\" must appear exactly once in #{source.key} (found #{found})") unless found == 1
+
+          if source.phish? && !arrives_last?(dependent)
+            node.error!("the answer is in a phish, so #{dependent.key} must arrive last " \
+                        "(arrives: { after_handled: #{@messages.size - 1} }), once every decision has been made")
+          elsif !always_arrives_after?(dependent, source)
+            node.error!("#{dependent.key} could arrive before #{source.key}: #{source.key} must arrive at the start, or " \
+                        "#{dependent.key} must arrive after: it (directly or through other after: triggers)")
+          end
+        end
+      end
+
+      def arrives_last?(message)
+        message.arrives_after_handled.to_i >= @messages.size - 1
+      end
+
+      # Whenever dependent is in the inbox, source is too.
+      def always_arrives_after?(dependent, source)
+        return true if source.arrives_at_start? || arrives_last?(dependent)
+
+        current = dependent
+        seen = []
+        while current&.arrives_after && seen.exclude?(current.key)
+          return true if current.arrives_after == source.key
+
+          seen << current.key
+          current = @messages.find { |message| message.key == current.arrives_after }
+        end
+        false
       end
 
       # --- Whole-shift checks and hints ----------------------------------------------------
 
-      def check_every_task_is_completable
-        @tasks.each_value do |task|
-          completing = Link.joins(:message).where(task:, outcome: "completes_task", messages: { legit: true }).count
-          next if completing == 1
+      # Every message must be able to arrive: each after: names another message in the shift, and dealing
+      # with everything that has arrived must eventually bring the rest. This rules out loops (a after b,
+      # b after a) and after_handled counts the shift can't reach.
+      def check_every_message_can_arrive
+        keys = @messages.map(&:key)
+        @messages.each do |message|
+          next if message.arrives_after.nil? || (keys.include?(message.arrives_after) && message.arrives_after != message.key)
 
-          @node.error!("task \"#{task.key}\" must be completable by exactly one link in a legitimate message " \
-                       "(found #{completing})")
+          @node.error!("message \"#{message.key}\" arrives after \"#{message.arrives_after}\", which isn't another message in this shift")
+        end
+        @node.error!("at least one message must arrive at the start") if @messages.none?(&:arrives_at_start?)
+
+        stuck = keys - ShiftAttempt::Arrivals.reachable(@messages)
+        return if stuck.empty?
+
+        @node.error!("#{stuck.join(", ")} can never arrive: dealing with every other message doesn't bring " \
+                     "#{stuck.one? ? "it" : "them"} (check after_handled counts and after: loops)")
+      end
+
+      # imitates: the genuine message a phish copies. Only checked here, never stored.
+      def note_imitation(node, message)
+        key = node.optional(:imitates) or return
+        node.error!("only phishing messages can imitate another message") if message.legit?
+        @imitations[message] = [ node, key ]
+      end
+
+      # A fake never arrives after the genuine message it imitates: it arrives at the start, or on exactly
+      # the same trigger. Otherwise the player could act on the real one first and spot the fake as a
+      # duplicate, instead of having to decide between them.
+      def check_imitations_arrive_with_their_genuine_message
+        @imitations.each do |fake, (node, key)|
+          genuine = @messages.find { |message| message.key == key }
+          node.error!("imitates \"#{key}\", which isn't a genuine message in this shift") unless genuine&.legit?
+          next if fake.arrives_at_start?
+          next if [ fake.arrives_after_handled, fake.arrives_after ] == [ genuine.arrives_after_handled, genuine.arrives_after ]
+
+          node.error!("imitates \"#{key}\" but could arrive after it: a fake must arrive at the start, or on exactly the " \
+                      "same arrives: trigger as the message it imitates")
         end
       end
 
-      # A fake that lands after the player has already done the task with the real message gives
-      # itself away, so it must arrive no later than the genuine one.
-      def check_imitations_arrive_first
-        @imitations.each do |node, message, task|
-          genuine = Link.joins(:message).where(task:, outcome: "completes_task").pick("messages.arrives_at_minute")
-          next if genuine.nil? || message.arrives_at_minute <= genuine
+      # If a genuine message has a follow-up, so must a phish (the attacker chasing: "Did you get my
+      # invoice?"). Otherwise "something arrived after I dealt with that" would mean it was genuine.
+      def check_phishes_have_follow_ups_too
+        genuine, phish = @messages.select(&:arrives_after).partition(&:legit?).map(&:size)
+        return if phish >= genuine
 
-          node.error!("imitates \"#{task.key}\" but arrives at minute #{message.arrives_at_minute}, after the genuine message " \
-                      "(minute #{genuine}): the fake must arrive first, or at the same time")
-        end
+        @node.error!("#{genuine} #{"genuine message".pluralize(genuine)} #{genuine == 1 ? "has a" : "have"} follow-up (arrives: { after: … }) but " \
+                     "#{phish.zero? ? "no phish does" : "only #{phish} phish #{phish == 1 ? "does" : "do"}"}: phishes need at least as many, " \
+                     "or a follow-up would hint that a message was genuine")
+      end
+
+      # Lazy play must never pay: reporting everything, archiving everything, clocking off at once, and
+      # flagging every sentence then reporting everything must each stay below one star.
+      def check_lazy_play_doesnt_pay
+        exploits = Shift::LazyPlay.new(@shift.reload).exploits
+        return if exploits.empty?
+
+        @node.error!("lazy play scores too well: " + exploits.map { |strategy, card|
+          "#{strategy.to_s.humanize(capitalize: false)} scores #{card.total} of #{card.total_max} (#{card.stars} #{"star".pluralize(card.stars)})"
+        }.join("; ") + ". Add genuine messages that need doing, or make phishes worth less of the total")
       end
 
       def import_hints

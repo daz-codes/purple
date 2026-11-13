@@ -1,16 +1,10 @@
-<% task = tab.task %>
 <%= render "shift_attempts/landings/site_header", tab: %>
 <div class="px-6 py-8">
   <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">Waiting for you</p>
-  <h2 class="mt-2 text-2xl font-bold"><%= task.title %></h2>
-  <p class="mt-2 text-slate-600">Due by minute <%= task.due_at_minute %> of your shift.</p>
+  <h2 class="mt-2 text-2xl font-bold"><%= tab.portal_action %></h2>
 
   <div class="mt-6">
-    <% if attempt.task_completed?(task) %>
-      <p class="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 font-semibold text-emerald-800" role="status">✓ Done. You can close this tab.</p>
-    <% else %>
-      <%= shift_action_button attempt, task.title, shift_attempt_tab_task_completion_path(attempt),
-            cost: attempt.action_cost(:complete_task), class: "btn bg-slate-900 text-white hover:bg-slate-700" %>
-    <% end %>
+    <%= shift_action_button tab.portal_action, shift_attempt_tab_portal_submission_path(attempt),
+          class: "btn bg-slate-900 text-white hover:bg-slate-700" %>
   </div>
 </div>

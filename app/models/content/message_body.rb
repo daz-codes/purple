@@ -9,6 +9,9 @@ module Content
   #    DOM ids: they're numbered per message, so ids would clash when two bodies share a page.
   # 3. Replaces each <a> with a <span> carrying its key and URLs. No real href ever reaches the
   #    browser; clicking is handled by the server.
+  # 3b. Splits the text of every leaf block into sentences, each wrapped in a span with a neutral
+  #    anchor (p1s1, p1s2…), so a player can flag one sentence. Every sentence gets one, so the
+  #    markup says nothing about where the red flags are.
   # 4. Checks every URL, email address and host name is fictional (see ReservedNames).
   # 5. Runs the result through Rails' safe-list sanitizer as a second line of defence.
   class MessageBody
@@ -40,6 +43,7 @@ module Content
 
       anchors = assign_paragraph_anchors(fragment)
       @links = rewrite_links(fragment)
+      wrap_sentences(fragment)
       @element_ids = anchors + @links.map(&:key)
       @html = sanitize(fragment.to_html)
     end
@@ -112,6 +116,54 @@ module Content
 
           ExtractedLink.new(key:, href:, text:)
         end
+      end
+
+      # A sentence ends at ., ! or ? followed by whitespace. Elements (links, bold text…) are kept
+      # whole inside the sentence they start in.
+      SENTENCE_BREAK = /((?<=[.!?])\s+)/
+
+      def wrap_sentences(fragment)
+        document = fragment.document
+        leaf_blocks(fragment).each do |block|
+          groups = [ [] ]
+          separators = {}
+          block.children.to_a.each do |child|
+            if child.text?
+              child.text.split(SENTENCE_BREAK).each_with_index do |part, index|
+                next if part.empty?
+
+                if index.odd?
+                  separators[groups.size - 1] = part
+                  groups << []
+                else
+                  groups.last << document.create_text_node(part)
+                end
+              end
+            else
+              groups.last << child
+            end
+          end
+
+          block.children.each(&:unlink)
+          count = 0
+          groups.each_with_index do |nodes, index|
+            if nodes.any? { |node| node.element? || node.text.strip.present? }
+              count += 1
+              sentence = document.create_element("span", "data-anchor" => "#{block["data-anchor"]}s#{count}", "class" => "sentence")
+              nodes.each { |node| sentence.add_child(node) }
+              block.add_child(sentence)
+            else
+              nodes.each { |node| block.add_child(node) }
+            end
+            block.add_child(document.create_text_node(separators[index])) if separators[index]
+          end
+        end
+      end
+
+      # Anchored blocks with no anchored block inside them: the ones whose text a player highlights.
+      def leaf_blocks(fragment)
+        blocks = fragment.css(ANCHOR_TAGS.join(", ")).select { |node| node["data-anchor"] }
+        blocks.reject { |block| block.css(ANCHOR_TAGS.join(", ")).any? { |inner| inner["data-anchor"] } }
       end
 
       def sanitize(html)

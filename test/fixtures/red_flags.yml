@@ -6,10 +6,28 @@ lookalike:
   anchor: from
   points: 10
 
+# "Please pay today. Our bank details have changed." — the quote is characters 0 to 16 of p1.
+pay_today:
+  message: fake_invoice
+  key: pay_today
+  label: Rushed payment
+  explanation: Urgency is the oldest trick there is.
+  anchor: p1
+  quote: Please pay today
+  quote_start: 0
+  quote_end: 16
+  points: 10
+
+# "Reply with the 6-digit code we just sent you." — "6-digit code" is characters 15 to 27 of p2.
 code_request:
   message: it_chat
   key: code_request
   label: Asks for a one-time code
   explanation: Never share a one-time code.
   anchor: p2
+  quote: 6-digit code
+  quote_start: 15
+  quote_end: 27
   points: 15
+  contradicts_key: laptop_text
+  contradicts_quote: We never ask for codes

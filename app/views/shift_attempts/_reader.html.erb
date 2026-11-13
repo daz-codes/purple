@@ -1,12 +1,12 @@
 <% message = attempt.current_message %>
 <% flag_mode = local_assigns[:flag_mode] && message %>
-<% flagged = message ? attempt.flagged_anchors(message) : [] %>
-<%# Flag mode: every header, paragraph, link and attachment carries a neutral data-anchor, and any of
-    them can be flagged, so nothing here says which parts are red flags. %>
+<% flags = message ? attempt.flags_on(message) : [] %>
+<%# Flag mode: every header, sentence, link and attachment carries a neutral data-anchor, and any of
+    them, or any words dragged over, can be flagged, so nothing here says which parts are red flags. %>
 <section id="shift_reader" class="card p-0 overflow-hidden min-h-[28rem]" aria-labelledby="reader-heading"
          data-controller="link-status flag-mode"
          data-flag-mode-active-value="<%= flag_mode ? "true" : "false" %>"
-         data-flag-mode-flagged-value="<%= flagged.to_json %>"
+         data-flag-mode-flags-value="<%= flags_json(flags) %>"
          data-action="click->flag-mode#pick:capture keydown->flag-mode#keydown:capture turbo:submit-end->flag-mode#submitted">
   <% if message %>
     <% expanded = attempt.headers_expanded?(message) %>
@@ -31,26 +31,22 @@
             <dd class="font-mono break-words"><span data-anchor="to"><%= message.to_address %></span></dd>
           <% end %>
         <% end %>
-        <dt class="text-ink-muted">Received</dt>
-        <dd>Minute <%= message.arrives_at_minute %></dd>
       </dl>
 
       <div class="mt-4 flex flex-wrap gap-2">
         <% unless expanded %>
-          <%= shift_action_button attempt, "Show full headers", shift_attempt_message_headers_path(attempt, ref),
-                cost: attempt.action_cost(:expand_headers) %>
+          <%= shift_action_button "Show full headers", shift_attempt_message_headers_path(attempt, ref) %>
         <% end %>
         <% unless attempt.sender_verified?(message) %>
-          <%= shift_action_button attempt, "Call the sender back", shift_attempt_message_verification_path(attempt, ref),
-                cost: attempt.action_cost(:verify_sender) %>
+          <%= shift_action_button "Call the sender back", shift_attempt_message_verification_path(attempt, ref) %>
         <% end %>
         <button type="button" class="btn-ghost aria-pressed:border-red-team aria-pressed:bg-red-team-soft aria-pressed:text-red-team" data-action="flag-mode#toggle" data-flag-mode-target="toggle"
                 aria-pressed="<%= flag_mode ? "true" : "false" %>">🚩 Flag red flags</button>
-        <%= shift_action_button attempt, "Report phishing", shift_attempt_message_report_path(attempt, ref),
-              cost: attempt.action_cost(:report_message), class: "btn-red" %>
+        <%= shift_action_button "Archive", shift_attempt_message_archive_path(attempt, ref), class: "btn-blue" %>
+        <%= shift_action_button "Report phishing", shift_attempt_message_report_path(attempt, ref), class: "btn-red" %>
       </div>
 
-      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flagged:, flag_mode: %>
+      <%= render "shift_attempts/reader/flagging", attempt:, message:, ref:, flags:, flag_mode: %>
       <%= render "shift_attempts/reader/verification", attempt:, message: %>
     </header>
 
@@ -60,6 +56,8 @@
          data-action="mouseover->link-status#show mouseout->link-status#hide focusin->link-status#show focusout->link-status#hide">
       <%= sanitize message.body_html, tags: Content::MessageBody::OUTPUT_TAGS, attributes: Content::MessageBody::OUTPUT_ATTRIBUTES %>
     </div>
+
+    <%= render "shift_attempts/reader/replies", attempt:, message:, ref: %>
 
     <% if message.visible_attachments.any? %>
       <ul class="px-5 pb-5 flex flex-wrap gap-2" aria-label="Attachments">

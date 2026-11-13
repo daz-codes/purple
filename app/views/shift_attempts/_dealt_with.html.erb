@@ -1,0 +1,12 @@
+<%# The messages already dealt with: reported, or archived as done. Only what the player chose. %>
+<% { "Reported" => attempt.reported_messages, "Done" => attempt.archived_messages }.each do |heading, messages| %>
+  <% next if messages.empty? %>
+  <div class="border-t border-line px-4 py-3" data-testid="<%= heading.downcase %>-messages">
+    <h3 class="text-sm font-semibold text-ink-muted"><%= heading %> (<%= messages.size %>)</h3>
+    <ul class="mt-1 space-y-1 text-sm text-ink-muted">
+      <% messages.each do |message| %>
+        <li class="truncate <%= "line-through" if heading == "Reported" %>"><%= label.call(message) %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

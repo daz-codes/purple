@@ -1,16 +1,30 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Flag mode in the reading pane. While it's on, clicking (or pressing Enter or Space on) any part of
-// the message with a data-anchor flags it instead of doing what it normally does: a link isn't
-// visited and an attachment isn't opened. Only the neutral anchor is posted; the server records the
-// flag and sends the reader back, still in flag mode. Every part is flaggable, so flagging gives
-// nothing away.
+const BLOCK = /^p\d+$/
+
+// Flag mode in the reading pane. While it's on:
+// - dragging across words in a paragraph flags just those words (posted as the paragraph's anchor and
+//   the character range of the selection in its text);
+// - clicking a sentence, a header, a link or an attachment flags that whole part (posted as its
+//   neutral anchor), instead of doing what it normally does: a link isn't visited;
+// - clicking words that are already highlighted takes that highlight off.
+// Only anchors and ranges are posted. The server records the flag and sends the reader back, still in
+// flag mode. Every part and every word is flaggable, so flagging gives nothing away.
+//
+// Offsets count characters of the paragraph's normalised text, the same way the server does
+// (Message::Paragraph): the text nodes in order, every run of whitespace collapsed to one space, and the
+// ends trimmed. Highlights are drawn with the CSS Custom Highlight API, so the message's markup is never
+// changed.
 export default class extends Controller {
-  static targets = [ "toggle", "banner", "form", "anchor" ]
-  static values = { active: Boolean, flagged: Array }
+  static targets = [ "toggle", "banner", "form", "anchor", "from", "to" ]
+  static values = { active: Boolean, flags: Array }
 
   connect() {
     this.render()
+  }
+
+  disconnect() {
+    CSS.highlights?.delete("flagged")
   }
 
   toggle() {
@@ -22,16 +36,19 @@ export default class extends Controller {
   }
 
   pick(event) {
-    const part = this.partFor(event)
-    if (!part) return
+    if (!this.activeValue || !this.hasFormTarget) return
+
+    const flag = this.selectedWords() || this.clickedPart(event)
+    if (!flag) return
 
     event.preventDefault()
     event.stopImmediatePropagation()
-    if (this.submitting) return
-    this.submitting = true
+    window.getSelection()?.removeAllRanges()
+    this.submit(flag)
+  }
 
-    this.anchorTarget.value = part.dataset.anchor
-    this.formTarget.requestSubmit()
+  keydown(event) {
+    if (event.key === "Enter" || event.key === " ") this.pick(event)
   }
 
   // A refused flag doesn't replace the reader (and with it this controller), so the guard must be
@@ -40,16 +57,102 @@ export default class extends Controller {
     this.submitting = false
   }
 
-  keydown(event) {
-    if (event.key === "Enter" || event.key === " ") this.pick(event)
+  submit({ anchor, from = "", to = "" }) {
+    if (this.submitting) return
+    this.submitting = true
+
+    this.anchorTarget.value = anchor
+    this.fromTarget.value = from
+    this.toTarget.value = to
+    this.formTarget.requestSubmit()
   }
 
-  // The flaggable part an event landed on, if flag mode is on.
-  partFor(event) {
-    if (!this.activeValue || !this.hasFormTarget) return null
+  // Words dragged over within one paragraph, as { anchor, from, to }.
+  selectedWords() {
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null
 
+    const range = selection.getRangeAt(0)
+    const block = this.blockOf(range.startContainer)
+    if (!block || block !== this.blockOf(range.endContainer)) return null
+
+    const from = this.offsetIn(block, range.startContainer, range.startOffset)
+    const to = this.offsetIn(block, range.endContainer, range.endOffset)
+    return to > from ? { anchor: block.dataset.anchor, from, to } : null
+  }
+
+  // The part a click landed on: a highlight to take off, or a sentence, header, link or attachment.
+  clickedPart(event) {
     const part = event.target.closest("[data-anchor]")
-    return part && this.element.contains(part) ? part : null
+    if (!part || !this.element.contains(part)) return null
+
+    const block = this.blockOf(part)
+    const offset = block && this.clickOffset(event, block)
+    if (offset != null) {
+      const highlight = this.flagsValue.find((flag) => flag.anchor === block.dataset.anchor && flag.from <= offset && offset < flag.to)
+      if (highlight) return highlight
+    }
+
+    return BLOCK.test(part.dataset.anchor) ? null : { anchor: part.dataset.anchor }
+  }
+
+  blockOf(node) {
+    let element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement
+    while (element && this.element.contains(element)) {
+      if (BLOCK.test(element.dataset.anchor || "")) return element
+      element = element.parentElement
+    }
+    return null
+  }
+
+  // How many characters of the block's normalised text come before raw position (node, offset).
+  offsetIn(block, node, offset) {
+    const range = document.createRange()
+    range.setStart(block, 0)
+    range.setEnd(node, offset)
+    const before = range.toString().replace(/\s+/g, " ").replace(/^ /, "").length
+    return Math.min(before, block.textContent.replace(/\s+/g, " ").trim().length)
+  }
+
+  clickOffset(event, block) {
+    if (event.clientX === undefined) return null
+
+    const caret = document.caretPositionFromPoint?.(event.clientX, event.clientY)
+    if (caret) return block.contains(caret.offsetNode) ? this.offsetIn(block, caret.offsetNode, caret.offset) : null
+
+    const range = document.caretRangeFromPoint?.(event.clientX, event.clientY)
+    return range && block.contains(range.startContainer) ? this.offsetIn(block, range.startContainer, range.startOffset) : null
+  }
+
+  // A DOM Range covering characters from...to of a block's normalised text.
+  rangeFor(block, from, to) {
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    let count = 0, started = false, afterSpace = false, start = null, last = null
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent
+      for (let i = 0; i < text.length; i++) {
+        if (!start && count >= from) start = [ node, i ]
+        if (start && count >= to) {
+          range.setStart(...start)
+          range.setEnd(node, i)
+          return range
+        }
+        if (/\s/.test(text[i])) {
+          if (started && !afterSpace) count++
+          afterSpace = true
+        } else {
+          started = true
+          afterSpace = false
+          count++
+        }
+      }
+      last = node
+    }
+    if (!start || count < to) return null
+    range.setStart(...start)
+    range.setEnd(last, last.textContent.length)
+    return range
   }
 
   render() {
@@ -57,16 +160,31 @@ export default class extends Controller {
     this.toggleTargets.forEach((button) => button.setAttribute("aria-pressed", this.activeValue))
     this.bannerTargets.forEach((banner) => banner.hidden = !this.activeValue)
 
+    const whole = this.flagsValue.filter((flag) => flag.from == null).map((flag) => flag.anchor)
     this.element.querySelectorAll("[data-anchor]").forEach((part) => {
-      part.classList.toggle("flagged", this.flaggedValue.includes(part.dataset.anchor))
-      // Paragraphs and headers can be reached by keyboard while flagging. Links already can.
-      if (this.activeValue && !part.hasAttribute("tabindex")) {
+      part.classList.toggle("flagged", whole.includes(part.dataset.anchor))
+      // Sentences and headers can be reached by keyboard while flagging. Links already can.
+      const focusable = this.activeValue && !BLOCK.test(part.dataset.anchor)
+      if (focusable && !part.hasAttribute("tabindex")) {
         part.setAttribute("tabindex", "0")
         part.dataset.flagModeFocusable = ""
-      } else if (!this.activeValue && "flagModeFocusable" in part.dataset) {
+      } else if (!focusable && "flagModeFocusable" in part.dataset) {
         part.removeAttribute("tabindex")
         delete part.dataset.flagModeFocusable
       }
     })
+
+    this.drawHighlights()
+  }
+
+  drawHighlights() {
+    if (!window.CSS?.highlights) return
+
+    const ranges = this.flagsValue.filter((flag) => flag.from != null).flatMap((flag) => {
+      const block = [ ...this.element.querySelectorAll("[data-anchor]") ].find((node) => node.dataset.anchor === flag.anchor)
+      const range = block && this.rangeFor(block, flag.from, flag.to)
+      return range ? [ range ] : []
+    })
+    CSS.highlights.set("flagged", new Highlight(...ranges))
   }
 }

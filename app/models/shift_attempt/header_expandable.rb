@@ -1,5 +1,5 @@
 # Showing a message's full headers: the real sender address, reply-to and recipient behind the
-# display name. Costs a minute.
+# display name. Free.
 module ShiftAttempt::HeaderExpandable
   extend ActiveSupport::Concern
 

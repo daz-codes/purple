@@ -1,7 +1,8 @@
 require "application_system_test_case"
 
-# Plays the fixture message shift on the phone: a genuine text from Sam at minute 0, and a fake "IT
-# Support" chat at minute 2 that asks for a one-time code.
+# Plays the fixture message shift on the phone: Sam's text (needs a reply) and a text from IT (needs
+# nothing) at the start; the fake "IT Support" chat, asking for a one-time code, once one message has
+# been dealt with.
 class MessageShiftTest < ApplicationSystemTestCase
   setup do
     sign_in users(:one)
@@ -9,67 +10,78 @@ class MessageShiftTest < ApplicationSystemTestCase
     click_on "Start shift"
   end
 
-  test "check with the service desk, report the fake IT chat, reply to a colleague and see it all in the debrief" do
-    within("#shift_inbox") { assert_text "Sam (Ops)" }
-    assert_no_text "IT Support (Larkhill)"
-    click_on "Wait for new messages (2 min)"
-    assert_text "1 new message arrived."
-
-    within("#shift_inbox") { click_on "IT Support (Larkhill)" }
+  test "reply to a colleague, check with the service desk, report the fake IT chat, and see it all in the debrief" do
+    within("#shift_inbox") { click_on "Sam (Ops)" }
     assert_selector "#shift_inbox", visible: :hidden # one screen at a time
     within("#shift_reader") do
+      assert_selector "h2", text: "Sam (Ops)"
+      click_on "Sure, see you there"
+      assert_selector "[data-testid=reply-response]", text: "Legend, thanks!"
+      click_on "Archive"
+    end
+    assert_text "1 new message arrived."
+    assert_no_answers
+
+    within("#shift_inbox") { click_on "IT Support (Larkhill)" }
+    within("#shift_reader") do
       assert_selector "h2", text: "IT Support (Larkhill)"
-      assert_text "it.support.larkhill@freemail.test" # no headers to expand on a phone
+      assert_text "it.support.larkhill@freemail.test"
       assert_text "Workchat"
       assert_selector "[aria-label='Reply with'] button", count: 3
-    end
-    assert_no_answers
 
-    within("#shift_reader") do
-      click_on "🚩 Flag red flags"
-      find("[data-anchor=p2]").click
-      assert_selector "[data-testid=your-flags]", text: "paragraph 2"
-
-      click_on "I'll check with the service desk first. (1 min)"
+      click_on "I'll check with the service desk first."
       assert_selector "[data-testid=sent-reply]", text: "I'll check with the service desk first."
       assert_selector "[data-testid=reply-check]", text: "The IT service desk says that isn't them."
-      assert_no_selector "[aria-label='Reply with']"
+      click_on "Report phishing"
     end
-    assert_selector "[data-testid=clock]", text: "Minute 3 of 30" # 2 + 1 for the reply: every reply costs the same
-    assert_no_answers
 
-    within("#shift_reader") { click_on "Report phishing (1 min)" }
-    within("#shift_reader") { click_on "Back to all messages" }
-    within("#shift_inbox") do
-      assert_text "Reported (1)"
-      click_on "Sam (Ops)"
-    end
+    # IT's text needs nothing: archive it. That's the last message, so the shift ends by itself.
+    within("#shift_inbox") { click_on "Larkhill IT" }
     within("#shift_reader") do
-      assert_selector "h2", text: "Sam (Ops)"
-      click_on "Sure, see you there (1 min)"
-      assert_selector "[data-testid=reply-response]", text: "Legend, thanks!"
+      assert_selector "h2", text: "Larkhill IT"
+      click_on "Archive"
     end
-    assert_selector "[data-testid=security]", text: "100%"
-
-    accept_confirm { click_on "End shift" }
-
+    assert_selector "[data-testid=debrief-ending]", text: /You cleared your phone in/
     chat = all("[data-testid=debrief-message]").find { |card| card.has_text?("IT Support (Larkhill)") }
     within(chat) do
-      assert_selector "[data-testid=debrief-verdict]", text: "Phish"
-      assert_text "Workchat from IT Support (Larkhill)"
+      assert_selector "[data-testid=debrief-verdict]", text: "Phish: reported"
       assert_text "You replied “I'll check with the service desk first.”, and gave them nothing they could use."
       assert_text "You checked with someone you already trust"
-      assert_selector "[data-testid=debrief-red-flags]", text: "Flagged +15 Asks for a one-time code."
     end
+    sam = all("[data-testid=debrief-message]").find { |card| card.has_text?("Sam (Ops)") }
+    within(sam) { assert_selector "[data-testid=debrief-verdict]", text: "Genuine: dealt with" }
   end
 
-  test "handing over the code shows the damage at once" do
-    click_on "Wait for new messages (2 min)"
+  test "the answer to Sam's question was in IT's text, and the fake chat contradicted it: the debrief says so" do
+    within("#shift_inbox") { click_on "Sam (Ops)" }
+    within("#shift_reader") do
+      click_on "Sorry, no time today"
+      click_on "Archive"
+    end
+    assert_no_text "ready to collect on Thursday”" # nothing points back to IT's text mid-shift
     within("#shift_inbox") { click_on "IT Support (Larkhill)" }
-    within("#shift_reader") { click_on "Here it is: 482 913 (1 min)" }
+    within("#shift_reader") { click_on "Report phishing" }
+    within("#shift_inbox") { click_on "Larkhill IT" }
+    within("#shift_reader") { click_on "Archive" }
 
-    assert_text "someone signed in to your account from abroad"
-    assert_selector "[data-testid=security]", text: "50%"
-    within("#shift_reader") { assert_selector "[data-testid=reply-response]", text: "Thanks, you're all locked down now." }
+    sam = all("[data-testid=debrief-message]").find { |card| card.has_text?("Sam (Ops)") }
+    within(sam) do
+      assert_selector "[data-testid=debrief-verdict]", text: "Genuine: not dealt with"
+      assert_selector "[data-testid=debrief-answer-source]", text: "The answer was in Larkhill IT's text: “ready to collect on Thursday”."
+    end
+    chat = all("[data-testid=debrief-message]").find { |card| card.has_text?("IT Support (Larkhill)") }
+    within(chat) { assert_selector "[data-testid=debrief-contradiction]", text: "Earlier, Larkhill IT told you: “We never ask for codes”" }
+  end
+
+  test "handing over the code says nothing until the debrief" do
+    within("#shift_inbox") { click_on "Sam (Ops)" }
+    within("#shift_reader") { click_on "Archive" }
+    within("#shift_inbox") { click_on "IT Support (Larkhill)" }
+    within("#shift_reader") do
+      click_on "Here it is: 482 913"
+      assert_selector "[data-testid=reply-response]", text: "Thanks, you're all locked down now."
+    end
+    assert_no_selector "[role=alert]"
+    assert_no_text "signed in to your account"
   end
 end

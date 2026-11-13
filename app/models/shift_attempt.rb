@@ -1,19 +1,22 @@
 # A player's run through a shift. Created on the server with a random token. The player acts on it
-# through the methods its concerns add: read, expand_headers, verify_sender, flag, report, visit,
-# open_attachment, close_tab, complete_task, submit_credentials, run_download, send_reply,
-# use_hint, wait_for_mail and end_shift. Each one is logged as an AttemptAction and moves the clock on.
+# through the methods its concerns add: read, expand_headers, verify_sender, flag, send_reply, visit,
+# open_attachment, close_tab, use_portal, submit_credentials, run_download, report, archive, use_hint
+# and clock_off. Each one is logged as an AttemptAction with the time it was made.
+#
+# The shift ends when every message has been dealt with (reported or archived), when the player clocks
+# off early, or when it's left open too long.
 #
 # Everything here describes what the player can already see. Nothing answers whether a message is
-# phishing until the shift is over and scored.
+# phishing, or what it needed, until the shift is over and scored.
 class ShiftAttempt < ApplicationRecord
-  # Raised when a move isn't allowed: the shift is over, it doesn't fit in the time left, and so on.
-  # The message is shown to the player.
+  # Raised when a move isn't allowed: the shift is over, the message has already been dealt with, and
+  # so on. The message is shown to the player.
   class Rejected < StandardError; end
 
-  include Clocked, Logged, Inbox, Tasks, Reading, HeaderExpandable, Verifiable, Reportable,
-    Flaggable, Hintable, Replyable, Browsing, Compromisable, Finishable
+  include Timed, Logged, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Replyable, Hintable,
+    Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
 
-  enum :status, { open: "open", completed: "completed", timed_out: "timed_out" }, validate: true
+  enum :status, { open: "open", completed: "completed", clocked_off: "clocked_off", timed_out: "timed_out" }, validate: true
 
   belongs_to :user
   belongs_to :shift
@@ -22,8 +25,11 @@ class ShiftAttempt < ApplicationRecord
 
   before_validation -> { self.started_at ||= Time.current }, on: :create
 
+  # Starts a shift, or resumes the one in progress. An attempt left idle too long is closed first, so the
+  # player gets a fresh shift rather than a debrief for one they walked away from.
   def self.start(user:, shift:)
-    user.shift_attempts.open.find_or_create_by!(shift:)
+    user.shift_attempts.open.where(shift:).each(&:expire_if_stale)
+    user.shift_attempts.open.find_or_create_by!(shift:) { |attempt| attempt.relaxed = user.relaxed_mode }
   rescue ActiveRecord::RecordNotUnique
     user.shift_attempts.open.find_by!(shift:)
   end

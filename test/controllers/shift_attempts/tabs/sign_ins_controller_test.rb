@@ -3,7 +3,7 @@ require "test_helper"
 class ShiftAttempts::Tabs::SignInsControllerTest < ActionDispatch::IntegrationTest
   setup do
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    @attempt.wait_for_mail
+    @attempt.archive(messages(:newsletter))
     @attempt.visit(links(:fake_invoice_link))
     sign_in_as users(:one)
   end
@@ -17,12 +17,13 @@ class ShiftAttempts::Tabs::SignInsControllerTest < ActionDispatch::IntegrationTe
     assert_select "#{sign_in_form} input[name]:not([name=authenticity_token])", count: 0
   end
 
-  test "signing in compromises the player, shows the damage and keeps the shift going" do
+  test "signing in carries on to the same plain confirmation a real portal shows, and records nothing typed" do
     post shift_attempt_tab_sign_in_path(@attempt), params: { password: "hunter2-would-be-ignored" }, as: :turbo_stream
 
     assert_response :success
-    assert_select "turbo-stream[target=shift_notice] template [role=alert]", text: /just sent 400 emails/
-    assert_equal 50, @attempt.reload.scorecard.security_meter
+    assert_select "[role=alert]", count: 0
+    assert_select "turbo-stream[target=shift_browser] template dialog [role=status]", text: /that's been submitted/
+    assert @attempt.reload.scorecard.message_result_for("fake_invoice").compromised?
     assert @attempt.open?
     assert_not_includes @attempt.attempt_actions.to_json, "hunter2"
   end

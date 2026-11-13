@@ -182,17 +182,21 @@
   }
 }
 
-/* Flag mode in the reading pane: every part of the message can be flagged. */
+/* Flag mode in the reading pane. Whole parts (headers, links, attachments) and sentences can be
+   clicked; any words can be dragged over. Paragraphs themselves aren't targets, only their sentences. */
 @layer components {
-  .flag-mode [data-anchor] {
+  .flag-mode [data-anchor]:not(p, li, blockquote, h3, h4) {
     cursor: crosshair;
     border-radius: 0.25rem;
     outline: 1px dashed transparent;
     outline-offset: 2px;
   }
-  .flag-mode [data-anchor]:hover,
-  .flag-mode [data-anchor]:focus-visible {
+  .flag-mode [data-anchor]:not(p, li, blockquote, h3, h4):hover,
+  .flag-mode [data-anchor]:not(p, li, blockquote, h3, h4):focus-visible {
     outline-color: var(--color-red-team);
+  }
+  .flag-mode .message-body {
+    cursor: text;
   }
   [data-anchor].flagged {
     outline: 2px solid var(--color-red-team);
@@ -203,4 +207,11 @@
   [data-anchor].flagged::before {
     content: "🚩 ";
   }
+}
+
+/* Highlighted words, drawn with the CSS Custom Highlight API so the message's markup never changes. */
+::highlight(flagged) {
+  background-color: var(--color-red-team-soft);
+  color: var(--color-ink);
+  text-decoration: underline 2px var(--color-red-team);
 }

@@ -15,7 +15,7 @@ class ShiftAttemptTest < ActiveSupport::TestCase
     ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
 
     assert_raises(ActiveRecord::RecordNotUnique) do
-      ShiftAttempt.new(user: users(:one), shift: shifts(:month_end), started_at: Time.current, time_budget_minutes: 30).save!(validate: false)
+      ShiftAttempt.new(user: users(:one), shift: shifts(:month_end), started_at: Time.current).save!(validate: false)
     end
   end
 end

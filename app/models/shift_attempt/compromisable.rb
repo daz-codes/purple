@@ -1,5 +1,7 @@
 # Falling for it: entering a password on a lookalike sign-in page, or running a file from a malware
-# link or a disguised attachment. The shift carries on, but the player sees the damage at once.
+# link or a disguised attachment. Nothing in the shift says so: the sign-in page carries on to a plain
+# confirmation, as real phishing kits do, and a run file simply closes. The damage is revealed in the
+# debrief.
 #
 # Mock sign-in pages never collect anything: the form's fields have no names, so nothing typed is
 # ever sent. The server only records that the button was pressed.

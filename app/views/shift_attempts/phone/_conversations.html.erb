@@ -21,7 +21,6 @@
                 <span class="truncate <%= unread ? "font-bold" : "text-ink-muted" %>">
                   <% if unread %><span class="sr-only">Unread: </span><% end %><%= message.from_name %>
                 </span>
-                <span class="shrink-0 text-xs text-ink-muted">min <%= message.arrives_at_minute %></span>
               </span>
               <span class="block text-xs text-ink-muted"><%= channel_label(message) %></span>
               <span class="block truncate text-sm <%= unread ? "font-semibold" : "text-ink-muted" %>"><%= strip_tags(message.body_html).squish %></span>
@@ -33,15 +32,5 @@
     </ul>
   <% end %>
 
-  <% reported = attempt.reported_messages %>
-  <% if reported.any? %>
-    <div class="px-5 py-3">
-      <h3 class="text-sm font-semibold text-ink-muted">Reported (<%= reported.size %>)</h3>
-      <ul class="mt-1 space-y-1 text-sm text-ink-muted">
-        <% reported.each do |message| %>
-          <li class="truncate line-through"><%= message.from_name %></li>
-        <% end %>
-      </ul>
-    </div>
-  <% end %>
+  <%= render "shift_attempts/dealt_with", attempt:, label: ->(message) { message.from_name } %>
 </div>

@@ -5,12 +5,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   # Let tests find buttons and links by their aria-label, as screen reader users would.
   Capybara.enable_aria_label = true
+  # The first page of a run (compiling assets, warming Puma) can take longer than the default 2 seconds.
+  Capybara.default_max_wait_time = 5
 
   # Things only the server may know until the debrief: answer words, the fixtures' descriptive keys,
   # technique tags and red-flag labels. None may appear anywhere in a mid-shift page.
   SHIFT_SECRETS = %w[
-    legit outcome task_id completes_task bait_landing credential_harvest malware harmless portal_task
-    file_preview real_invoice fake_invoice pay_supplier lookalike_domain T1583 lookalike sam_text it_chat code_request
+    legit outcome expects arrives_after bait_landing credential_harvest malware harmless file_preview
+    real_invoice fake_invoice newsletter supplier_thanks sam_text it_chat lookalike_domain T1583 lookalike
+    pay_today code_request compromise
   ].freeze
 
   private

@@ -11,8 +11,9 @@ class ShiftAttempts::Messages::VerificationsControllerTest < ActionDispatch::Int
     post shift_attempt_message_verification_path(@attempt, @attempt.message_ref(messages(:real_invoice))), as: :turbo_stream
 
     assert_response :success
-    assert_equal 5, @attempt.reload.clock_minutes
-    assert_select "turbo-stream[target=shift_reader] template [data-testid=verify-result]", text: /Nobody picked up/
+    assert_equal 30, @attempt.reload.penalty_seconds
+    assert_select "turbo-stream[target=shift_reader] template [data-testid=verify-result]", text: /Tidemark confirm they sent it/
+    assert_no_match(/30 s|seconds/, response.body)
   end
 
   test "calling twice is refused" do

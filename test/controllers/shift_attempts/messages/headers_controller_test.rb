@@ -6,16 +6,16 @@ class ShiftAttempts::Messages::HeadersControllerTest < ActionDispatch::Integrati
     sign_in_as users(:one)
   end
 
-  test "showing full headers costs a minute" do
+  test "showing full headers is free" do
     post shift_attempt_message_headers_path(@attempt, @attempt.message_ref(messages(:real_invoice))), as: :turbo_stream
 
     assert_response :success
-    assert_equal 1, @attempt.reload.clock_minutes
+    assert_equal 0, @attempt.reload.penalty_seconds
     assert @attempt.headers_expanded?(messages(:real_invoice))
   end
 
-  test "a move that ends the shift goes to the results" do
-    @attempt.update!(clock_minutes: 29)
+  test "an attempt left open too long is closed on the next move, which goes to the debrief" do
+    travel ShiftAttempt::Timed::EXPIRES_AFTER + 1.second
     post shift_attempt_message_headers_path(@attempt, @attempt.message_ref(messages(:real_invoice))), as: :turbo_stream
 
     assert_redirected_to shift_attempt_path(@attempt)

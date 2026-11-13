@@ -2,26 +2,25 @@ slug: first-day-at-larkhill
 title: "First day at Larkhill Finance"
 kind: inbox
 difficulty: beginner
-time_budget_minutes: 30
+par_minutes: 8
 position: 1
 briefing: >
-  Welcome to Larkhill Finance! Before lunch you need to set your account password and fill in
-  your HR onboarding form. Red knows new starters are eager to please and don't yet know what
-  normal looks like. Expect your inbox to be busy.
+  Welcome to Larkhill Finance! It's your first morning, and your inbox is already filling up:
+  account set-up, HR forms, a hello from your buddy. Red knows new starters are eager to please
+  and don't yet know what normal looks like.
 learning_summary: >
   New starters are a favourite target because everything is unfamiliar. Check the domain after
   the @ sign, see where a link really goes before clicking, and be wary of attachments you
-  weren't expecting.
-
-tasks:
-  - { key: set_password, title: "Set your account password on the IT portal", due_at_minute: 15, points: 30 }
-  - { key: onboarding_form, title: "Complete your HR onboarding form", due_at_minute: 25, points: 30 }
+  weren't expecting. Genuine security requests exist too: the difference is where they come from
+  and where their links go.
 
 messages:
   - key: it_welcome
     channel: email
-    arrives_at_minute: 0
     legit: true
+    expects: act
+    points: 30
+    urgent_within_minutes: 10
     from_name: "Larkhill IT Service Desk"
     from_address: "servicedesk@larkhill.example"
     to_address: "you@larkhill.example"
@@ -30,16 +29,16 @@ messages:
       <p>Hi, and welcome to Larkhill Finance.</p>
       <p>Please set your account password on the IT portal this morning. You'll need your staff number, which is on your contract.</p>
       <p><a href="https://itportal.larkhill.example/setup/88213">Set up my account</a></p>
+      <p>One thing to remember: we will never ask for your current password by email.</p>
       <p>Larkhill IT Service Desk</p>
     links:
-      - { match: "itportal.larkhill.example", outcome: completes_task, task: set_password }
+      - { match: "itportal.larkhill.example", outcome: portal, action: "Set my password" }
     verify_result: "The IT service desk confirms they sent your welcome email."
 
   - key: password_expiry
     channel: email
-    arrives_at_minute: 0
     legit: false
-    imitates: set_password
+    imitates: it_welcome
     techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
     from_name: "Larkhill IT Support"
     from_address: "it-support@larkhill-helpdesk.example.net"
@@ -56,15 +55,38 @@ messages:
     red_flags:
       - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
           explanation: "larkhill-helpdesk.example.net is not larkhill.example. Anyone can register a domain with a company's name in it." }
-      - { key: deadline, anchor: p1, points: 10, label: "Urgency or pressure",
+      - { key: deadline, quote: "expire in 30 minutes", points: 10, label: "Urgency or pressure",
           explanation: "A 30-minute deadline and a threat to lock you out are there to stop you thinking." }
+      - { key: current_password, quote: "confirm your current password", points: 10, label: "Asks for your password",
+          explanation: "Nobody genuine asks you to confirm your current password from a link in an email.",
+          contradicts: { message: it_welcome, quote: "we will never ask for your current password by email" } }
       - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
           explanation: "The text shows itportal.larkhill.example, but the link goes to itportal-larkhill.example.net." }
 
+  - key: buddy_hello
+    channel: email
+    legit: true
+    expects: reply
+    points: 20
+    urgent_within_minutes: 10
+    from_name: "Alex Morgan"
+    from_address: "alex.morgan@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Hello from your buddy"
+    body_html: |
+      <p>Hi! I'm Alex, your buddy for your first few weeks. Welcome to the team.</p>
+      <p>Quick check: has your laptop arrived, and have you got your building pass? Just reply and let me know.</p>
+    replies:
+      - { text: "Hi Alex! Yes, laptop and pass are both here. Thanks!", outcome: safe, response: "Brilliant. Shout if you need anything!" }
+      - { text: "Laptop's here, but I'm still waiting for my pass.", outcome: safe, response: "No problem, I'll chase reception for you." }
+    verify_result: "Alex is in the staff directory as your buddy."
+
   - key: hr_onboarding
     channel: email
-    arrives_at_minute: 4
+    arrives: { after_handled: 1 }
     legit: true
+    expects: act
+    points: 30
     from_name: "Larkhill HR"
     from_address: "hr@larkhill.example"
     to_address: "you@larkhill.example"
@@ -72,16 +94,55 @@ messages:
     body_html: |
       <p>Hello and welcome aboard!</p>
       <p>Please complete your onboarding form today so we can set up your payroll and pension.</p>
+      <p>Your induction is at 2pm in the Harbour Room, on the second floor.</p>
       <p><a href="https://hr.larkhill.example/onboarding/5521">Open my onboarding form</a></p>
       <p>You might also like to read the <a href="https://intranet.larkhill.example/handbook">staff handbook</a> when you get a moment.</p>
     links:
-      - { match: "hr.larkhill.example", outcome: completes_task, task: onboarding_form }
+      - { match: "hr.larkhill.example", outcome: portal, action: "Submit my onboarding form" }
       - { match: "intranet.larkhill.example", outcome: harmless }
     verify_result: "HR confirms they sent your onboarding form."
 
+  - key: buddy_induction
+    channel: email
+    arrives: { after: hr_onboarding }
+    legit: true
+    expects: reply
+    points: 20
+    answer_in: { message: hr_onboarding, quote: "2pm in the Harbour Room" }
+    from_name: "Alex Morgan"
+    from_address: "alex.morgan@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Your induction"
+    body_html: |
+      <p>Hope the morning's going OK! I'll come and find you after your induction.</p>
+      <p>When and where is it? HR will have told you.</p>
+    replies:
+      - { text: "2pm, in the Harbour Room on the second floor.", outcome: safe, response: "Perfect, I'll be outside at three." }
+      - { text: "Friday at 5pm, in the atrium.", outcome: poor, response: "Hmm, that sounds more like the welcome drinks..." }
+      - { text: "No idea, sorry!", outcome: poor, response: "Oh! Have a look through your emails, it'll be in there." }
+    verify_result: "Alex is in the staff directory as your buddy."
+
+  - key: mfa_enrolment
+    channel: email
+    arrives: { after: it_welcome }
+    legit: true
+    expects: act
+    points: 20
+    from_name: "Larkhill IT Service Desk"
+    from_address: "servicedesk@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Next step: add your authenticator app"
+    body_html: |
+      <p>One more security step for new starters. Please add the Larkhill authenticator app to your phone today.</p>
+      <p>You'll never be asked for the codes it shows: they're only for you to type when you sign in.</p>
+      <p><a href="https://itportal.larkhill.example/mfa/enrol">Add my authenticator</a></p>
+    links:
+      - { match: "itportal.larkhill.example", outcome: portal, action: "Add my authenticator" }
+    verify_result: "The IT service desk confirms every new starter gets this email after setting their password."
+
   - key: missed_delivery
     channel: email
-    arrives_at_minute: 8
+    arrives: { after_handled: 2 }
     legit: false
     techniques: [malicious_attachment, malware_download, urgency_pretext]
     from_name: "ParcelPoint Deliveries"
@@ -96,17 +157,62 @@ messages:
       - { name: "Delivery_Note_4471.pdf.exe", type: "application/x-msdownload", size: "312 KB", outcome: malware }
     verify_result: "You haven't ordered anything, and your new desk address isn't on any delivery system yet."
     red_flags:
-      - { key: generic_greeting, anchor: p1, points: 5, label: "Generic greeting",
+      - { key: generic_greeting, quote: "Dear Customer", points: 5, label: "Generic greeting",
           explanation: "\"Dear Customer\" means they don't know who you are. It's your first day; who would be sending you parcels?" }
       - { key: double_extension, anchor: a1, points: 15, label: "Disguised attachment",
           explanation: "Delivery_Note_4471.pdf.exe ends in .exe: it's a program pretending to be a PDF." }
-      - { key: rebook_deadline, anchor: p3, points: 5, label: "Urgency or pressure",
+      - { key: rebook_deadline, quote: "within 24 hours", points: 5, label: "Urgency or pressure",
           explanation: "The 24-hour threat is there to make you open the file without thinking." }
+
+  - key: password_final_warning
+    channel: email
+    arrives: { after: password_expiry }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Larkhill IT Support"
+    from_address: "it-support@larkhill-helpdesk.example.net"
+    to_address: "you@larkhill.example"
+    subject: "FINAL WARNING: account lock in 10 minutes"
+    body_html: |
+      <p>We haven't received your password confirmation.</p>
+      <p>Your account will be locked in 10 minutes. This is your final warning.</p>
+      <p><a href="https://itportal-larkhill.example.net/unlock">Keep my account open</a></p>
+    links:
+      - { match: "itportal-larkhill.example.net", outcome: bait_landing }
+    verify_result: "The IT service desk: \"Nothing's being locked. That's the same fake as before, chasing you.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "Still larkhill-helpdesk.example.net, not larkhill.example." }
+      - { key: final_warning, quote: "This is your final warning", points: 10, label: "Escalating pressure",
+          explanation: "Attackers chase when you don't bite. A second, scarier message is a sign of a scam, not a reason to act." }
+
+  - key: delivery_last_chance
+    channel: email
+    arrives: { after: missed_delivery }
+    legit: false
+    techniques: [malicious_attachment, malware_download, urgency_pretext]
+    from_name: "ParcelPoint Deliveries"
+    from_address: "no-reply@parcelpoint-tracking.test"
+    to_address: "you@larkhill.example"
+    subject: "Last chance to rebook your delivery"
+    body_html: |
+      <p>Dear Customer,</p>
+      <p>This is your last chance to rebook. Open the attached form today or your parcel will be destroyed.</p>
+    attachments:
+      - { name: "Rebook_Form_4471.pdf.exe", type: "application/x-msdownload", size: "318 KB", outcome: malware }
+    verify_result: "You still haven't ordered anything. It's the same fake courier, chasing."
+    red_flags:
+      - { key: double_extension, anchor: a1, points: 15, label: "Disguised attachment",
+          explanation: "Rebook_Form_4471.pdf.exe ends in .exe: another program pretending to be a PDF." }
+      - { key: destroyed, quote: "your parcel will be destroyed", points: 5, label: "Escalating threat",
+          explanation: "Chasing with a bigger threat is how scams push you past your doubts." }
 
   - key: social_club
     channel: email
-    arrives_at_minute: 12
+    arrives: { after_handled: 4 }
     legit: true
+    expects: archive
+    points: 5
     from_name: "Larkhill Social Club"
     from_address: "social@larkhill.example"
     to_address: "you@larkhill.example"

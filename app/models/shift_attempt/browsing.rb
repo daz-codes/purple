@@ -4,8 +4,10 @@ module ShiftAttempt::Browsing
   extend ActiveSupport::Concern
 
   TAB_OPENERS = %w[ click_link open_attachment ].freeze
-  # Signing in or running a download ends with the page closing as the consequence lands.
-  TAB_CLOSERS = %w[ close_landing submit_credentials run_download ].freeze
+  # Running a download closes the prompt. (Nothing visible happens: the damage shows in the debrief.)
+  TAB_CLOSERS = %w[ close_landing run_download ].freeze
+  # Pressing the button on a sign-in or portal page. The page stays open, showing a plain confirmation.
+  TAB_SUBMITTERS = %w[ submit_credentials use_portal ].freeze
 
   def visit(link)
     acting_on(link.message) { open_tab :click_link, link.message, "link" => link.key }
@@ -28,14 +30,18 @@ module ShiftAttempt::Browsing
   end
 
   # The open tab, if any: the last link or attachment opened, unless it's been closed since. A tab
-  # whose message has been reported, or whose link or attachment a content re-import removed, is
+  # whose message has been dealt with, or whose link or attachment a content re-import removed, is
   # gone too, so nothing more can be done on it.
   def current_tab
     return @current_tab if defined?(@current_tab)
 
-    action = actions.reverse_each.find { |action| action.kind.in?(TAB_OPENERS) || action.kind.in?(TAB_CLOSERS) }
+    index = actions.rindex { |action| action.kind.in?(TAB_OPENERS) || action.kind.in?(TAB_CLOSERS) }
+    action = actions[index] if index
     message = arrived_messages.find { |arrived| arrived.key == action.target_key } if action&.kind.in?(TAB_OPENERS)
-    tab = ShiftAttempt::Tab.new(message:, source: action.result) if message && !reported?(message)
+    if message && !handled?(message)
+      submitted = actions.drop(index + 1).any? { |later| later.kind.in?(TAB_SUBMITTERS) }
+      tab = ShiftAttempt::Tab.new(message:, source: action.result, submitted:)
+    end
     @current_tab = (tab if tab&.showable?)
   end
 
@@ -55,6 +61,7 @@ module ShiftAttempt::Browsing
     def current_tab_showing!(landing, otherwise)
       tab = current_tab
       reject otherwise unless tab&.landing == landing
+      reject "That's already been sent." if tab.submitted?
       tab
     end
 end

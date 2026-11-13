@@ -5,18 +5,18 @@ class ShiftAttempt::LoggedTest < ActiveSupport::TestCase
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
   end
 
-  test "every move is logged with the minute it started and what it cost" do
+  test "every move is logged with what it was done to" do
     @attempt.expand_headers(messages(:real_invoice))
     @attempt.verify_sender(messages(:real_invoice))
 
-    assert_equal [ [ "expand_headers", "real_invoice", 0, 1 ], [ "verify_sender", "real_invoice", 1, 5 ] ],
-      @attempt.attempt_actions.reload.map { |action| [ action.kind, action.target_key, action.minute, action.cost_minutes ] }
+    assert_equal [ [ "expand_headers", "real_invoice", 0 ], [ "verify_sender", "real_invoice", 30 ] ],
+      @attempt.attempt_actions.reload.map { |action| [ action.kind, action.target_key, action.penalty_seconds ] }
   end
 
   test "the log is append-only" do
     action = @attempt.read(messages(:real_invoice))
 
-    assert_raises(ActiveRecord::ReadOnlyRecord) { action.update!(minute: 5) }
+    assert_raises(ActiveRecord::ReadOnlyRecord) { action.update!(at_seconds: 5) }
   end
 
   test "a rejected move logs nothing" do

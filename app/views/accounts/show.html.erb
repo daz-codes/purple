@@ -23,6 +23,23 @@
     </dl>
   </section>
 
+  <section aria-labelledby="settings-heading">
+    <h2 id="settings-heading" class="text-xl font-bold">Settings</h2>
+    <%= form_with model: Current.user, url: account_preferences_path, method: :patch, class: "card mt-4 space-y-4 p-4" do |form| %>
+      <div class="flex items-start gap-3">
+        <%= form.check_box :relaxed_mode, class: "mt-1 size-5 accent-purple-team" %>
+        <div>
+          <%= form.label :relaxed_mode, "Relaxed mode", class: "font-semibold" %>
+          <p class="text-sm text-ink-muted">
+            Take as long as you like. Shifts aren't timed: there's no speed bonus, and urgent messages don't lose points
+            for being late. Relaxed scores are kept separately on the leaderboards. Changes apply to shifts you start from now on.
+          </p>
+        </div>
+      </div>
+      <%= form.submit "Save settings", class: "btn-primary" %>
+    <% end %>
+  </section>
+
   <section aria-labelledby="devices-heading">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>

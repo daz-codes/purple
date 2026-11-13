@@ -2,43 +2,80 @@ slug: ceo-on-a-plane
 title: "The CEO is on a plane"
 kind: inbox
 difficulty: intermediate
-time_budget_minutes: 40
+par_minutes: 12
 position: 1
 briefing: >
   Jordan Hale, Larkhill's CEO, flies to Singapore this morning and will be offline until Friday.
-  You're covering a few of Jordan's admin jobs: approving an expense claim, countersigning the
-  Pellow Clarke contract and booking the boardroom. Red has seen Jordan's out-of-office too.
+  You're covering Jordan's inbox for the week: expense claims, contracts, room bookings, and
+  anyone who needs an answer. Red has seen Jordan's out-of-office too.
 learning_summary: >
   When the boss is unreachable, attackers step into the gap. Requests for secrecy, gift cards
   or new bank details are red flags even when the sender looks right. A genuine mailbox can
   still be hijacked, so verify unusual requests through a channel you already trust.
 
-tasks:
-  - { key: approve_expenses, title: "Approve Priya's expense claim", due_at_minute: 25, points: 30 }
-  - { key: sign_contract, title: "Countersign the Pellow Clarke contract", due_at_minute: 30, points: 40 }
-  - { key: book_room, title: "Book the boardroom for Thursday", due_at_minute: 38, points: 20 }
-
 messages:
   - key: ceo_handover
     channel: email
-    arrives_at_minute: 0
     legit: true
+    expects: act
+    points: 30
     from_name: "Jordan Hale"
     from_address: "jordan.hale@larkhill.example"
     to_address: "you@larkhill.example"
     subject: "Before I fly"
     body_html: |
-      <p>Morning! I'm offline from 9am until Friday.</p>
+      <p>Morning! I'm offline from 9am until Friday. Anything urgent, please check with Mo first.</p>
       <p>Could you approve Priya's expense claim from the conference? It's waiting for me in the expenses system.</p>
       <p><a href="https://expenses.larkhill.example/claims/3310">Priya's claim</a></p>
       <p>Thanks, Jordan</p>
     links:
-      - { match: "expenses.larkhill.example", outcome: completes_task, task: approve_expenses }
+      - { match: "expenses.larkhill.example", outcome: portal, action: "Approve Priya's expense claim" }
     verify_result: "Jordan's assistant confirms Jordan sent this before leaving for the airport."
+
+  - key: signflow_envelope
+    channel: email
+    legit: false
+    imitates: pellowclarke_contract
+    techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
+    from_name: "SignFlow Notifications"
+    from_address: "notify@signfiow.example"
+    to_address: "you@larkhill.example"
+    subject: "Pellow Clarke Legal sent you a document to sign"
+    body_html: |
+      <p>Pellow Clarke Legal has sent you "Services agreement: Larkhill Finance" to review and sign.</p>
+      <p>Sign in to review and sign. This envelope expires at 5pm today.</p>
+      <p><a href="https://signfiow.example/login?envelope=7781">Sign now</a></p>
+    links:
+      - { match: "signfiow.example", outcome: bait_landing }
+    verify_result: "Pellow Clarke Legal: \"We send contracts from sign.pellowclarke.example. We don't use SignFlow.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 15, label: "Lookalike sender domain",
+          explanation: "signfiow.example uses \"fi\" to look like \"fl\". Real contracts come from sign.pellowclarke.example." }
+      - { key: expiry, quote: "expires at 5pm today", points: 5, label: "Urgency or pressure",
+          explanation: "A sudden expiry deadline is there to rush you." }
+      - { key: sign_in_link, anchor: l1, points: 10, label: "Asks you to sign in from a link",
+          explanation: "A genuine signing service doesn't need your work password. This page wants it." }
+
+  - key: boardroom_portal
+    channel: email
+    legit: true
+    expects: act
+    points: 20
+    from_name: "Larkhill Facilities"
+    from_address: "facilities@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "Room bookings have moved: please rebook"
+    body_html: |
+      <p>From today, all meeting rooms are booked through the new rooms portal. Bookings in the old system have been cancelled.</p>
+      <p>If you look after the boardroom diary, please rebook Thursday's board meeting (10am to midday) today.</p>
+      <p><a href="https://rooms.larkhill.example/book?room=boardroom">Rebook the boardroom</a></p>
+    links:
+      - { match: "rooms.larkhill.example", outcome: portal, action: "Book the boardroom for Thursday" }
+    verify_result: "Facilities confirms the new rooms portal went live today, and old bookings need redoing."
 
   - key: gift_cards
     channel: email
-    arrives_at_minute: 6
+    arrives: { after_handled: 1 }
     legit: false
     techniques: [display_name_spoof, authority_pretext, urgency_pretext]
     from_name: "Jordan Hale"
@@ -49,34 +86,47 @@ messages:
       <p>I'm about to board and need a favour. Please keep this between us for now, it's a surprise for the team.</p>
       <p>Can you buy ten £100 gift cards and email me the codes in the next 20 minutes? I'll make sure you're paid back on Friday.</p>
       <p>Sent from my phone</p>
+    replies:
+      - { text: "Of course, I'll get them now and send the codes.", outcome: compromise, response: "You're a lifesaver. Codes as soon as you can!" }
+      - { text: "Sorry, I can't buy gift cards. Can it wait until you're back?", outcome: safe, response: "It really can't wait. Please, I'm counting on you." }
+      - { text: "I'll check with your assistant first.", outcome: verify }
     verify_result: "Jordan's assistant: \"Jordan's in the air with no wifi and would never ask for gift cards.\""
     red_flags:
       - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
           explanation: "It says Jordan Hale, but the address is a free webmail account, not larkhill.example." }
-      - { key: secrecy, anchor: p1, points: 10, label: "Asks for secrecy",
-          explanation: "\"Keep this between us\" is there to stop you checking with anyone." }
-      - { key: gift_card_codes, anchor: p2, points: 15, label: "Gift cards and a deadline",
+      - { key: secrecy, quote: "keep this between us", points: 10, label: "Asks for secrecy",
+          explanation: "\"Keep this between us\" is there to stop you checking with anyone.",
+          contradicts: { message: ceo_handover, quote: "Anything urgent, please check with Mo first" } }
+      - { key: gift_card_codes, quote: "buy ten £100 gift cards", points: 15, label: "Gift cards",
           explanation: "Gift card codes are untraceable cash. No legitimate boss pays for things this way." }
 
-  - key: boardroom_portal
+  - key: gift_cards_chaser
     channel: email
-    arrives_at_minute: 8
-    legit: true
-    from_name: "Larkhill Facilities"
-    from_address: "facilities@larkhill.example"
-    to_address: "all-staff@larkhill.example"
-    subject: "Room bookings have moved"
+    arrives: { after: gift_cards }
+    legit: false
+    techniques: [display_name_spoof, authority_pretext, urgency_pretext]
+    from_name: "Jordan Hale"
+    from_address: "jordan.hale.ceo@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "Re: Quick favour"
     body_html: |
-      <p>From today, all meeting rooms are booked through the new rooms portal.</p>
-      <p><a href="https://rooms.larkhill.example/book?room=boardroom">Book a room</a></p>
-    links:
-      - { match: "rooms.larkhill.example", outcome: completes_task, task: book_room }
-    verify_result: "Facilities confirms the new rooms portal went live today."
+      <p>Did you get the cards? I'm boarding in 5 minutes.</p>
+      <p>Just scratch the codes off and send me photos.</p>
+    verify_result: "Jordan's assistant: \"Jordan's plane left an hour ago. That isn't Jordan.\""
+    red_flags:
+      - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
+          explanation: "Still the free webmail account, not larkhill.example." }
+      - { key: boarding, quote: "I'm boarding in 5 minutes", points: 10, label: "Urgency",
+          explanation: "A ticking clock so you don't stop to check. Jordan's flight left at 9am.",
+          contradicts: { message: ceo_handover, quote: "I'm offline from 9am until Friday" } }
 
   - key: pellowclarke_contract
     channel: email
-    arrives_at_minute: 12
+    arrives: { after_handled: 1 }
     legit: true
+    expects: act
+    points: 40
+    urgent_within_minutes: 15
     from_name: "Pellow Clarke Legal"
     from_address: "legal@pellowclarke.example"
     to_address: "you@larkhill.example"
@@ -86,12 +136,12 @@ messages:
       <p><a href="https://sign.pellowclarke.example/envelopes/7781">Review and sign</a></p>
       <p>Pellow Clarke Legal</p>
     links:
-      - { match: "sign.pellowclarke.example", outcome: completes_task, task: sign_contract }
+      - { match: "sign.pellowclarke.example", outcome: portal, action: "Countersign the services agreement" }
     verify_result: "Pellow Clarke Legal (on the number in your contracts file) confirms the envelope is genuine."
 
   - key: pellowclarke_bank_change
     channel: email
-    arrives_at_minute: 14
+    arrives: { after: pellowclarke_contract }
     legit: false
     techniques: [compromised_supplier, reply_to_mismatch, payment_change_pretext, malicious_link, credential_harvest]
     from_name: "Pellow Clarke Accounts"
@@ -109,35 +159,30 @@ messages:
     red_flags:
       - { key: reply_redirect, anchor: reply_to, points: 10, label: "Replies go to a different address",
           explanation: "The sender is genuine, but replies would go to a free webmail account. The mailbox has been hijacked." }
-      - { key: bank_change, anchor: p1, points: 15, label: "Changed bank details",
+      - { key: bank_change, quote: "we've moved banks", points: 15, label: "Changed bank details",
           explanation: "Bank changes must always be confirmed by phone on a number you already hold, even from a real address." }
       - { key: remittance_link, anchor: l1, points: 10, label: "Portal outside Pellow Clarke",
           explanation: "pellowclarke-remittance.example.net isn't pellowclarke.example." }
 
-  - key: signflow_envelope
+  - key: assistant_check
     channel: email
-    arrives_at_minute: 10
-    legit: false
-    imitates: sign_contract
-    techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
-    from_name: "SignFlow Notifications"
-    from_address: "notify@signfiow.example"
+    arrives: { after_handled: 3 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Mo Adeyemi"
+    from_address: "mo.adeyemi@larkhill.example"
     to_address: "you@larkhill.example"
-    subject: "Pellow Clarke Legal sent you a document to sign"
+    subject: "Jordan's week"
     body_html: |
-      <p>Pellow Clarke Legal has sent you "Services agreement: Larkhill Finance" to review and sign.</p>
-      <p>Sign in to review and sign. This envelope expires at 5pm today.</p>
-      <p><a href="https://signfiow.example/login?envelope=7781">Sign now</a></p>
-    links:
-      - { match: "signfiow.example", outcome: bait_landing }
-    verify_result: "Pellow Clarke Legal: \"We sent the contract once, from sign.pellowclarke.example. We don't use SignFlow.\""
-    red_flags:
-      - { key: lookalike, anchor: from, points: 15, label: "Lookalike sender domain",
-          explanation: "signfiow.example uses \"fi\" to look like \"fl\". The real contract comes from sign.pellowclarke.example." }
-      - { key: expiry, anchor: p1, points: 5, label: "Urgency or pressure",
-          explanation: "A sudden expiry deadline is there to rush you." }
-      - { key: sign_in_link, anchor: l1, points: 10, label: "Asks you to sign in from a link",
-          explanation: "The real envelope didn't need a separate sign-in. This page wants your password." }
+      <p>Hi, I'm Jordan's assistant. Jordan asked me to keep track of what's been covered while they're away.</p>
+      <p>I'm sending out the papers for Thursday's board meeting. What time is it booked for?</p>
+    answer_in: { message: boardroom_portal, quote: "10am to midday" }
+    replies:
+      - { text: "10am to midday, in the boardroom. I'll make sure it's rebooked.", outcome: safe, response: "Perfect, thank you!" }
+      - { text: "2pm, I think?", outcome: poor, response: "Are you sure? That's not what I had." }
+      - { text: "Not really my job, to be honest.", outcome: poor, response: "Oh. I'll let Jordan know." }
+    verify_result: "Mo is listed as Jordan's assistant in the staff directory."
 
 hints:
   - { body: "Jordan really is on a plane. Which messages claim to be from Jordan, and from which address?", penalty_percent: 20 }

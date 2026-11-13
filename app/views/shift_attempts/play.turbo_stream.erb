@@ -1,8 +1,7 @@
 <%= turbo_stream.replace "shift_status", partial: "shift_attempts/status_bar", locals: { attempt: @attempt } %>
-<%= turbo_stream.replace "shift_tasks", partial: "shift_attempts/tasks", locals: { attempt: @attempt } %>
 <%= turbo_stream.replace "shift_hints", partial: "shift_attempts/hints", locals: { attempt: @attempt } %>
 <%= turbo_stream.replace "shift_inbox", partial: pane_partial(@attempt, :inbox), locals: { attempt: @attempt } %>
 <%= turbo_stream.replace "shift_browser", partial: "shift_attempts/browser", locals: { attempt: @attempt } %>
 <%= turbo_stream.replace "shift_reader", partial: pane_partial(@attempt, :reader), locals: { attempt: @attempt, flag_mode: @flag_mode } %>
-<%= turbo_stream.update "shift_notice", partial: "shift_attempts/notice", locals: { message: @notice, alert: @alert } %>
-<%= turbo_stream.update "browser_notice", partial: "shift_attempts/notice", locals: { message: @notice, alert: @alert } %>
+<%= turbo_stream.update "shift_notice", partial: "shift_attempts/notice", locals: { message: @notice } %>
+<%= turbo_stream.update "browser_notice", partial: "shift_attempts/notice", locals: { message: @notice } %>

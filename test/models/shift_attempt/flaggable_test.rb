@@ -1,46 +1,61 @@
 require "test_helper"
 
+# The fake invoice's first paragraph: "Please pay today. Our bank details have changed."
 class ShiftAttempt::FlaggableTest < ActiveSupport::TestCase
   setup do
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
-    @attempt.wait_for_mail
-    @phish = messages(:fake_invoice)
+    @attempt.archive(messages(:newsletter))
+    @fake = messages(:fake_invoice)
   end
 
-  test "any part of a message can be flagged, for free, and flagging it again takes the flag off" do
-    @attempt.flag(@phish, "p1")
-    @attempt.flag(@phish, "from")
-    assert_equal %w[ p1 from ], @attempt.flagged_anchors(@phish)
-    assert_equal 3, @attempt.clock_minutes
+  test "a whole part can be flagged, for free, and flagging it again takes the flag off" do
+    @attempt.flag(@fake, "from")
+    assert_equal [ flag("from") ], @attempt.flags_on(@fake)
+    assert_equal({ "anchor" => "from" }, @attempt.actions.last.result)
 
-    @attempt.flag(@phish, "p1")
-    assert_equal %w[ from ], @attempt.flagged_anchors(@phish)
+    @attempt.flag(@fake, "from")
+    assert_empty @attempt.flags_on(@fake)
+    assert_equal 0, @attempt.reload.penalty_seconds
   end
 
-  test "flags belong to their message" do
-    @attempt.flag(@phish, "p1")
+  test "a sentence click is stored as the sentence's range, so it's the same flag as dragging over the same words" do
+    @attempt.flag(@fake, "p1s2")
+    assert_equal [ flag("p1", 18, 48) ], @attempt.flags_on(@fake)
+    assert_equal "Our bank details have changed.", @fake.paragraphs["p1"].text[18...48]
 
-    assert_empty @attempt.flagged_anchors(messages(:real_invoice))
+    @attempt.flag(@fake, "p1", from: "18", to: "48")
+    assert_empty @attempt.flags_on(@fake)
   end
 
-  test "only parts the message has can be flagged" do
-    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "p9") }
-    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "lookalike") }
-    assert_empty @attempt.actions.select(&:flag_element?)
+  test "a highlight is trimmed of whitespace, and must be some text inside its paragraph" do
+    @attempt.flag(@fake, "p1", from: 17, to: 27) # " Our bank "
+    assert_equal [ flag("p1", 18, 26) ], @attempt.flags_on(@fake)
+
+    [ [ 17, 18 ], [ 40, 99 ], [ 5, 2 ], [ "x", 3 ] ].each do |from, to|
+      assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@fake, "p1", from:, to:) }
+    end
   end
 
-  test "To and Reply-To can only be flagged once the full headers are showing" do
-    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "reply_to") }
-    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@phish, "to") }
+  test "only parts the message has, and the player can see, can be flagged" do
+    %w[ p9 p9s1 p1s9 l9 a9 reply_to ].each do |anchor|
+      assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@fake, anchor) }
+    end
+    assert_raises(ShiftAttempt::Rejected, match: /nothing to flag/) { @attempt.flag(@fake, "p1") } # no range
 
-    @attempt.expand_headers(@phish)
-    @attempt.flag(@phish, "reply_to")
-    assert_equal %w[ reply_to ], @attempt.flagged_anchors(@phish)
+    @attempt.expand_headers(@fake)
+    assert_nothing_raised { @attempt.flag(@fake, "reply_to") }
   end
 
-  test "a reported message can't be flagged" do
-    @attempt.report(@phish)
+  test "flags belong to their message, and a message that's been dealt with can't be flagged" do
+    @attempt.flag(@fake, "from")
+    assert_empty @attempt.flags_on(messages(:real_invoice))
 
-    assert_raises(ShiftAttempt::Rejected, match: /already reported/) { @attempt.flag(@phish, "from") }
+    @attempt.report(@fake)
+    assert_raises(ShiftAttempt::Rejected, match: /already dealt with/) { @attempt.flag(@fake, "subject") }
   end
+
+  private
+    def flag(anchor, from = nil, to = nil)
+      ShiftAttempt::Flag.new(anchor:, from:, to:)
+    end
 end

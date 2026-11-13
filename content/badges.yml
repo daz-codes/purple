@@ -19,7 +19,7 @@ badges:
 
   - key: productive_paranoid
     name: Productive Paranoid
-    description: Complete every task and report every phish in a single shift.
+    description: Handle every genuine message as it needed and report every phish in a single shift.
     side: blue
 
   - key: near_miss_ninja

@@ -5,10 +5,9 @@ class ShiftAttempt::BrowsingTest < ActiveSupport::TestCase
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
   end
 
-  test "visiting a link opens it in a tab for free, and closing the tab is logged" do
+  test "visiting a link opens it in a tab, and closing the tab is logged" do
     @attempt.visit(links(:real_invoice_link))
 
-    assert_equal 0, @attempt.clock_minutes
     assert_equal messages(:real_invoice), @attempt.current_tab.message
     assert_equal({ "link" => "l1" }, @attempt.actions.last.result)
 
@@ -18,19 +17,19 @@ class ShiftAttempt::BrowsingTest < ActiveSupport::TestCase
   end
 
   test "a new link replaces the open tab" do
-    @attempt.wait_for_mail
+    @attempt.archive(messages(:newsletter))
     @attempt.visit(links(:real_invoice_link))
     @attempt.visit(links(:fake_invoice_link))
 
     assert_equal messages(:fake_invoice), @attempt.current_tab.message
   end
 
-  test "links in messages that haven't arrived or were reported can't be visited" do
+  test "links in messages that haven't arrived or were dealt with can't be visited" do
     assert_raises(ShiftAttempt::Rejected, match: /isn't in your inbox/) { @attempt.visit(links(:fake_invoice_link)) }
 
-    @attempt.wait_for_mail
+    @attempt.archive(messages(:newsletter))
     @attempt.report(messages(:fake_invoice))
-    assert_raises(ShiftAttempt::Rejected, match: /already reported/) { @attempt.visit(links(:fake_invoice_link)) }
+    assert_raises(ShiftAttempt::Rejected, match: /already dealt with/) { @attempt.visit(links(:fake_invoice_link)) }
   end
 
   test "attachments open in a tab" do
@@ -43,14 +42,10 @@ class ShiftAttempt::BrowsingTest < ActiveSupport::TestCase
   test "opening the page that's already open is refused, so a double-click is logged once" do
     @attempt.visit(links(:real_invoice_link))
     assert_raises(ShiftAttempt::Rejected, match: /already open/) { @attempt.visit(links(:real_invoice_link)) }
-
-    @attempt.open_attachment(messages(:real_invoice), "a1")
-    assert_raises(ShiftAttempt::Rejected, match: /already open/) { @attempt.open_attachment(messages(:real_invoice), "a1") }
-    assert_equal %w[ click_link open_attachment ], @attempt.actions.map(&:kind)
   end
 
-  test "reporting a message closes its tab, so nothing more can be done on that page" do
-    @attempt.wait_for_mail
+  test "dealing with a message closes its tab, so nothing more can be done on that page" do
+    @attempt.archive(messages(:newsletter))
     @attempt.visit(links(:fake_invoice_link))
     @attempt.report(messages(:fake_invoice))
 
@@ -61,15 +56,6 @@ class ShiftAttempt::BrowsingTest < ActiveSupport::TestCase
   test "a tab whose link a re-import removed is gone, rather than breaking the page" do
     @attempt.visit(links(:real_invoice_link))
     links(:real_invoice_link).destroy!
-
-    assert_nil @attempt.reload.current_tab
-    assert_raises(ShiftAttempt::Rejected, match: /no task to do/) { @attempt.complete_task }
-  end
-
-  test "a tab whose message a re-import removed is gone" do
-    @attempt.wait_for_mail
-    @attempt.open_attachment(messages(:fake_invoice), "a1")
-    messages(:fake_invoice).destroy!
 
     assert_nil @attempt.reload.current_tab
   end

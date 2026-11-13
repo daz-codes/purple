@@ -25,8 +25,13 @@ class Content::ImportTest < ActiveSupport::TestCase
     Content::Import.new.run
 
     Shift.where(slug: shipped_shift_slugs).each do |shift|
-      assert_includes 4..8, shift.messages.count, "#{shift.slug} should have 4-8 messages"
-      assert_includes 2..3, shift.tasks.count, "#{shift.slug} should have 2-3 tasks"
+      messages = shift.messages.includes(:red_flags)
+      assert_includes 5..10, messages.size, "#{shift.slug} should have 5-10 messages"
+      assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
+      assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
+      assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
+      assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
+      assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
     end
     assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
     assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
@@ -44,17 +49,112 @@ class Content::ImportTest < ActiveSupport::TestCase
   test "imports a valid shift with neutral ids and hidden answers stored server-side" do
     import!
     shift = Shift.find_by!(slug: "month-end")
+    real = shift.messages.find_by!(key: "real_invoice")
     fake = shift.messages.find_by!(key: "fake_invoice")
-    real_link = shift.messages.find_by!(key: "real_invoice").links.sole
 
     assert shift.published?
-    assert_equal shift.tasks.find_by!(key: "pay_supplier"), real_link.task
-    assert_equal "portal_task", real_link.landing_template
+    assert_equal 10, shift.par_minutes
+    assert_equal [ "act", 40, 10, true ], [ real.expects, real.points, real.urgent_within_minutes, real.arrives_at_start? ]
+    assert_equal [ "portal", "portal", "Approve invoice" ], real.links.sole.then { |link| [ link.outcome, link.landing_template, link.portal_action ] }
+    assert_equal [ nil, 0, 1 ], [ fake.expects, fake.points, fake.arrives_after_handled ]
     assert_equal "credential_harvest", fake.links.sole.landing_template
     assert_equal %w[ lookalike_domain ], fake.techniques.pluck(:key)
-    assert_equal %w[ from l1 ], fake.red_flags.order(:id).pluck(:anchor)
+    assert_equal [ [ "l1", nil, nil ], [ "from", nil, nil ], [ "p1", 0, 16 ] ], fake.red_flags.reorder(:key).pluck(:anchor, :quote_start, :quote_end)
     assert_includes fake.body_html, %(data-link-key="l1")
+    assert_includes fake.body_html, %(data-anchor="p1s2")
     assert_not_includes fake.body_html, "href"
+  end
+
+  test "arrivals: after a count, or after another message, with phishes following up too" do
+    @shift["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    import!
+
+    assert_equal "real_invoice", Message.find_by!(key: "newsletter").arrives_after
+    assert_equal "fake_invoice", Message.find_by!(key: "fake_chaser").arrives_after
+  end
+
+  test "a fake may imitate a message it arrives with" do
+    @shift["messages"].last.merge!("imitates" => "real_invoice", "arrives" => "start")
+    assert_nothing_raised { import! }
+
+    @shift["messages"].first["arrives"] = { "after_handled" => 1 }
+    @shift["messages"].last["arrives"] = { "after_handled" => 1 }
+    assert_nothing_raised { import! }
+  end
+
+  test "a red flag can contradict an earlier genuine message, and a question can say where its answer was" do
+    with_story(@shift)
+    import!
+
+    flag = Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today")
+    assert_equal [ "canteen_news", "Tidemark invoices only ever come through the portal" ], [ flag.contradicts_key, flag.contradicts_quote ]
+    assert_equal "canteen_news", flag.contradicted_message.key
+
+    question = Message.find_by!(key: "lunch_question")
+    assert_equal [ "canteen_news", "Room 4B" ], [ question.answer_in_key, question.answer_in_quote ]
+    assert_equal "canteen_news", question.answer_source.key
+    assert_not_includes question.body_html, "canteen_news"
+  end
+
+  test "a question can follow its answer through a chain of after: triggers, or be answered by a phish if it comes last" do
+    with_story(@shift)
+    @shift["messages"][1]["arrives"] = { "after" => "real_invoice" }
+    @shift["messages"].last["arrives"] = { "after" => "canteen_news" }
+    @shift["messages"][2]["red_flags"].last.delete("contradicts")
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser_two", "arrives" => { "after" => "fake_chaser" })
+    assert_nothing_raised { import! }
+
+    with_story(@shift = valid_shift)
+    @shift["messages"].last.merge!("answer_in" => { "message" => "fake_invoice", "quote" => "Our bank details have changed" },
+                                   "arrives" => { "after_handled" => 3 })
+    assert_nothing_raised { import! }
+  end
+
+  test "rejects broken story links" do
+    {
+      "an answer in a message that isn't there" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "nope" },
+                                                     /answer_in: message "nope" isn't another message in this shift/ ],
+      "an answer in the question itself" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "lunch_question" },
+                                              /message "lunch_question" isn't another message/ ],
+      "a quote the source doesn't have" => [ ->(s) { s["messages"].last["answer_in"]["quote"] = "Room 9Z" },
+                                             /quote "Room 9Z" must appear exactly once in canteen_news \(found 0\)/ ],
+      "a question that could come before its answer" => [
+        ->(s) { s["messages"][1]["arrives"] = { "after_handled" => 1 }; s["messages"].last["arrives"] = "start"
+                s["messages"][2]["red_flags"].last.delete("contradicts") },
+        /lunch_question could arrive before canteen_news/ ],
+      "a contradiction that could come first" => [
+        ->(s) { s["messages"][1]["arrives"] = { "after_handled" => 1 }; s["messages"][2]["arrives"] = "start" },
+        /fake_invoice could arrive before canteen_news/ ],
+      "an answer in a phish, asked mid-shift" => [ ->(s) { s["messages"].last["answer_in"] = { "message" => "fake_invoice", "quote" => "Please pay today" } },
+                                                    /the answer is in a phish, so lunch_question must arrive last \(arrives: \{ after_handled: 3 \}\)/ ],
+      "contradicting a phish" => [
+        ->(s) { s["messages"] << s["messages"][2].deep_dup.merge("key" => "fake_two", "arrives" => "start")
+                s["messages"].last["red_flags"].last["contradicts"] = { "message" => "fake_invoice", "quote" => "Our bank details have changed" } },
+        /contradicts must point at a genuine message/ ],
+      "a question on a phish" => [ ->(s) { s["messages"][2]["answer_in"] = { "message" => "canteen_news", "quote" => "Room 4B" } },
+                                   /answer_in is only for genuine messages that expect a reply/ ],
+      "a question with no wrong answer" => [ ->(s) { s["messages"].last["replies"].last["outcome"] = "safe" },
+                                             /answer_in needs a wrong answer among the replies \(outcome: poor\)/ ],
+      "a story link that isn't a hash" => [ ->(s) { s["messages"].last["answer_in"] = "canteen_news" },
+                                            /answer_in must be \{ message: other_key, quote: "the words" \}/ ],
+      "an unknown story link key" => [ ->(s) { s["messages"].last["answer_in"]["line"] = 2 }, /unknown key line/ ]
+    }.each do |description, (mutate, message)|
+      @shift = with_story(valid_shift)
+      mutate.call(@shift)
+
+      error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
+      assert_match message, error.message, "wrong error for #{description}"
+    end
+  end
+
+  test "quotes are matched on the text as the player sees it: whitespace runs count as one space" do
+    @shift["messages"].last["body_html"] = @shift["messages"].last["body_html"].sub("Please pay today.", "Please   pay\n  today.")
+    @shift["messages"].last["red_flags"].last["quote"] = "Please pay today"
+    import!
+
+    assert_equal [ 0, 16 ], Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today").then { |flag| [ flag.quote_start, flag.quote_end ] }
   end
 
   test "updates records in place and removes children that were deleted from the file" do
@@ -68,7 +168,7 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     message = Message.find(message_id)
     assert_equal "Changed subject", message.subject
-    assert_equal %w[ lookalike ], message.red_flags.pluck(:key)
+    assert_equal %w[ lookalike link_mismatch ], message.red_flags.pluck(:key)
     assert_empty Shift.find_by!(slug: "month-end").hints
   end
 
@@ -92,10 +192,10 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "errors name the file and the location" do
-    @shift["messages"].last["links"].first["outcome"] = "completes_task"
+    @shift["messages"].last["links"].first["outcome"] = "portal"
 
     error = assert_raises(Content::ImportError) { import! }
-    assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[1\] \(fake_invoice\) → links\[0\]: }, error.message
+    assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[2\] \(fake_invoice\) → links\[0\]: }, error.message
   end
 
   test "rejects bad content" do
@@ -110,36 +210,95 @@ class Content::ImportTest < ActiveSupport::TestCase
                                           /subject mentions names outside the reserved fictional set/ ],
       "an author-supplied id" => [ ->(s) { s["messages"].first["body_html"] = %(<p id="flag-urgency">x</p>) },
                                    /attribute id="flag-urgency"/ ],
-      "a missing anchor" => [ ->(s) { s["messages"].last["red_flags"].first["anchor"] = "p9" },
-                              /anchor "p9" doesn't exist in this message/ ],
+      "a missing anchor" => [ ->(s) { s["messages"].last["red_flags"].first["anchor"] = "a9" },
+                              /anchor "a9" doesn't exist in this message/ ],
       "a descriptive anchor" => [ ->(s) { s["messages"].last["red_flags"].first["anchor"] = "flag-urgency" },
                                   /anchor "flag-urgency" doesn't exist/ ],
+      "a paragraph as a red flag" => [ ->(s) { s["messages"].last["red_flags"].first["anchor"] = "p1" },
+                                       /anchor "p1" doesn't exist .*Body text is flagged with quote/ ],
       "reply_to anchor without a reply_to" => [ ->(s) { s["messages"].last["red_flags"].first["anchor"] = "reply_to" },
                                                 /anchor "reply_to" doesn't exist/ ],
-      "a task nobody can complete" => [ ->(s) { s["tasks"] << { "key" => "extra", "title" => "Extra", "due_at_minute" => 5, "points" => 5 } },
-                                        /task "extra" must be completable by exactly one link in a legitimate message \(found 0\)/ ],
-      "a task completed by two links" => [
-        ->(s) { s["messages"].first["body_html"] += %(<p><a href="https://portal.larkhill.example/again">again</a></p>) },
-        /task "pay_supplier" must be completable by exactly one link .* \(found 2\)/ ],
-      "a phish that completes a task" => [ ->(s) { s["messages"].last["links"].first.merge!("outcome" => "completes_task", "task" => "pay_supplier") },
-                                           /outcome must be one of bait_landing, malware, harmless for phishing messages/ ],
-      "a legit message with a bait link" => [ ->(s) { s["messages"].first["links"].first.merge!("outcome" => "bait_landing").delete("task") },
-                                              /outcome must be one of completes_task, harmless for legitimate messages/ ],
+      "a quote that isn't in the body" => [ ->(s) { s["messages"].last["red_flags"].last["quote"] = "Pay tomorrow" },
+                                            /quote "Pay tomorrow" must appear exactly once \(found 0\)/ ],
+      "a quote found more than once" => [ ->(s) { s["messages"].last["red_flags"].last["quote"] = "a" },
+                                          /quote "a" must appear exactly once \(found \d+\)/ ],
+      "a quote in the wrong paragraph" => [ ->(s) { s["messages"].last["red_flags"].last["in"] = "p2" },
+                                            /quote "Please pay today" must appear exactly once in p2 \(found 0\)/ ],
+      "a quote in an unknown paragraph" => [ ->(s) { s["messages"].last["red_flags"].last["in"] = "p9" }, /in: "p9" isn't a paragraph/ ],
+      "a red flag with an anchor and a quote" => [ ->(s) { s["messages"].last["red_flags"].last["anchor"] = "from" }, /not both/ ],
+      "a red flag with neither" => [ ->(s) { s["messages"].last["red_flags"].first.delete("anchor") }, /needs an anchor .* or a quote/ ],
+      "a phish with a portal" => [ ->(s) { s["messages"].last["links"].first.merge!("outcome" => "portal", "action" => "Pay") },
+                                   /outcome must be one of bait_landing, malware, harmless for phishing messages/ ],
+      "a legit message with a bait link" => [ ->(s) { s["messages"].first["links"].first.merge!("outcome" => "bait_landing").delete("action") },
+                                              /outcome must be one of portal, harmless for legitimate messages/ ],
+      "a portal without its button" => [ ->(s) { s["messages"].first["links"].first.delete("action") }, /action is required when outcome is portal/ ],
+      "a button on a link that isn't a portal" => [ ->(s) { s["messages"].last["links"].first["action"] = "Sign in" },
+                                                    /action can only be set when outcome is portal/ ],
+      "expects act with no portal" => [ ->(s) { s["messages"].first["links"].first.merge!("outcome" => "harmless").delete("action") },
+                                        /expects: act needs exactly one portal link to act on \(found 0\)/ ],
+      "a portal on a message that doesn't expect act" => [ ->(s) { s["messages"].first["expects"] = "archive" },
+                                                           /portal links are only for messages that expect: act/ ],
+      "a genuine message that expects nothing" => [ ->(s) { s["messages"].first.delete("expects") }, /expects is required/ ],
+      "an unknown expectation" => [ ->(s) { s["messages"].first["expects"] = "pray" }, /expects must be one of reply, act, archive/ ],
+      "a genuine message with no points" => [ ->(s) { s["messages"].first.delete("points") }, /points is required/ ],
+      "a phish with points" => [ ->(s) { s["messages"].last["points"] = 10 }, /points is only for genuine messages/ ],
+      "a phish that's urgent" => [ ->(s) { s["messages"].last["urgent_within_minutes"] = 5 }, /urgent_within_minutes is only for genuine messages/ ],
+      "a phish that expects something" => [ ->(s) { s["messages"].last["expects"] = "archive" }, /expects is only for genuine messages/ ],
+      "expects a reply with none offered" => [ ->(s) { phone(s)["messages"] << newsletter.merge("channel" => "sms", "expects" => "reply").except("to_address", "subject") },
+                                               /expects: reply needs at least one reply that isn't poor/ ],
+      "expects a reply with only poor ones" => [
+        ->(s) { phone(s)["messages"] << newsletter.merge("channel" => "sms", "expects" => "reply", "replies" => poor_replies).except("to_address", "subject") },
+        /expects: reply needs at least one reply that isn't poor/ ],
+      "a bad arrival" => [ ->(s) { s["messages"].last["arrives"] = "later" }, /arrives must be start, \{ after_handled: N \} or \{ after: message_key \}/ ],
+      "both arrival triggers" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 1, "after" => "real_invoice" } },
+                                   /give exactly one of after_handled or after/ ],
+      "an unknown arrival trigger" => [ ->(s) { s["messages"].last["arrives"] = { "at_minute" => 3 } }, /unknown key at_minute/ ],
+      "arriving after an unknown message" => [ ->(s) { s["messages"].last["arrives"] = { "after" => "nope" } },
+                                               /"fake_invoice" arrives after "nope", which isn't another message/ ],
+      "arriving after itself" => [ ->(s) { s["messages"].last["arrives"] = { "after" => "fake_invoice" } },
+                                   /"fake_invoice" arrives after "fake_invoice", which isn't another message/ ],
+      "a count the shift never reaches" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 3 } },
+                                             /fake_invoice can never arrive/ ],
+      "nothing at the start" => [ ->(s) { s["messages"].first(2).each { |m| m["arrives"] = { "after" => "fake_invoice" } } },
+                                  /at least one message must arrive at the start/ ],
+      "a loop" => [ ->(s) { s["messages"].first["arrives"] = { "after" => "fake_invoice" }; s["messages"].last["arrives"] = { "after" => "real_invoice" }; s["messages"] << newsletter },
+                    /real_invoice, fake_invoice can never arrive/ ],
+      "a fake imitating a message it could arrive after" => [
+        ->(s) { s["messages"].last["imitates"] = "real_invoice" },
+        /imitates "real_invoice" but could arrive after it: a fake must arrive at the start, or on exactly the same arrives: trigger/ ],
+      "a fake imitating a message that isn't there" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives" => "start") },
+                                                          /imitates "nope", which isn't a genuine message in this shift/ ],
+      "a fake imitating another fake" => [ ->(s) { s["messages"].last.merge!("imitates" => "fake_invoice", "arrives" => "start") },
+                                           /imitates "fake_invoice", which isn't a genuine message/ ],
+      "a genuine message imitating something" => [ ->(s) { s["messages"].first["imitates"] = "canteen_news" },
+                                                   /only phishing messages can imitate another message/ ],
+      "more genuine follow-ups than phish ones" => [
+        ->(s) {
+          s["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
+          s["messages"] << newsletter.merge("key" => "newsletter_two", "arrives" => { "after" => "canteen_news" })
+          s["messages"] << s["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+        },
+        /2 genuine messages have follow-up .* but only 1 phish does/ ],
+      "a genuine follow-up with no phish follow-up" => [ ->(s) { s["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" }) },
+                                                         /1 genuine message has a follow-up .* but no phish does/ ],
+      "a quote across two sentences" => [ ->(s) { s["messages"].last["red_flags"].last["quote"] = "today. Our bank" },
+                                          /quote "today. Our bank" crosses from one sentence into the next/ ],
+      "lazy play that pays" => [
+        ->(s) { s["messages"].delete_at(1); s["messages"].first["points"] = 5; s["messages"] << s["messages"].last.deep_dup.merge("key" => "fake_two") },
+        /lazy play scores too well: report everything scores \d+ of 125 \(1 star\)/ ],
       "a link no rule matches" => [ ->(s) { s["messages"].first["links"].first["match"] = "nowhere.example" },
                                     /link l1 \(.*\) matches 0 link rules/ ],
       "a rule matching no link" => [ ->(s) { s["messages"].first["links"] << { "match" => "nowhere.example", "outcome" => "harmless" } },
                                      /match "nowhere.example" doesn't match any link/ ],
-      "a mismatched landing" => [ ->(s) { s["messages"].last["links"].first["landing"] = "portal_task" },
+      "a mismatched landing" => [ ->(s) { s["messages"].last["links"].first["landing"] = "portal" },
                                   /landing for a bait_landing link must be credential_harvest/ ],
       "an unknown technique" => [ ->(s) { s["messages"].last["techniques"] = [ "made_up" ] }, /unknown technique "made_up"/ ],
       "a phish without techniques" => [ ->(s) { s["messages"].last.delete("techniques") }, /need at least one technique/ ],
       "a phish without red flags" => [ ->(s) { s["messages"].last.delete("red_flags") }, /need at least one red flag/ ],
-      "a legit message with red flags" => [ ->(s) { s["messages"].first["red_flags"] = s["messages"].last["red_flags"].deep_dup },
+      "a legit message with red flags" => [ ->(s) { s["messages"].first["red_flags"] = [ s["messages"].last["red_flags"].first.deep_dup ] },
                                             /legitimate messages can't have red flags/ ],
       "no phishing at all" => [ ->(s) { s["messages"].pop }, /needs at least one phishing message/ ],
-      "a task due after the shift ends" => [ ->(s) { s["tasks"].first["due_at_minute"] = 31 }, /is after the shift ends/ ],
-      "a message arriving after the shift ends" => [ ->(s) { s["messages"].last["arrives_at_minute"] = 30 }, /arrives_at_minute/ ],
-      "a wrongly typed field" => [ ->(s) { s["time_budget_minutes"] = "thirty" }, /time_budget_minutes must be a integer/ ],
+      "a wrongly typed field" => [ ->(s) { s["par_minutes"] = "ten" }, /par_minutes must be a integer/ ],
       "an unknown kind" => [ ->(s) { s["kind"] = "voice" }, /kind must be one of inbox, messages/ ],
       "an email without a subject" => [ ->(s) { s["messages"].first.delete("subject") }, /subject is required for emails/ ],
       "duplicate message keys" => [ ->(s) { s["messages"].last["key"] = "real_invoice" }, /message keys must be unique/ ],
@@ -148,26 +307,22 @@ class Content::ImportTest < ActiveSupport::TestCase
       "a real domain in the shift title" => [ ->(s) { s["title"] = "Month-end at realbank.com" }, /title mentions names/ ],
       "a real brand in a red flag label" => [ ->(s) { s["messages"].last["red_flags"].first["label"] = "Not really PayPal" },
                                               /label mentions names outside the reserved fictional set: PayPal/ ],
+      "a real brand on a portal button" => [ ->(s) { s["messages"].first["links"].first["action"] = "Pay with PayPal" },
+                                             /action mentions names outside the reserved fictional set: PayPal/ ],
       "a real brand as an SMS sender" => [ ->(s) { s["messages"].first["from_address"] = "PayPal" },
                                            /from_address "PayPal" must be a fictional address/ ],
       "a repeated technique" => [ ->(s) { s["messages"].last["techniques"] = %w[ lookalike_domain lookalike_domain ] },
-                                  /messages\[1\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
-      "an unknown action cost" => [ ->(s) { s["action_costs"] = { "teleport" => 1 } }, /unknown action: teleport/ ],
-      "a fake arriving after the message it imitates" => [ ->(s) { s["messages"].last["imitates"] = "pay_supplier" },
-                                                          /arrives at minute 3, after the genuine message \(minute 0\)/ ],
-      "a genuine message imitating a task" => [ ->(s) { s["messages"].first["imitates"] = "pay_supplier" },
-                                               /only phishing messages can imitate a task/ ],
-      "imitating an unknown task" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives_at_minute" => 0) },
-                                      /imitates "nope", which isn't in this shift's tasks/ ],
+                                  /messages\[2\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
       "an attachment on a text" => [ ->(s) { phone(s)["messages"].last["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
                                      /attachments are only for emails/ ],
-      "replies on an email" => [ ->(s) { s["messages"].last["replies"] = chat_replies }, /replies are only for sms and chat messages/ ],
       "a single reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
       "five replies" => [ ->(s) { phone(s)["messages"].last["replies"] = 5.times.map { |i| { "text" => "Reply #{i}", "outcome" => "safe" } } },
                           /from 2 to 4 options/ ],
       "a reply that hands over on a genuine message" => [
         ->(s) { phone(s)["messages"].first["replies"] = chat_replies },
-        /outcome must be one of safe, verify for legitimate messages \(got compromise\)/ ],
+        /outcome must be one of safe, poor, verify for legitimate messages \(got compromise\)/ ],
+      "a poor reply on a phish" => [ ->(s) { phone(s)["messages"].last["replies"] = poor_replies },
+                                     /outcome must be one of safe, compromise, verify for phishing messages \(got poor\)/ ],
       "an unknown reply outcome" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["outcome"] = "explode" } },
                                       /outcome must be one of safe, compromise, verify/ ],
       "a repeated reply" => [ ->(s) { phone(s)["messages"].last["replies"] = [ chat_replies.first, chat_replies.first ] },
@@ -188,11 +343,6 @@ class Content::ImportTest < ActiveSupport::TestCase
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match message, error.message, "wrong error for #{description}"
     end
-  end
-
-  test "a fake may imitate a task if it arrives no later than the genuine message" do
-    @shift["messages"].last.merge!("imitates" => "pay_supplier", "arrives_at_minute" => 0)
-    assert_nothing_raised { import! }
   end
 
   test "a text or chat can offer canned replies, with neutral ids and outcomes kept on the server" do
@@ -250,7 +400,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "the summary counts messages across all shifts" do
-    assert_equal 2, import!.messages
+    assert_equal 3, import!.messages
   end
 
   test "rejects invalid YAML with the file name" do
@@ -316,29 +466,54 @@ class Content::ImportTest < ActiveSupport::TestCase
     def valid_shift
       {
         "slug" => "month-end", "title" => "Month-end", "kind" => "inbox", "difficulty" => "beginner",
-        "time_budget_minutes" => 30, "briefing" => "It's month-end.", "learning_summary" => "Check links.",
-        "tasks" => [ { "key" => "pay_supplier", "title" => "Approve invoice", "due_at_minute" => 20, "points" => 40 } ],
+        "par_minutes" => 10, "briefing" => "It's month-end.", "learning_summary" => "Check links.",
         "messages" => [
-          { "key" => "real_invoice", "channel" => "email", "legit" => true, "from_name" => "Tidemark",
+          { "key" => "real_invoice", "channel" => "email", "legit" => true, "expects" => "act", "points" => 40,
+            "urgent_within_minutes" => 10, "from_name" => "Tidemark",
             "from_address" => "accounts@tidemark.example", "to_address" => "you@larkhill.example",
             "subject" => "Invoice ready",
             "body_html" => %(<p><a href="https://portal.larkhill.example/invoices/4471">Review invoice</a></p>),
-            "links" => [ { "match" => "portal.larkhill.example", "outcome" => "completes_task", "task" => "pay_supplier" } ] },
-          { "key" => "fake_invoice", "channel" => "email", "legit" => false, "arrives_at_minute" => 3,
+            "links" => [ { "match" => "portal.larkhill.example", "outcome" => "portal", "action" => "Approve invoice" } ] },
+          { "key" => "canteen_news", "channel" => "email", "legit" => true, "expects" => "archive", "points" => 10,
+            "from_name" => "Larkhill Canteen", "from_address" => "canteen@larkhill.example", "to_address" => "you@larkhill.example",
+            "subject" => "New menu", "body_html" => "<p>Soup of the day is back.</p>" },
+          { "key" => "fake_invoice", "channel" => "email", "legit" => false, "arrives" => { "after_handled" => 1 },
             "techniques" => [ "lookalike_domain" ], "from_name" => "Tidemark",
             "from_address" => "accounts@tidemark-billing.example", "to_address" => "you@larkhill.example",
             "subject" => "URGENT invoice",
-            "body_html" => %(<p><a href="https://larkhill-portal.example.net/login">https://portal.larkhill.example/invoices/4471</a></p>),
+            "body_html" => %(<p>Please pay today. Our bank details have changed.</p>) +
+              %(<p><a href="https://larkhill-portal.example.net/login">https://portal.larkhill.example/invoices/4471</a></p>),
             "links" => [ { "match" => "larkhill-portal.example.net", "outcome" => "bait_landing" } ],
             "red_flags" => [
               { "key" => "lookalike", "anchor" => "from", "points" => 10, "label" => "Lookalike",
                 "explanation" => "tidemark-billing.example is not tidemark.example." },
               { "key" => "link_mismatch", "anchor" => "l1", "points" => 10, "label" => "Mismatch",
-                "explanation" => "The text and destination differ." }
+                "explanation" => "The text and destination differ." },
+              { "key" => "pay_today", "quote" => "Please pay today", "points" => 10, "label" => "Rushed",
+                "explanation" => "Urgency is a tell." }
             ] }
         ],
         "hints" => [ { "body" => "Compare the domains." } ]
       }
+    end
+
+    # The canteen news sets up two facts: a later phish contradicts one, and a colleague's question is
+    # answered by the other.
+    def with_story(shift)
+      shift["messages"][1]["body_html"] = "<p>Soup of the day is back, in Room 4B. Tidemark invoices only ever come through the portal.</p>"
+      shift["messages"][2]["red_flags"].last["contradicts"] = { "message" => "canteen_news", "quote" => "Tidemark invoices only ever come through the portal" }
+      shift["messages"] << newsletter.merge(
+        "key" => "lunch_question", "expects" => "reply", "from_name" => "Alex Morgan", "from_address" => "alex.morgan@larkhill.example",
+        "subject" => "Lunch?", "body_html" => "<p>Which room is the soup in today?</p>", "arrives" => { "after_handled" => 1 },
+        "replies" => [ { "text" => "Room 4B", "outcome" => "safe" }, { "text" => "Room 2A", "outcome" => "poor" } ],
+        "answer_in" => { "message" => "canteen_news", "quote" => "Room 4B" })
+      shift
+    end
+
+    def newsletter
+      { "key" => "newsletter", "channel" => "email", "legit" => true, "expects" => "archive", "points" => 10,
+        "from_name" => "Larkhill News", "from_address" => "news@larkhill.example", "to_address" => "you@larkhill.example",
+        "subject" => "This week", "body_html" => "<p>The canteen has a new menu.</p>" }
     end
 
     # Turns the valid shift into a messages shift, played on a phone, with chats instead of emails.
@@ -354,8 +529,12 @@ class Content::ImportTest < ActiveSupport::TestCase
         { "text" => "I'll check with the service desk.", "outcome" => "verify" } ]
     end
 
+    def poor_replies
+      [ { "text" => "No.", "outcome" => "poor" }, { "text" => "Go away.", "outcome" => "poor" } ]
+    end
+
     def snapshot
-      [ Technique, Badge, Track, Shift, Task, Message, Link, RedFlag, MessageTechnique, Hint ].to_h do |model|
+      [ Technique, Badge, Track, Shift, Message, Link, RedFlag, MessageTechnique, Hint ].to_h do |model|
         [ model.name, model.order(:id).map { |record| record.attributes.except("updated_at") } ]
       end
     end

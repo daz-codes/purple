@@ -35,6 +35,18 @@ class Content::MessageBodyTest < ActiveSupport::TestCase
       result.links
   end
 
+  test "splits each block's text into sentences with neutral anchors, keeping links and formatting whole" do
+    html = Content::MessageBody.new(%(<p>Hi Sam. Please pay <strong>today</strong>! Click <a href="https://pay.larkhill.example/x">here</a> now.</p>) +
+      %(<blockquote><p>Quoted. Text</p></blockquote>)).html
+    sentences = Nokogiri::HTML5.fragment(html).css("span.sentence")
+
+    assert_equal %w[ p1s1 p1s2 p1s3 p3s1 p3s2 ], sentences.map { |node| node["data-anchor"] }
+    assert_equal [ "Hi Sam.", "Please pay today!", "Click here now.", "Quoted.", "Text" ], sentences.map(&:text)
+    assert sentences[2].at_css(%(span[data-anchor="l1"])), "the link stays inside its sentence"
+    assert_includes html, "<strong>today</strong>"
+    assert_equal "Hi Sam. Please pay today! Click here now.", Nokogiri::HTML5.fragment(html).at_css("p").text, "the text is unchanged"
+  end
+
   test "keeps basic formatting" do
     assert_includes Content::MessageBody.new(BODY).html, "<strong>changed</strong>"
   end

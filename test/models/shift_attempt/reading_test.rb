@@ -5,16 +5,15 @@ class ShiftAttempt::ReadingTest < ActiveSupport::TestCase
     @attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
   end
 
-  test "the last message read is in the reading pane, until it's reported" do
+  test "the last message read is in the reading pane, until it's dealt with" do
     assert_nil @attempt.current_message
-    @attempt.wait_for_mail
 
     @attempt.read(messages(:real_invoice))
-    @attempt.read(messages(:fake_invoice))
-    assert_equal messages(:fake_invoice), @attempt.current_message
+    @attempt.read(messages(:newsletter))
+    assert_equal messages(:newsletter), @attempt.current_message
     assert @attempt.opened?(messages(:real_invoice))
 
-    @attempt.report(messages(:fake_invoice))
+    @attempt.archive(messages(:newsletter))
     assert_nil @attempt.current_message
   end
 end
