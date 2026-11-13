@@ -40,15 +40,16 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 
 Pick a track at `/tracks`, read a shift's briefing and start it. The play screen shows your inbox
 (or, for a messages shift, a phone) and the open message. Every move (reading a message, showing full
-headers, calling the sender back, flagging, replying, archiving, reporting, giving up) is a POST to its
+headers, calling the sender back, flagging, replying, archiving, reporting, clocking off early) is a POST to its
 own small controller, which calls a method on the `ShiftAttempt` (`attempt.report(message)`). The
 attempt logs the move as an `AttemptAction` with the time it was made, and the panes update by Turbo
 Stream.
 
 There's no task list, clock or score on screen. More messages arrive as you deal with others
-(`ShiftAttempt::Arrivals`), and the shift ends when every message has been reported or archived.
-Time is real time, kept on the server (a call-back adds 30 seconds), and earns a speed bonus against
-the shift's target time unless you've turned on relaxed mode in Settings. `ShiftAttempt::Scorecard`
+(`ShiftAttempt::Arrivals`), and the shift ends when every message has been reported or archived, or
+when you clock off early. Time is real time, kept on the server (a call-back adds 30 seconds). Clearing
+the inbox earns a speed bonus against the shift's target time, scaled by how many messages you handled
+as expected, unless you've turned on relaxed mode on your account page. `ShiftAttempt::Scorecard`
 scores the log, and everything is revealed in the Purple debrief.
 
 Links and attachments open in an in-game browser (`ShiftAttempt::Browsing`). It shows the link's real
@@ -95,10 +96,12 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
 - **When it arrives:** `arrives: start` (the default), `arrives: { after_handled: 2 }` (once any two
   messages have been dealt with) or `arrives: { after: real_invoice }` (a follow-up). Triggers only
   depend on *that* messages were dealt with, never on whether the player was right.
-- **For a genuine message, what it expects:** `expects: reply` (send a canned reply that isn't
-  `poor`), `act` (press the button on its one `portal` link, whose rule has an `action:` label) or
+- **For a genuine message, what it expects:** `expects: reply` (send a `safe` canned reply), `act` (press the button on its one `portal` link, whose rule has an `action:` label) or
   `archive` (nothing to do); its `points`; and optionally `urgent_within_minutes`.
-- **For a phishing message:** `techniques` and `red_flags`. A phish always expects a report.
+- **For a phishing message:** `techniques` and `red_flags`. A phish always expects a report. It can
+  say which genuine message it copies (`imitates: real_invoice`); it must then arrive at the start or
+  on exactly the same trigger, so the player has to choose between them rather than spot a late
+  duplicate.
 - Optional `replies:` (2 to 4, each `text`, `outcome`: `safe`, `poor` (genuine only), `compromise`
   (phishing only) or `verify`, and an optional `response`).
 
@@ -117,7 +120,8 @@ The importer enforces these rules:
   anchors are stored as `data-anchor` attributes rather than DOM ids, since every message has a `p1`.
 - **Red flags** are either a whole part (`anchor:` `from`, `to`, `reply_to`, `subject`, `l1`, `a1`…) or
   a phrase in the body (`quote: "within 1 hour"`, plus `in: p2` if the words appear in more than one
-  paragraph). A quote must appear exactly once. The importer also splits each paragraph into sentences
+  paragraph). A quote must appear exactly once, inside one sentence. Text is matched as the player
+  sees it, with whitespace runs counted as one space. The importer also splits each paragraph into sentences
   (`p1s1`, `p1s2`…) so players can flag a sentence or highlight just the words. Texts and chats only
   have `from` as a header, since that's all the phone shows.
 - **Channels match the shift:** an `inbox` shift holds only emails, a `messages` shift only `sms` and `chat`.
@@ -128,6 +132,11 @@ The importer enforces these rules:
   have portals, points or expectations.
 - **Every message can arrive:** at least one arrives at the start, `after:` names another message, and
   dealing with everything that arrives must eventually bring the rest (no loops).
+- **If a genuine message has a follow-up, so does at least one phish** (the attacker chasing), so a
+  follow-up never shows which message was genuine.
+- **Lazy play never pays:** reporting everything, archiving everything, clocking off at once, and
+  flagging every sentence then reporting everything must each score below one star
+  (`Shift::LazyPlay`).
 - Every shift has at least one phishing message.
 
 ## Deployment

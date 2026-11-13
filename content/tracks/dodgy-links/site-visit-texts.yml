@@ -32,6 +32,7 @@ messages:
   - key: parcel_fee
     channel: sms
     legit: false
+    imitates: courier_slot
     techniques: [smishing, urgency_pretext, credential_harvest]
     from_name: "07700 900461"
     from_address: "07700 900461"
@@ -133,6 +134,24 @@ messages:
           explanation: "A payee you didn't add is scary, which is exactly why you shouldn't follow the link. Open your bank's app yourself." }
       - { key: bank_link, anchor: l1, points: 10, label: "Link isn't the bank's own website",
           explanation: "fernhill-secure.example.net is not the bank. Banks don't send links to cancel payees." }
+
+  - key: parcel_fee_chaser
+    channel: sms
+    arrives: { after: parcel_fee }
+    legit: false
+    techniques: [smishing, urgency_pretext, credential_harvest]
+    from_name: "07700 900477"
+    from_address: "07700 900477"
+    body_html: |
+      <p>ParcelPoint FINAL REMINDER: your parcel will be returned to sender today unless the £1.45 fee is paid: <a href="https://parcelpoint-fees.test/final">parcelpoint-fees.test/final</a></p>
+    links:
+      - { match: "parcelpoint-fees.test", outcome: bait_landing }
+    verify_result: "There's still no parcel on hold. Your laptops are coming from Tidemark."
+    red_flags:
+      - { key: new_number, anchor: from, points: 10, label: "Another random mobile number",
+          explanation: "A different personal number chasing the same \"fee\": scammers rotate numbers." }
+      - { key: returned_today, quote: "returned to sender today", points: 5, label: "Urgency or pressure",
+          explanation: "The threat of losing the parcel is there to rush you." }
 
   - key: sam_followup
     channel: sms

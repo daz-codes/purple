@@ -72,5 +72,10 @@ class ShiftPlayTest < ApplicationSystemTestCase
     assert_selector "[data-testid=debrief-ending]", text: /You cleared your inbox in .+\. The target was 10 minutes\./
     assert_selector "[data-testid=debrief-headline]",
       text: "You reported 1 of 1 phish, dealt with 3 of 3 genuine messages, and spotted 0 of 2 red flags."
+
+    # The call-back was instant on screen, but cost 30 seconds of the shift's time.
+    find("summary", text: "Your shift, move by move").click
+    assert_selector "[data-testid=debrief-timeline]", text: "Called the sender of “URGENT invoice” back (+30 s)"
+    assert_operator ShiftAttempt.sole.elapsed_seconds, :>=, 30
   end
 end

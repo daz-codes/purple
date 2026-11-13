@@ -4,7 +4,7 @@ module Content
   class ShiftImport
     SHIFT_KEYS = %i[ slug title kind difficulty par_minutes position published briefing
                      learning_summary messages hints ].freeze
-    MESSAGE_KEYS = %i[ key channel arrives legit expects points urgent_within_minutes techniques from_name
+    MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
                        from_address reply_to to_address subject body_html attachments replies links verify_result
                        red_flags ].freeze
     ARRIVAL_KEYS = %i[ after_handled after ].freeze
@@ -48,7 +48,10 @@ module Content
 
       import_messages
       check_every_message_can_arrive
+      check_imitations_arrive_with_their_genuine_message
+      check_phishes_have_follow_ups_too
       import_hints
+      check_lazy_play_doesnt_pay
 
       @shift
     end
@@ -73,6 +76,7 @@ module Content
       # --- Messages ------------------------------------------------------------------------
 
       def import_messages
+        @imitations = {}
         messages = @node.each_item(:messages) { |message_node, index| import_message(message_node, index + 1) }
 
         keys = messages.map(&:key)
@@ -110,6 +114,7 @@ module Content
           )
         end
 
+        note_imitation(node, message)
         import_links(node, message, body.links)
         check_expectation_can_be_met(node, message)
         import_techniques(node, message)
@@ -364,6 +369,49 @@ module Content
 
         @node.error!("#{stuck.join(", ")} can never arrive: dealing with every other message doesn't bring " \
                      "#{stuck.one? ? "it" : "them"} (check after_handled counts and after: loops)")
+      end
+
+      # imitates: the genuine message a phish copies. Only checked here, never stored.
+      def note_imitation(node, message)
+        key = node.optional(:imitates) or return
+        node.error!("only phishing messages can imitate another message") if message.legit?
+        @imitations[message] = [ node, key ]
+      end
+
+      # A fake never arrives after the genuine message it imitates: it arrives at the start, or on exactly
+      # the same trigger. Otherwise the player could act on the real one first and spot the fake as a
+      # duplicate, instead of having to decide between them.
+      def check_imitations_arrive_with_their_genuine_message
+        @imitations.each do |fake, (node, key)|
+          genuine = @messages.find { |message| message.key == key }
+          node.error!("imitates \"#{key}\", which isn't a genuine message in this shift") unless genuine&.legit?
+          next if fake.arrives_at_start?
+          next if [ fake.arrives_after_handled, fake.arrives_after ] == [ genuine.arrives_after_handled, genuine.arrives_after ]
+
+          node.error!("imitates \"#{key}\" but could arrive after it: a fake must arrive at the start, or on exactly the " \
+                      "same arrives: trigger as the message it imitates")
+        end
+      end
+
+      # If a genuine message has a follow-up, so must a phish (the attacker chasing: "Did you get my
+      # invoice?"). Otherwise "something arrived after I dealt with that" would mean it was genuine.
+      def check_phishes_have_follow_ups_too
+        return unless @messages.any? { |message| message.legit? && message.arrives_after }
+        return if @messages.any? { |message| message.phish? && message.arrives_after }
+
+        @node.error!("genuine messages have follow-ups (arrives: { after: … }), so at least one phish needs one too, " \
+                     "or a follow-up would show which message was genuine")
+      end
+
+      # Lazy play must never pay: reporting everything, archiving everything, clocking off at once, and
+      # flagging every sentence then reporting everything must each stay below one star.
+      def check_lazy_play_doesnt_pay
+        exploits = Shift::LazyPlay.new(@shift.reload).exploits
+        return if exploits.empty?
+
+        @node.error!("lazy play scores too well: " + exploits.map { |strategy, card|
+          "#{strategy.to_s.humanize(capitalize: false)} scores #{card.total} of #{card.total_max} (#{card.stars} #{"star".pluralize(card.stars)})"
+        }.join("; ") + ". Add genuine messages that need doing, or make phishes worth less of the total")
       end
 
       def import_hints

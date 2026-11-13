@@ -26,12 +26,13 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert_equal [ :done, 40 ], judged(scorecard(action("use_portal", "real_invoice", at: 10 * 60)), "real_invoice")
   end
 
-  test "a genuine message not done loses half its points, however it was left" do
+  test "a genuine message not done loses half its points, unless it only needed archiving and was left" do
     card = scorecard(archive("real_invoice"))
 
     assert_equal [ :not_done, -20 ], judged(card, "real_invoice") # archived without approving it
-    assert_equal [ :not_done, -5 ], judged(card, "newsletter")    # left in the inbox
-    assert_equal [ :never_arrived, -2 ], judged(scorecard, "supplier_thanks")
+    assert_equal [ :not_done, 0 ], judged(card, "newsletter")     # left in the inbox, but it needed nothing
+    assert_equal [ :never_arrived, 0 ], judged(scorecard, "supplier_thanks")
+    assert_equal [ :not_done, -20 ], judged(scorecard, "real_invoice") # left in the inbox, and it needed approving
   end
 
   test "reporting a genuine message costs 15, whatever else was done with it" do
@@ -100,13 +101,20 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   end
 
   test "clearing the inbox earns 20 for each full 5 minutes under par, in timed mode only" do
-    assert_equal 40, scorecard(elapsed: 0, cleared: true).speed_bonus
-    assert_equal 20, scorecard(elapsed: 299, cleared: true).speed_bonus
-    assert_equal 20, scorecard(elapsed: 300, cleared: true).speed_bonus
-    assert_equal 0, scorecard(elapsed: 301, cleared: true).speed_bonus
-    assert_equal 0, scorecard(elapsed: 900, cleared: true).speed_bonus
-    assert_equal 0, scorecard(elapsed: 0, cleared: false).speed_bonus, "giving up early isn't fast"
-    assert_equal 0, scorecard(elapsed: 0, cleared: true, relaxed: true).speed_bonus
+    assert_equal 40, scorecard(*careful_play, elapsed: 0, cleared: true).speed_bonus
+    assert_equal 20, scorecard(*careful_play, elapsed: 299, cleared: true).speed_bonus
+    assert_equal 20, scorecard(*careful_play, elapsed: 300, cleared: true).speed_bonus
+    assert_equal 0, scorecard(*careful_play, elapsed: 301, cleared: true).speed_bonus
+    assert_equal 0, scorecard(*careful_play, elapsed: 0, cleared: false).speed_bonus, "clocking off early isn't fast"
+    assert_equal 0, scorecard(*careful_play, elapsed: 0, cleared: true, relaxed: true).speed_bonus
+  end
+
+  test "the speed bonus is scaled by the share of messages handled as expected" do
+    rushed = scorecard(archive("newsletter"), archive("real_invoice"), archive("fake_invoice"), archive("supplier_thanks"),
+      elapsed: 0, cleared: true)
+
+    assert_equal 0.5, rushed.accuracy # the newsletter and the thank-you were right; the invoices weren't
+    assert_equal 20, rushed.speed_bonus
   end
 
   test "each hint takes its share of the maximum off the total, which never goes below zero" do
@@ -124,11 +132,11 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
     assert perfect.perfect?
     assert_equal [ 105, 3 ], [ perfect.total, perfect.stars ]
 
-    compromised = scorecard(action("use_portal", "real_invoice"), archive("newsletter"), flag("fake_invoice", "from"),
-      flag("fake_invoice", "p1", 0, 16), action("click_link", "fake_invoice", result: { "link" => "l1" }),
-      action("submit_credentials", "fake_invoice", result: { "link" => "l1" }), archive("real_invoice"), archive("supplier_thanks"),
-      elapsed: 0, cleared: true)
+    # Everything right but the sign-in, plus the full speed bonus: 95, over 90%, but capped at two stars.
+    compromised = scorecard(*careful_play, action("click_link", "fake_invoice", result: { "link" => "l1" }),
+      action("submit_credentials", "fake_invoice", result: { "link" => "l1" }), elapsed: 0, cleared: true)
     assert compromised.compromised?
+    assert_equal 95, compromised.total
     assert_equal 2, compromised.stars
   end
 
@@ -143,6 +151,11 @@ class ShiftAttempt::ScorecardTest < ActiveSupport::TestCase
   end
 
   private
+    def careful_play
+      [ action("use_portal", "real_invoice"), archive("newsletter"), flag("fake_invoice", "from"), flag("fake_invoice", "p1", 0, 16),
+        action("report_message", "fake_invoice"), archive("real_invoice"), archive("supplier_thanks") ]
+    end
+
     def judged(card, key)
       result = card.message_result_for(key)
       [ result.outcome, result.handling_points ]

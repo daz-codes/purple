@@ -39,12 +39,12 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
     best = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
     best.archive(messages(:newsletter))
     best.report(messages(:fake_invoice))
-    best.clock_off # +10 + 30, then -20 for the invoice and -2 for the thank-you still to come = 18
+    best.clock_off # +10 + 30, then -20 for the invoice left unapproved = 20 (the thank-you only needed archiving)
 
     get track_path(tracks(:basics))
     assert_select "[data-testid=shift-progress]" do
       assert_select "*", text: /Clocked off early/
-      assert_select "strong", text: "18"
+      assert_select "strong", text: "20"
       assert_select "*", text: /out of 105/
       assert_select "[data-testid=stars][aria-label='0 of 3 stars']"
       assert_select "a[href=?]", shift_attempt_path(best), text: "See debrief"

@@ -34,6 +34,7 @@ messages:
   - key: fake_invoice
     channel: email
     legit: false
+    imitates: real_invoice
     techniques: [lookalike_domain, reply_to_mismatch, urgency_pretext, payment_change_pretext, malicious_link, credential_harvest]
     from_name: "Tidemark Supply"
     from_address: "accounts@tidemark-billing.example"
@@ -133,6 +134,30 @@ messages:
           explanation: "A prize for finishing is bait to get you past your doubts." }
       - { key: survey_link, anchor: l1, points: 10, label: "Sign-in page outside Larkhill",
           explanation: "larkhill-surveys.example.org isn't a Larkhill domain, so it has no business asking for your password." }
+
+  - key: fake_invoice_chaser
+    channel: email
+    arrives: { after: fake_invoice }
+    legit: false
+    techniques: [lookalike_domain, reply_to_mismatch, urgency_pretext, payment_change_pretext]
+    from_name: "Tidemark Supply"
+    from_address: "accounts@tidemark-billing.example"
+    reply_to: "tm.payments@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "RE: Invoice #4471, did you get this?"
+    body_html: |
+      <p>Just checking you received our updated bank details for invoice #4471.</p>
+      <p>Please reply to confirm the payment will go to the new account today.</p>
+    replies:
+      - { text: "Confirmed, I'll pay the new account today.", outcome: compromise, response: "Great, thanks for your help!" }
+      - { text: "I'll confirm any bank changes with Tidemark by phone first.", outcome: verify }
+      - { text: "No. Please don't email me about bank details.", outcome: safe, response: "This is very urgent, we will have to stop supply." }
+    verify_result: "Tidemark's finance team: \"We haven't changed our bank details, and we haven't emailed you about them.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "tidemark-billing.example again, not tidemark.example." }
+      - { key: confirm_new_account, quote: "the payment will go to the new account today", points: 10, label: "Pushing the bank change",
+          explanation: "Chasing you to confirm a new account is how payment fraud closes the deal." }
 
   - key: policy_reminder
     channel: email

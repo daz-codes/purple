@@ -6,7 +6,9 @@
 # archiving it. Only *that* a message was dealt with counts, never whether it was handled right, so an
 # arrival never says anything about the player's choices.
 class ShiftAttempt::Arrivals
-  Arrival = Data.define(:message, :at_seconds)
+  # wave: 0 for the messages there at the start, then 1, 2… for each message dealt with that brought
+  # new ones. Messages in the same wave arrived together.
+  Arrival = Data.define(:message, :at_seconds, :wave)
 
   # The keys of every message that would arrive if the player dealt with everything that arrived:
   # what the importer checks, so no message is stranded.
@@ -39,7 +41,7 @@ class ShiftAttempt::Arrivals
   # Every arrival so far, in the order they arrived.
   def all
     @all ||= begin
-      arrivals = @messages.select(&:arrives_at_start?).map { |message| Arrival.new(message:, at_seconds: 0) }
+      arrivals = @messages.select(&:arrives_at_start?).map { |message| Arrival.new(message:, at_seconds: 0, wave: 0) }
       handled = []
       @actions.each do |action|
         next unless action.handling?
@@ -47,8 +49,9 @@ class ShiftAttempt::Arrivals
 
         handled << action.target_key
         arrived = arrivals.map(&:message)
+        wave = handled.size
         (@messages - arrived).select { |message| self.class.triggered?(message, handled) }.each do |message|
-          arrivals << Arrival.new(message:, at_seconds: action.at_seconds + action.penalty_seconds)
+          arrivals << Arrival.new(message:, at_seconds: action.at_seconds + action.penalty_seconds, wave:)
         end
       end
       arrivals

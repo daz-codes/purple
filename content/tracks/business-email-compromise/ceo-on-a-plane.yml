@@ -35,6 +35,7 @@ messages:
   - key: signflow_envelope
     channel: email
     legit: false
+    imitates: pellowclarke_contract
     techniques: [lookalike_domain, urgency_pretext, credential_harvest, end_of_day_rush]
     from_name: "SignFlow Notifications"
     from_address: "notify@signfiow.example"
@@ -97,6 +98,25 @@ messages:
           explanation: "\"Keep this between us\" is there to stop you checking with anyone." }
       - { key: gift_card_codes, quote: "buy ten £100 gift cards", points: 15, label: "Gift cards",
           explanation: "Gift card codes are untraceable cash. No legitimate boss pays for things this way." }
+
+  - key: gift_cards_chaser
+    channel: email
+    arrives: { after: gift_cards }
+    legit: false
+    techniques: [display_name_spoof, authority_pretext, urgency_pretext]
+    from_name: "Jordan Hale"
+    from_address: "jordan.hale.ceo@freemail.test"
+    to_address: "you@larkhill.example"
+    subject: "Re: Quick favour"
+    body_html: |
+      <p>Did you get the cards? I'm boarding in 5 minutes.</p>
+      <p>Just scratch the codes off and send me photos.</p>
+    verify_result: "Jordan's assistant: \"Jordan's plane left an hour ago. That isn't Jordan.\""
+    red_flags:
+      - { key: spoofed_ceo, anchor: from, points: 10, label: "Display name doesn't match the address",
+          explanation: "Still the free webmail account, not larkhill.example." }
+      - { key: boarding, quote: "I'm boarding in 5 minutes", points: 10, label: "Urgency",
+          explanation: "A ticking clock so you don't stop to check. Jordan's flight left at 9am." }
 
   - key: pellowclarke_contract
     channel: email

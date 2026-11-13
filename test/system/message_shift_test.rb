@@ -1,7 +1,8 @@
 require "application_system_test_case"
 
-# Plays the fixture message shift on the phone: Sam's text (needs a reply) at the start; the fake "IT
-# Support" chat, asking for a one-time code, once one message has been dealt with.
+# Plays the fixture message shift on the phone: Sam's text (needs a reply) and a text from IT (needs
+# nothing) at the start; the fake "IT Support" chat, asking for a one-time code, once one message has
+# been dealt with.
 class MessageShiftTest < ApplicationSystemTestCase
   setup do
     sign_in users(:one)
@@ -34,7 +35,12 @@ class MessageShiftTest < ApplicationSystemTestCase
       click_on "Report phishing"
     end
 
-    # That was the last message: the shift ends by itself.
+    # IT's text needs nothing: archive it. That's the last message, so the shift ends by itself.
+    within("#shift_inbox") { click_on "Larkhill IT" }
+    within("#shift_reader") do
+      assert_selector "h2", text: "Larkhill IT"
+      click_on "Archive"
+    end
     assert_selector "[data-testid=debrief-ending]", text: /You cleared your phone in/
     chat = all("[data-testid=debrief-message]").find { |card| card.has_text?("IT Support (Larkhill)") }
     within(chat) do

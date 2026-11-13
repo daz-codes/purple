@@ -25,6 +25,17 @@ class ShiftAttempt::InboxTest < ActiveSupport::TestCase
     assert_equal @attempt.arrived_messages, @attempt.reload.arrived_messages
   end
 
+  test "messages brought by the same move are shuffled too, so a fake's place never says which is which" do
+    orders = 12.times.map do
+      attempt = ShiftAttempt.create!(user: users(:two), shift: shifts(:month_end), status: "completed", completed_at: Time.current, score: 0)
+      AttemptAction.create!(shift_attempt: attempt, kind: "archive_message", target_key: "real_invoice", at_seconds: 0)
+      attempt.reload.arrived_messages.first(2).map(&:key) # the fake invoice and the thank-you arrive together
+    end
+
+    assert_equal [ %w[ fake_invoice supplier_thanks ] ], orders.map(&:sort).uniq
+    assert_equal 2, orders.uniq.size
+  end
+
   test "refs are opaque, different per attempt, and find only arrived messages" do
     ref = @attempt.message_ref(messages(:real_invoice))
     other = ShiftAttempt.start(user: users(:two), shift: shifts(:month_end))

@@ -37,6 +37,7 @@ messages:
   - key: password_expiry
     channel: email
     legit: false
+    imitates: it_welcome
     techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
     from_name: "Larkhill IT Support"
     from_address: "it-support@larkhill-helpdesk.example.net"
@@ -139,6 +140,28 @@ messages:
           explanation: "Delivery_Note_4471.pdf.exe ends in .exe: it's a program pretending to be a PDF." }
       - { key: rebook_deadline, quote: "within 24 hours", points: 5, label: "Urgency or pressure",
           explanation: "The 24-hour threat is there to make you open the file without thinking." }
+
+  - key: password_final_warning
+    channel: email
+    arrives: { after: password_expiry }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Larkhill IT Support"
+    from_address: "it-support@larkhill-helpdesk.example.net"
+    to_address: "you@larkhill.example"
+    subject: "FINAL WARNING: account lock in 10 minutes"
+    body_html: |
+      <p>We haven't received your password confirmation.</p>
+      <p>Your account will be locked in 10 minutes. This is your final warning.</p>
+      <p><a href="https://itportal-larkhill.example.net/unlock">Keep my account open</a></p>
+    links:
+      - { match: "itportal-larkhill.example.net", outcome: bait_landing }
+    verify_result: "The IT service desk: \"Nothing's being locked. That's the same fake as before, chasing you.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "Still larkhill-helpdesk.example.net, not larkhill.example." }
+      - { key: final_warning, quote: "This is your final warning", points: 10, label: "Escalating pressure",
+          explanation: "Attackers chase when you don't bite. A second, scarier message is a sign of a scam, not a reason to act." }
 
   - key: social_club
     channel: email

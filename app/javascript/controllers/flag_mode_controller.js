@@ -11,8 +11,10 @@ const BLOCK = /^p\d+$/
 // Only anchors and ranges are posted. The server records the flag and sends the reader back, still in
 // flag mode. Every part and every word is flaggable, so flagging gives nothing away.
 //
-// Highlights are drawn with the CSS Custom Highlight API, so the message's markup is never changed and
-// the text offsets stay the same as the server's.
+// Offsets count characters of the paragraph's normalised text, the same way the server does
+// (Message::Paragraph): the text nodes in order, every run of whitespace collapsed to one space, and the
+// ends trimmed. Highlights are drawn with the CSS Custom Highlight API, so the message's markup is never
+// changed.
 export default class extends Controller {
   static targets = [ "toggle", "banner", "form", "anchor", "from", "to" ]
   static values = { active: Boolean, flags: Array }
@@ -103,11 +105,13 @@ export default class extends Controller {
     return null
   }
 
+  // How many characters of the block's normalised text come before raw position (node, offset).
   offsetIn(block, node, offset) {
     const range = document.createRange()
     range.setStart(block, 0)
     range.setEnd(node, offset)
-    return range.toString().length
+    const before = range.toString().replace(/\s+/g, " ").replace(/^ /, "").length
+    return Math.min(before, block.textContent.replace(/\s+/g, " ").trim().length)
   }
 
   clickOffset(event, block) {
@@ -120,25 +124,35 @@ export default class extends Controller {
     return range && block.contains(range.startContainer) ? this.offsetIn(block, range.startContainer, range.startOffset) : null
   }
 
-  // A DOM Range covering characters from...to of a block's text.
+  // A DOM Range covering characters from...to of a block's normalised text.
   rangeFor(block, from, to) {
     const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
     const range = document.createRange()
-    let seen = 0
-    let started = false
+    let count = 0, started = false, afterSpace = false, start = null, last = null
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const length = node.textContent.length
-      if (!started && from <= seen + length) {
-        range.setStart(node, from - seen)
-        started = true
+      const text = node.textContent
+      for (let i = 0; i < text.length; i++) {
+        if (!start && count >= from) start = [ node, i ]
+        if (start && count >= to) {
+          range.setStart(...start)
+          range.setEnd(node, i)
+          return range
+        }
+        if (/\s/.test(text[i])) {
+          if (started && !afterSpace) count++
+          afterSpace = true
+        } else {
+          started = true
+          afterSpace = false
+          count++
+        }
       }
-      if (started && to <= seen + length) {
-        range.setEnd(node, to - seen)
-        return range
-      }
-      seen += length
+      last = node
     }
-    return null
+    if (!start || count < to) return null
+    range.setStart(...start)
+    range.setEnd(last, last.textContent.length)
+    return range
   }
 
   render() {

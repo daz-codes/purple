@@ -5,6 +5,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
   # Let tests find buttons and links by their aria-label, as screen reader users would.
   Capybara.enable_aria_label = true
+  # The first page of a run (compiling assets, warming Puma) can take longer than the default 2 seconds.
+  Capybara.default_max_wait_time = 5
 
   # Things only the server may know until the debrief: answer words, the fixtures' descriptive keys,
   # technique tags and red-flag labels. None may appear anywhere in a mid-shift page.

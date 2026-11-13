@@ -63,11 +63,30 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_not_includes fake.body_html, "href"
   end
 
-  test "arrivals: after a count, or after another message" do
+  test "arrivals: after a count, or after another message, with phishes following up too" do
     @shift["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
+    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
     import!
 
     assert_equal "real_invoice", Message.find_by!(key: "newsletter").arrives_after
+    assert_equal "fake_invoice", Message.find_by!(key: "fake_chaser").arrives_after
+  end
+
+  test "a fake may imitate a message it arrives with" do
+    @shift["messages"].last.merge!("imitates" => "real_invoice", "arrives" => "start")
+    assert_nothing_raised { import! }
+
+    @shift["messages"].first["arrives"] = { "after_handled" => 1 }
+    @shift["messages"].last["arrives"] = { "after_handled" => 1 }
+    assert_nothing_raised { import! }
+  end
+
+  test "quotes are matched on the text as the player sees it: whitespace runs count as one space" do
+    @shift["messages"].last["body_html"] = @shift["messages"].last["body_html"].sub("Please pay today.", "Please   pay\n  today.")
+    @shift["messages"].last["red_flags"].last["quote"] = "Please pay today"
+    import!
+
+    assert_equal [ 0, 16 ], Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today").then { |flag| [ flag.quote_start, flag.quote_end ] }
   end
 
   test "updates records in place and removes children that were deleted from the file" do
@@ -108,7 +127,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     @shift["messages"].last["links"].first["outcome"] = "portal"
 
     error = assert_raises(Content::ImportError) { import! }
-    assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[1\] \(fake_invoice\) → links\[0\]: }, error.message
+    assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[2\] \(fake_invoice\) → links\[0\]: }, error.message
   end
 
   test "rejects bad content" do
@@ -170,12 +189,27 @@ class Content::ImportTest < ActiveSupport::TestCase
                                                /"fake_invoice" arrives after "nope", which isn't another message/ ],
       "arriving after itself" => [ ->(s) { s["messages"].last["arrives"] = { "after" => "fake_invoice" } },
                                    /"fake_invoice" arrives after "fake_invoice", which isn't another message/ ],
-      "a count the shift never reaches" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 2 } },
+      "a count the shift never reaches" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 3 } },
                                              /fake_invoice can never arrive/ ],
-      "nothing at the start" => [ ->(s) { s["messages"].first["arrives"] = { "after" => "fake_invoice" } },
+      "nothing at the start" => [ ->(s) { s["messages"].first(2).each { |m| m["arrives"] = { "after" => "fake_invoice" } } },
                                   /at least one message must arrive at the start/ ],
       "a loop" => [ ->(s) { s["messages"].first["arrives"] = { "after" => "fake_invoice" }; s["messages"].last["arrives"] = { "after" => "real_invoice" }; s["messages"] << newsletter },
                     /real_invoice, fake_invoice can never arrive/ ],
+      "a fake imitating a message it could arrive after" => [
+        ->(s) { s["messages"].last["imitates"] = "real_invoice" },
+        /imitates "real_invoice" but could arrive after it: a fake must arrive at the start, or on exactly the same arrives: trigger/ ],
+      "a fake imitating a message that isn't there" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives" => "start") },
+                                                          /imitates "nope", which isn't a genuine message in this shift/ ],
+      "a fake imitating another fake" => [ ->(s) { s["messages"].last.merge!("imitates" => "fake_invoice", "arrives" => "start") },
+                                           /imitates "fake_invoice", which isn't a genuine message/ ],
+      "a genuine message imitating something" => [ ->(s) { s["messages"].first["imitates"] = "canteen_news" },
+                                                   /only phishing messages can imitate another message/ ],
+      "a genuine follow-up with no phish follow-up" => [ ->(s) { s["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" }) },
+                                                         /genuine messages have follow-ups .*, so at least one phish needs one too/ ],
+      "a quote across two sentences" => [ ->(s) { s["messages"].last["red_flags"].last["quote"] = "today. Our bank" },
+                                          /quote "today. Our bank" crosses from one sentence into the next/ ],
+      "lazy play that pays" => [ ->(s) { s["messages"].delete_at(1); s["messages"].first["points"] = 5 },
+                                 /lazy play scores too well: report everything scores \d+ of 65 \(1 star\)/ ],
       "a link no rule matches" => [ ->(s) { s["messages"].first["links"].first["match"] = "nowhere.example" },
                                     /link l1 \(.*\) matches 0 link rules/ ],
       "a rule matching no link" => [ ->(s) { s["messages"].first["links"] << { "match" => "nowhere.example", "outcome" => "harmless" } },
@@ -202,7 +236,7 @@ class Content::ImportTest < ActiveSupport::TestCase
       "a real brand as an SMS sender" => [ ->(s) { s["messages"].first["from_address"] = "PayPal" },
                                            /from_address "PayPal" must be a fictional address/ ],
       "a repeated technique" => [ ->(s) { s["messages"].last["techniques"] = %w[ lookalike_domain lookalike_domain ] },
-                                  /messages\[1\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
+                                  /messages\[2\] \(fake_invoice\): technique keys must be unique \(lookalike_domain\)/ ],
       "an attachment on a text" => [ ->(s) { phone(s)["messages"].last["attachments"] = [ { "name" => "a.pdf", "type" => "application/pdf", "size" => "1 KB", "outcome" => "harmless" } ] },
                                      /attachments are only for emails/ ],
       "a single reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.first(1) }, /from 2 to 4 options/ ],
@@ -290,7 +324,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "the summary counts messages across all shifts" do
-    assert_equal 2, import!.messages
+    assert_equal 3, import!.messages
   end
 
   test "rejects invalid YAML with the file name" do
@@ -364,6 +398,9 @@ class Content::ImportTest < ActiveSupport::TestCase
             "subject" => "Invoice ready",
             "body_html" => %(<p><a href="https://portal.larkhill.example/invoices/4471">Review invoice</a></p>),
             "links" => [ { "match" => "portal.larkhill.example", "outcome" => "portal", "action" => "Approve invoice" } ] },
+          { "key" => "canteen_news", "channel" => "email", "legit" => true, "expects" => "archive", "points" => 10,
+            "from_name" => "Larkhill Canteen", "from_address" => "canteen@larkhill.example", "to_address" => "you@larkhill.example",
+            "subject" => "New menu", "body_html" => "<p>Soup of the day is back.</p>" },
           { "key" => "fake_invoice", "channel" => "email", "legit" => false, "arrives" => { "after_handled" => 1 },
             "techniques" => [ "lookalike_domain" ], "from_name" => "Tidemark",
             "from_address" => "accounts@tidemark-billing.example", "to_address" => "you@larkhill.example",

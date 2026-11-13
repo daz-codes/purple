@@ -1,8 +1,9 @@
 # The messages the player can see: those that have arrived (see ShiftAttempt::Arrivals) and haven't
 # been dealt with yet. The browser only ever knows a message by its #message_ref.
 #
-# Messages that arrive together are shown in an order shuffled per attempt, so a replay isn't a
-# memory test.
+# Messages that arrive together (at the start, or brought by the same message being dealt with) are
+# shown in an order shuffled per attempt. So a replay isn't a memory test, and when a fake arrives with
+# the genuine message it imitates, its place says nothing about which is which.
 module ShiftAttempt::Inbox
   extend ActiveSupport::Concern
 
@@ -16,13 +17,11 @@ module ShiftAttempt::Inbox
     @arrivals ||= ShiftAttempt::Arrivals.new(shift.messages.to_a, actions)
   end
 
-  # Messages that have arrived so far, newest first, as a mail client shows them. The ones there from
-  # the start come last, in this attempt's shuffled order.
+  # Messages that have arrived so far, newest first, as a mail client shows them.
   def arrived_messages
     @arrived_messages ||= begin
-      at_start, later = arrivals.messages.partition(&:arrives_at_start?)
       order = shuffled_positions
-      later.reverse + at_start.sort_by { |message| order.fetch(message.position, 0) }
+      arrivals.all.sort_by { |arrival| [ -arrival.wave, order.fetch(arrival.message.position, 0) ] }.map(&:message)
     end
   end
 

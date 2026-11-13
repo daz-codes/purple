@@ -66,8 +66,8 @@ supplier_thanks:
   subject: Thanks for approving
   body_html: <%= body.(%(<p>Thanks, payment is scheduled.</p>)) %>
 
-# Site visit (phone, par 10 minutes). Sam's text needs a reply, soon; the fake IT chat arrives once
-# one message has been dealt with.
+# Site visit (phone, par 10 minutes). Sam's text needs a reply, soon, and IT's text needs nothing; the
+# fake IT chat arrives once one message has been dealt with.
 sam_text:
   shift: site_visit
   key: sam_text
@@ -83,6 +83,18 @@ sam_text:
   replies: [{ "id": "r1", "text": "Sure, see you there", "outcome": "safe", "response": "Legend, thanks!" },
             { "id": "r2", "text": "Sorry, no time today", "outcome": "poor" }]
   body_html: <%= body.(%(<p>Running late. Grab me a coffee?</p>)) %>
+
+laptop_text:
+  shift: site_visit
+  key: laptop_text
+  channel: sms
+  position: 3
+  legit: true
+  expects: archive
+  points: 10
+  from_name: Larkhill IT
+  from_address: LarkhillIT
+  body_html: <%= body.(%(<p>Your new laptop is ready to collect on Thursday. No need to reply.</p>)) %>
 
 it_chat:
   shift: site_visit

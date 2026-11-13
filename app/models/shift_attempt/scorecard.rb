@@ -6,15 +6,17 @@
 # Every message is judged on what it expected:
 # - A genuine message is worth its points when the player did what it needed: sent a reply that wasn't
 #   poor, did the thing on its portal page, or (for one that needed nothing) archived it. Half if it
-#   was urgent and done late. Not done (archived without doing it, left in the inbox, or still to
-#   arrive when the player clocked off) loses half its points. Reporting it costs 15.
+#   was urgent and done late. Archiving it without doing what it needed, or sending a poor reply,
+#   loses half its points. Still unhandled when the shift ended (in the inbox, or yet to arrive) also
+#   loses half, unless it only needed archiving: then it costs nothing. Reporting it costs 15.
 # - A phish is worth 30 when reported. Each near miss (a bait page or malware download opened but not
 #   fallen for) costs 10, and each compromise (a password entered, a file run, or a reply that handed
 #   something over) costs 50.
 # - Each red flag found earns its points, and each flag that finds nothing costs 10, on any message.
 #
 # Clearing the inbox in timed mode earns a speed bonus: 20 points for each full 5 minutes under the
-# shift's target time. Each hint takes its penalty_percent of the maximum score off the total.
+# shift's target time, times the share of messages handled as expected (phishes reported, genuine
+# messages done), so rushing through and getting things wrong earns little. Each hint takes its penalty_percent of the maximum score off the total.
 # Total = messages + speed bonus - hints, never below 0. Relaxed mode has no speed bonus and no
 # lateness.
 class ShiftAttempt::Scorecard
@@ -48,6 +50,7 @@ class ShiftAttempt::Scorecard
     def compromised? = compromises.any? || gave_in?
     def near_miss? = near_misses.any?
     def replied_well? = reply.present? && reply["outcome"].in?(%w[ safe verify ])
+    def replied_poorly? = reply&.dig("outcome") == "poor"
 
     def handled_at_seconds
       actions.find { |action| action.handling? }&.at_seconds
@@ -64,6 +67,11 @@ class ShiftAttempt::Scorecard
     end
 
     def done? = !phish? && !reported? && !done_at_seconds.nil?
+
+    # Phishes reported, genuine messages done: what the speed bonus is scaled by.
+    def handled_as_expected?
+      phish? ? reported? : done?
+    end
 
     def late?
       done? && !relaxed && message.urgent_within_minutes.present? &&
@@ -97,6 +105,8 @@ class ShiftAttempt::Scorecard
         (reported? ? REPORTED_PHISH : 0) + near_misses.size * NEAR_MISS + (compromises.size + (gave_in? ? 1 : 0)) * COMPROMISED
       elsif reported? then REPORTED_GENUINE
       elsif done? then late? ? message.points / 2 : message.points
+      elsif archived? || replied_poorly? then -(message.points / 2)
+      elsif message.expects_archive? then 0
       else -(message.points / 2)
       end
     end
@@ -144,9 +154,15 @@ class ShiftAttempt::Scorecard
   end
 
   def speed_bonus
-    return 0 if relaxed? || !cleared? || elapsed_seconds.nil?
+    return 0 if relaxed? || !cleared? || elapsed_seconds.nil? || messages.empty?
 
-    [ (@shift.par_minutes * 60 - elapsed_seconds) / SPEED_BLOCK_SECONDS, 0 ].max * SPEED_BLOCK_POINTS
+    blocks = [ (@shift.par_minutes * 60 - elapsed_seconds) / SPEED_BLOCK_SECONDS, 0 ].max
+    (blocks * SPEED_BLOCK_POINTS * accuracy).round
+  end
+
+  # The share of messages handled as expected, from 0 to 1.
+  def accuracy
+    messages.count(&:handled_as_expected?).fdiv(messages.size)
   end
 
   def total
