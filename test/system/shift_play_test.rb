@@ -14,6 +14,15 @@ class ShiftPlayTest < ApplicationSystemTestCase
     assert_selector "[data-testid=inbox-count]", text: "2 emails to deal with"
     assert_no_selector "[data-testid=clock]"
     assert_no_text "Productivity"
+
+    # The player's own details for this attempt, and who they can check with.
+    attempt = users(:one).shift_attempts.open.sole
+    within("[data-testid=persona-card]") do
+      assert_text "Robin Ashby"
+      assert_selector "[data-testid=persona-staff-number]", text: attempt.persona.staff_number
+      assert_selector "[data-testid=persona-memorable-word]", text: attempt.persona.memorable_word
+    end
+    within("[data-testid=staff-directory]") { assert_text "Ext 4400, or the IT portal" }
     within("#shift_inbox") { assert_text "Invoice ready" }
     assert_no_text "URGENT invoice"
     assert_no_answers

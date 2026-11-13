@@ -6,6 +6,8 @@
 # The shift ends when every message has been dealt with (reported or archived), when the player clocks
 # off early, or when it's left open too long.
 #
+# Each attempt has its own persona (ShiftAttempt::Identified): the private details the player works with.
+#
 # Everything here describes what the player can already see. Nothing answers whether a message is
 # phishing, or what it needed, until the shift is over and scored.
 class ShiftAttempt < ApplicationRecord
@@ -13,7 +15,7 @@ class ShiftAttempt < ApplicationRecord
   # so on. The message is shown to the player.
   class Rejected < StandardError; end
 
-  include Timed, Logged, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Replyable, Hintable,
+  include Timed, Logged, Identified, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Replyable, Hintable,
     Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
 
   enum :status, { open: "open", completed: "completed", clocked_off: "clocked_off", timed_out: "timed_out" }, validate: true

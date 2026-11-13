@@ -13,6 +13,17 @@ learning_summary: >
   or new bank details are red flags even when the sender looks right. A genuine mailbox can
   still be hijacked, so verify unusual requests through a channel you already trust.
 
+persona:
+  name: "Robin Ashby"
+  role: "Office manager, covering the CEO's inbox"
+  staff_prefix: LH
+  security_question: "Name of the Larkhill office dog?"
+directory:
+  - { name: "Jordan Hale", team: "CEO", contact: "Flying to Singapore, offline until Friday" }
+  - { name: "Mo Adeyemi", team: "Jordan's assistant", contact: "Ext 4502" }
+  - { name: "Facilities", contact: "Ext 4300, or the facilities portal" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+
 messages:
   - key: ceo_handover
     channel: email

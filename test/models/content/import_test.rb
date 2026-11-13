@@ -32,6 +32,8 @@ class Content::ImportTest < ActiveSupport::TestCase
       assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
       assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
       assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
+      assert shift.persona.present?, "#{shift.slug} needs a persona"
+      assert shift.directory.any?, "#{shift.slug} needs a staff directory"
     end
     assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
     assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
@@ -63,6 +65,46 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_includes fake.body_html, %(data-link-key="l1")
     assert_includes fake.body_html, %(data-anchor="p1s2")
     assert_not_includes fake.body_html, "href"
+  end
+
+  test "a persona and staff directory are stored on the shift" do
+    @shift["persona"] = { "name" => "Robin Ashby", "role" => "Accounts clerk", "staff_prefix" => "LH",
+                          "security_question" => "Name of the office dog?" }
+    @shift["directory"] = [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ]
+    import!
+    shift = Shift.find_by!(slug: "month-end")
+
+    assert_equal "LH", shift.persona["staff_prefix"]
+    assert_equal [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ],
+      shift.directory
+  end
+
+  test "a shift without a persona or directory imports with neither" do
+    import!
+
+    assert_equal [ {}, [] ], Shift.find_by!(slug: "month-end").then { |shift| [ shift.persona, shift.directory ] }
+  end
+
+  test "persona rules: a short capital prefix, a real question, fiction only" do
+    persona = { "name" => "Robin Ashby", "role" => "Clerk", "staff_prefix" => "LH", "security_question" => "Name of the office dog?" }
+
+    @shift["persona"] = persona.merge("staff_prefix" => "lh-1")
+    assert_import_error "staff_prefix must be 2-3 capital letters"
+
+    @shift["persona"] = persona.merge("security_question" => "The office dog")
+    assert_import_error "must be a question"
+
+    @shift["persona"] = persona.merge("role" => "Clerk at https://bank.com")
+    assert_import_error "role mentions names outside the reserved fictional set"
+
+    @shift["persona"] = persona.merge("password" => "hunter2")
+    assert_import_error "unknown key password"
+  end
+
+  test "the directory says how to reach someone, never an email address" do
+    @shift["directory"] = [ { "name" => "IT", "contact" => "servicedesk@larkhill.example" } ]
+
+    assert_import_error "not an email address"
   end
 
   test "arrivals: after a count, or after another message, with phishes following up too" do
@@ -467,6 +509,10 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   private
+    def assert_import_error(message)
+      assert_raises(Content::ImportError, match: Regexp.new(Regexp.escape(message))) { import! }
+    end
+
     def import!
       write_content
       Content::Import.new(@root).run

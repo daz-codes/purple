@@ -14,6 +14,17 @@ learning_summary: >
   weren't expecting. Genuine security requests exist too: the difference is where they come from
   and where their links go.
 
+persona:
+  name: "Robin Ashby"
+  role: "Accounts assistant, Finance (first day)"
+  staff_prefix: LH
+  security_question: "Name of the Larkhill office dog?"
+directory:
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }
+  - { name: "Alex Morgan", team: "Finance, your buddy", contact: "Ext 4231" }
+  - { name: "Reception", contact: "Ext 4000. Takes in parcels for everyone" }
+
 messages:
   - key: it_welcome
     channel: email

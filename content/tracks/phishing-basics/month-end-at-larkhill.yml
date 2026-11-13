@@ -13,6 +13,17 @@ learning_summary: >
   real address behind a display name, and verify payment changes through a known channel. Not
   every urgent reminder is a trick, though: the real one comes from the real address.
 
+persona:
+  name: "Robin Ashby"
+  role: "Accounts payable clerk, Finance"
+  staff_prefix: LH
+  security_question: "Name of the Larkhill office dog?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "HR team", team: "People", contact: "Ext 4120, or the HR portal" }
+  - { name: "Tidemark Supply accounts", team: "Supplier", contact: "0117 496 0321, from the supplier file" }
+
 messages:
   - key: real_invoice
     channel: email

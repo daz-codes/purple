@@ -14,6 +14,16 @@ learning_summary: >
   never ask for a one-time code, however urgent they make it sound. If someone asks for one,
   refuse, and check with the service desk on a number you already have.
 
+persona:
+  name: "Robin Ashby"
+  role: "Operations coordinator, out at a client site"
+  staff_prefix: LH
+  security_question: "Name of the plant on your old desk?"
+directory:
+  - { name: "Sam", team: "Operations", contact: "Ext 4610, or text from the team phone list" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" }
+  - { name: "Facilities", contact: "Ext 4300, or the desk-booking portal" }
+
 messages:
   - key: courier_slot
     channel: sms

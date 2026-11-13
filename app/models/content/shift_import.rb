@@ -3,7 +3,9 @@ module Content
   # transaction, so any error leaves the database untouched.
   class ShiftImport
     SHIFT_KEYS = %i[ slug title kind difficulty par_minutes position published briefing
-                     learning_summary messages hints ].freeze
+                     learning_summary persona directory messages hints ].freeze
+    PERSONA_KEYS = %i[ name role staff_prefix security_question ].freeze
+    DIRECTORY_KEYS = %i[ name team contact ].freeze
     MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
                        from_address reply_to to_address subject body_html attachments replies links verify_result
                        red_flags answer_in ].freeze
@@ -71,9 +73,43 @@ module Content
           published: @node.optional(:published, Node::BOOLEAN, default: true),
           briefing: fictional(@node, :briefing, @node.required(:briefing)),
           learning_summary: fictional(@node, :learning_summary, @node.required(:learning_summary)),
+          persona: persona_profile,
+          directory: directory_entries,
           author_side: "red",
           author_type: "system"
         }
+      end
+
+      # --- Who the player is -----------------------------------------------------------------
+
+      # The persona card's fixed part: name, role, staff-number prefix and an in-world security question
+      # (answered with a name, as ShiftAttempt::Persona generates them). The details themselves are
+      # generated for each attempt.
+      def persona_profile
+        return {} unless @node.key?(:persona)
+
+        persona = @node.child(:persona)
+        persona.allow_only!(*PERSONA_KEYS)
+        prefix = persona.required(:staff_prefix)
+        persona.error!("staff_prefix must be 2-3 capital letters, like LH") unless prefix.match?(/\A[A-Z]{2,3}\z/)
+        question = fictional(persona, :security_question, persona.required(:security_question))
+        persona.error!("security_question must be a question (end with ?)") unless question.end_with?("?")
+
+        { "name" => fictional(persona, :name, persona.required(:name)), "role" => fictional(persona, :role, persona.required(:role)),
+          "staff_prefix" => prefix, "security_question" => question }
+      end
+
+      # Who the player can check with, and how: an extension or a portal, never an email address, so the
+      # directory never replaces checking a sender.
+      def directory_entries
+        @node.each_item(:directory, required: false) do |entry|
+          entry.allow_only!(*DIRECTORY_KEYS)
+          contact = fictional(entry, :contact, entry.required(:contact))
+          entry.error!("contact is how to reach them (an extension or a portal), not an email address") if contact.include?("@")
+
+          { "name" => fictional(entry, :name, entry.required(:name)), "team" => entry.optional(:team)&.then { |team| fictional(entry, :team, team) },
+            "contact" => contact }.compact
+        end
       end
 
       # --- Messages ------------------------------------------------------------------------

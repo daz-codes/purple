@@ -9,6 +9,8 @@ month_end:
   published: true
   briefing: It's month-end.
   learning_summary: Check where links go.
+  persona: <%= { name: "Robin Ashby", role: "Accounts payable clerk", staff_prefix: "LH", security_question: "Name of the office dog?" }.to_json %>
+  directory: <%= [ { name: "IT service desk", team: "IT", contact: "Ext 4400, or the IT portal" } ].to_json %>
 
 site_visit:
   track: basics

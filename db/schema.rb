@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_120001) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -203,6 +203,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_120001) do
     t.datetime "updated_at", null: false
     t.integer "penalty_seconds", default: 0, null: false
     t.boolean "relaxed", default: false, null: false
+    t.jsonb "persona_details", default: {}, null: false
     t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
     t.index ["token"], name: "index_shift_attempts_on_token", unique: true
     t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"
@@ -230,6 +231,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_120001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "par_minutes", default: 10, null: false
+    t.jsonb "persona", default: {}, null: false
+    t.jsonb "directory", default: [], null: false
     t.index ["slug"], name: "index_shifts_on_slug", unique: true
     t.index ["track_id"], name: "index_shifts_on_track_id"
     t.check_constraint "author_side::text = 'red'::text", name: "shifts_author_side"
