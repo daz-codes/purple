@@ -1,0 +1,128 @@
+slug: car-park-qr
+title: "The new car park"
+kind: messages
+difficulty: intermediate
+par_minutes: 8
+position: 3
+briefing: >
+  Larkhill's car park has switched to a new permit system this week, and everyone's getting
+  texts about it. Some say "scan the QR code", some say "pay your fine". Red only has to stick a
+  sticker over a real QR code, or text a fake fine, to cash in.
+learning_summary: >
+  A QR code is just a link you can't read before you open it. Check where it goes before you
+  enter anything, and only pay or register through the real system you were told about. Fines
+  that arrive by text with a link are almost always fake.
+
+persona:
+  name: "Robin Ashby"
+  role: "Operations coordinator"
+  staff_prefix: LH
+  security_question: "Name of the car park's resident pigeon?"
+directory:
+  - { name: "Facilities", team: "Facilities", contact: "Ext 4300, or the parking portal" }
+  - { name: "Sam Okafor", team: "Operations", contact: "Ext 4610" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400" }
+
+messages:
+  - key: permit_text
+    channel: sms
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Larkhill Facilities"
+    from_address: "LarkFacil"
+    body_html: |
+      <p>Larkhill Facilities: register your car for the new permit by Friday with your staff number at <a href="https://parking.larkhill.example/permit">parking.larkhill.example/permit</a>. Permits are free: you will never be asked to pay.</p>
+    links:
+      - { match: "parking.larkhill.example", outcome: portal, action: "Register my car for a permit" }
+    verify_result: "Facilities confirms the new permit system."
+
+  - key: fake_fine
+    channel: sms
+    legit: false
+    imitates: permit_text
+    wants: [staff_number]
+    techniques: [smishing, qr_lure, urgency_pretext, credential_harvest]
+    from_name: "ParkSafe"
+    from_address: "ParkSafe"
+    body_html: |
+      <p>ParkSafe: your car was parked without a valid permit. Pay the £60 fine within 24 hours to avoid court: <a href="https://parksafe-fines.example.net/pay">parksafe-fines.example.net/pay</a></p>
+    links:
+      - { match: "parksafe-fines.example.net", outcome: bait_landing }
+    verify_result: "Facilities: \"There are no fines. Permits are free and registration runs until Friday.\""
+    red_flags:
+      - { key: unknown_sender, anchor: from, points: 10, label: "Not Larkhill's car park",
+          explanation: "The real texts come from LarkFacil, not ParkSafe." }
+      - { key: fine, quote: "Pay the £60 fine", points: 15, label: "A fine for something that's free",
+          explanation: "The real text said permits are free and you'll never be asked to pay.",
+          contradicts: { message: permit_text, quote: "Permits are free: you will never be asked to pay." } }
+      - { key: court, quote: "to avoid court", points: 5, label: "A scary threat",
+          explanation: "Threats of court are there to rush you." }
+
+  - key: car_park_closed
+    channel: sms
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill Facilities"
+    from_address: "LarkFacil"
+    body_html: |
+      <p>Larkhill Facilities: the top level of the car park is closed on Wednesday for resurfacing. No need to reply.</p>
+    verify_result: "Facilities confirms the closure."
+
+  - key: sam_text
+    channel: sms
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Sam (Ops)"
+    from_address: "07700 900118"
+    body_html: |
+      <p>Which day is the top level of the car park shut? I always park up there.</p>
+    answer_in: { message: car_park_closed, quote: "on Wednesday" }
+    replies:
+      - { text: "Wednesday, for resurfacing.", outcome: safe, response: "Thanks, I'll get the train that day." }
+      - { text: "Tomorrow, I think.", outcome: poor, response: "Hmm, I'll check the text." }
+    verify_result: "Sam is in your contacts."
+
+  - key: qr_sticker
+    channel: chat
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [qr_lure, display_name_spoof, credential_harvest]
+    from_name: "Car Park Team"
+    from_address: "carpark.team@freemail.test"
+    body_html: |
+      <p>Hi! Quicker way to register: scan the QR code on the sign by the barrier, or use this link: <a href="https://qr-permit.example.org/lark">qr-permit.example.org/lark</a></p>
+    links:
+      - { match: "qr-permit.example.org", outcome: bait_landing }
+    verify_result: "Facilities: \"There's no QR code on the barrier sign. Someone's stuck one there.\""
+    red_flags:
+      - { key: external, anchor: from, points: 10, label: "An external chat account",
+          explanation: "\"Car Park Team\" on a free webmail account isn't Larkhill Facilities." }
+      - { key: qr, quote: "scan the QR code on the sign by the barrier", points: 10, label: "A QR code in a public place",
+          explanation: "Stickers over real QR codes are a known trick. Use the address you were sent instead." }
+
+  - key: fine_chaser
+    channel: sms
+    arrives: { after: fake_fine }
+    legit: false
+    techniques: [smishing, urgency_pretext]
+    from_name: "ParkSafe"
+    from_address: "ParkSafe"
+    body_html: |
+      <p>ParkSafe: your fine has doubled to £120. Pay today: <a href="https://parksafe-fines.example.net/now">parksafe-fines.example.net/now</a></p>
+    links:
+      - { match: "parksafe-fines.example.net", outcome: bait_landing }
+    verify_result: "Facilities: \"Still no fines. Report it.\""
+    red_flags:
+      - { key: unknown_sender, anchor: from, points: 10, label: "Same fake sender",
+          explanation: "Still ParkSafe, not LarkFacil." }
+      - { key: doubled, quote: "your fine has doubled", points: 5, label: "Escalating pressure",
+          explanation: "A growing fine is designed to panic you into paying." }
+
+hints:
+  - { body: "What did the real Facilities text say about paying?", penalty_percent: 20 }
+  - { body: "Who sends Larkhill's car park texts? Compare the senders.", penalty_percent: 20 }

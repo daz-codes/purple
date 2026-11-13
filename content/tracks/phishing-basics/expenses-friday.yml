@@ -1,0 +1,148 @@
+slug: expenses-friday
+title: "Expenses Friday"
+kind: inbox
+difficulty: beginner
+par_minutes: 9
+position: 3
+briefing: >
+  It's the last Friday of the month, when everyone's expense claims are due. You need to submit
+  your own claim for last week's training trip, and your colleagues have questions. Red knows
+  that "your claim was rejected" is an email nobody ignores.
+learning_summary: >
+  Messages about money you're owed are hard to ignore, which is why they're popular with
+  attackers. Check the sender and where the link goes, and compare the details with what you
+  already know. A real system tells you what's wrong in its own portal; it doesn't need your
+  details by email.
+
+persona:
+  name: "Robin Ashby"
+  role: "Analyst, Finance"
+  staff_prefix: LH
+  security_question: "Name of the finance team's tea-round mascot?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210" }
+  - { name: "Expenses team", team: "Finance operations", contact: "Ext 4230, or the expenses portal" }
+  - { name: "Jamie Cole", team: "Finance", contact: "Ext 4215" }
+
+messages:
+  - key: claim_reminder
+    channel: email
+    legit: true
+    expects: act
+    points: 30
+    urgent_within_minutes: 15
+    needs: [staff_number]
+    from_name: "Larkhill Expenses"
+    from_address: "expenses@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Expense claims close at 4pm today"
+    body_html: |
+      <p>A reminder that this month's expense claims close at 4pm today.</p>
+      <p>Your claim for the training trip (£86.40) is saved as a draft. Submit it with your staff number on the expenses portal.</p>
+      <p><a href="https://expenses.larkhill.example/claims/draft/5521">Open my draft claim</a></p>
+    links:
+      - { match: "expenses.larkhill.example", outcome: portal, action: "Submit my claim for £86.40" }
+    verify_result: "The expenses team confirms claims close at 4pm and your draft is waiting."
+
+  - key: claim_rejected
+    channel: email
+    legit: false
+    imitates: claim_reminder
+    wants: [staff_number]
+    techniques: [lookalike_domain, urgency_pretext, malicious_link, credential_harvest]
+    from_name: "Larkhill Expenses"
+    from_address: "expenses@larkhill-claims.example.net"
+    to_address: "you@larkhill.example"
+    subject: "Your expense claim of £864.00 has been rejected"
+    body_html: |
+      <p>Your expense claim of £864.00 has been rejected because your bank details could not be verified.</p>
+      <p>Re-enter your staff number and bank details today or the claim will be cancelled.</p>
+      <p><a href="https://larkhill-claims.example.net/verify">https://expenses.larkhill.example/claims</a></p>
+    links:
+      - { match: "larkhill-claims.example.net", outcome: bait_landing }
+    verify_result: "The expenses team: \"Nothing's been rejected. That's not from us.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Lookalike sender domain",
+          explanation: "larkhill-claims.example.net isn't larkhill.example." }
+      - { key: wrong_amount, quote: "£864.00", points: 10, label: "The amount doesn't match",
+          explanation: "Your claim is for £86.40. The phish moved the decimal point and hoped you wouldn't check.",
+          contradicts: { message: claim_reminder, quote: "£86.40" } }
+      - { key: bank_details, quote: "Re-enter your staff number and bank details today", points: 5, label: "Asks for your details from a link",
+          explanation: "The real portal already has your details. A page that asks for them again is fishing." }
+      - { key: link_mismatch, anchor: l1, points: 10, label: "Link text doesn't match its destination",
+          explanation: "The text shows the expenses portal, but the link goes to larkhill-claims.example.net." }
+
+  - key: mileage_rates
+    channel: email
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Larkhill Expenses"
+    from_address: "expenses@larkhill.example"
+    to_address: "all-staff@larkhill.example"
+    subject: "New mileage rate from next month"
+    body_html: |
+      <p>From next month, the mileage rate for using your own car goes up to 48p a mile.</p>
+      <p>No action needed: the portal will use the new rate automatically.</p>
+    verify_result: "The expenses team confirms the new rate."
+
+  - key: jamie_question
+    channel: email
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Jamie Cole"
+    from_address: "jamie.cole@larkhill.example"
+    to_address: "you@larkhill.example"
+    subject: "Mileage?"
+    body_html: |
+      <p>Did you see what the new mileage rate is going to be? I'm planning next month's site visits. Reply when you get a sec.</p>
+    answer_in: { message: mileage_rates, quote: "48p a mile" }
+    replies:
+      - { text: "It's going up to 48p a mile from next month.", outcome: safe, response: "Brilliant, thanks!" }
+      - { text: "I think it's staying at 45p.", outcome: poor, response: "Hmm, I thought there was an email about it..." }
+    verify_result: "Jamie is in your team."
+
+  - key: tax_refund
+    channel: email
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [authority_pretext, malicious_attachment, malware_download]
+    from_name: "Revenue Refunds Office"
+    from_address: "refunds@revenue-refunds.test"
+    to_address: "you@larkhill.example"
+    subject: "You are owed a tax refund"
+    body_html: |
+      <p>Our records show you are owed a tax refund of £312.50.</p>
+      <p>Open the attached form, fill it in and return it within 48 hours to receive your money.</p>
+    attachments:
+      - { name: "Refund_Form.pdf.exe", type: "application/x-msdownload", size: "402 KB", outcome: malware }
+    verify_result: "Tax refunds are never sent out by email with an attachment. This isn't real."
+    red_flags:
+      - { key: unexpected_money, quote: "you are owed a tax refund of £312.50", points: 5, label: "Unexpected money",
+          explanation: "Money you weren't expecting is the oldest lure there is." }
+      - { key: disguised, anchor: a1, points: 15, label: "Disguised attachment",
+          explanation: "Refund_Form.pdf.exe ends in .exe: it's a program, not a form." }
+
+  - key: rejected_chaser
+    channel: email
+    arrives: { after: claim_rejected }
+    legit: false
+    techniques: [lookalike_domain, urgency_pretext]
+    from_name: "Larkhill Expenses"
+    from_address: "expenses@larkhill-claims.example.net"
+    to_address: "you@larkhill.example"
+    subject: "RE: claim rejected, last chance"
+    body_html: |
+      <p>We still need your details to pay your claim. If you don't fix it in the next hour, you won't be paid this month.</p>
+    verify_result: "The expenses team: \"Still not us.\""
+    red_flags:
+      - { key: lookalike, anchor: from, points: 10, label: "Same lookalike domain",
+          explanation: "Still larkhill-claims.example.net." }
+      - { key: threat, quote: "you won't be paid this month", points: 5, label: "A threat to rush you",
+          explanation: "Threatening your pay is designed to make you act before you think." }
+
+hints:
+  - { body: "How much is your claim for? Check both emails that mention it.", penalty_percent: 20 }
+  - { body: "Read the attachment's file name right to the end.", penalty_percent: 20 }

@@ -1,0 +1,126 @@
+slug: school-run-texts
+title: "Texts on the school run"
+kind: messages
+difficulty: advanced
+par_minutes: 9
+position: 5
+briefing: >
+  It's a busy morning: the school run, then a dash to the office. Work and home texts arrive
+  together on one phone, and Red is counting on you to tap before you think. One of them even
+  claims to be from your own bank.
+learning_summary: >
+  When work and home share one phone, scams borrow from both. A text "from your bank" or "from
+  the school" is still just a text: check it in the bank's app or with the school directly. And a
+  colleague's urgent favour should be checked with them on a number you already have.
+
+persona:
+  name: "Robin Ashby"
+  role: "Finance officer, juggling a busy morning"
+  staff_prefix: LH
+  security_question: "Name of the reception desk's cactus?"
+directory:
+  - { name: "Priya Shah", team: "Finance, your team lead", contact: "Ext 4210, mobile 07700 900210" }
+  - { name: "IT service desk", team: "IT", contact: "Ext 4400" }
+  - { name: "Fernhill Bank", team: "Your bank", contact: "The Fernhill Bank app" }
+
+messages:
+  - key: office_access
+    channel: sms
+    legit: true
+    expects: act
+    points: 40
+    needs: [staff_number]
+    from_name: "Larkhill Security"
+    from_address: "LarkSecure"
+    body_html: |
+      <p>Larkhill Security: your new building pass is ready. Activate it with your staff number before 10am: <a href="https://security.larkhill.example/pass">security.larkhill.example/pass</a>. We will only ever text you from LarkSecure.</p>
+    links:
+      - { match: "security.larkhill.example", outcome: portal, action: "Activate my building pass" }
+    verify_result: "The security desk confirms new passes are being issued."
+
+  - key: fake_pass
+    channel: sms
+    legit: false
+    imitates: office_access
+    wants: [staff_number]
+    techniques: [smishing, urgency_pretext, credential_harvest]
+    from_name: "07700 900493"
+    from_address: "07700 900493"
+    body_html: |
+      <p>Larkhill Security: your pass has been blocked. Unblock it now: <a href="https://larkhill-pass.example.net/unblock">larkhill-pass.example.net/unblock</a></p>
+    links:
+      - { match: "larkhill-pass.example.net", outcome: bait_landing }
+    verify_result: "The security desk: \"Your pass is fine. We only text from LarkSecure.\""
+    red_flags:
+      - { key: number, anchor: from, points: 10, label: "Not Larkhill Security's sender",
+          explanation: "The real texts come from LarkSecure.",
+          contradicts: { message: office_access, quote: "We will only ever text you from LarkSecure." } }
+      - { key: blocked, quote: "your pass has been blocked", points: 10, label: "A scary problem",
+          explanation: "A sudden block is there to make you tap." }
+
+  - key: school_trip
+    channel: sms
+    legit: true
+    expects: archive
+    points: 5
+    from_name: "Kestrel Primary"
+    from_address: "KestrelPri"
+    body_html: |
+      <p>Kestrel Primary: reminder that the Year 4 trip to the museum is on Thursday. Packed lunches please. No need to reply.</p>
+    verify_result: "The school confirms the trip."
+
+  - key: partner_text
+    channel: sms
+    arrives: { after_handled: 1 }
+    legit: true
+    expects: reply
+    points: 20
+    from_name: "Alex (home)"
+    from_address: "07700 900101"
+    body_html: |
+      <p>Which day is the museum trip again? Need to know when to do a packed lunch.</p>
+    answer_in: { message: school_trip, quote: "on Thursday" }
+    replies:
+      - { text: "Thursday. Packed lunch needed.", outcome: safe, response: "Got it, I'll sort it." }
+      - { text: "Friday, I think.", outcome: poor, response: "Hmm, I'll check the school's text." }
+    verify_result: "Alex is in your contacts."
+
+  - key: fake_bank
+    channel: sms
+    arrives: { after_handled: 2 }
+    legit: false
+    techniques: [smishing, display_name_spoof, urgency_pretext, credential_harvest]
+    from_name: "FernhillBank"
+    from_address: "FernhillBnk"
+    body_html: |
+      <p>Fernhill Bank: a payment of £950 is pending. If this wasn't you, stop it now at <a href="https://fernhill-stop.example.net">fernhill-stop.example.net</a></p>
+    links:
+      - { match: "fernhill-stop.example.net", outcome: bait_landing }
+    verify_result: "Your Fernhill Bank app shows no pending payments."
+    red_flags:
+      - { key: fear, quote: "a payment of £950 is pending", points: 10, label: "Fear of losing money",
+          explanation: "Open your bank's own app instead of tapping the link." }
+      - { key: link, anchor: l1, points: 10, label: "Not the bank's website",
+          explanation: "fernhill-stop.example.net isn't your bank." }
+
+  - key: pass_chaser
+    channel: sms
+    arrives: { after: fake_pass }
+    legit: false
+    techniques: [smishing, urgency_pretext]
+    from_name: "07700 900494"
+    from_address: "07700 900494"
+    body_html: |
+      <p>Larkhill Security: last chance. Your pass will be deleted at 9am: <a href="https://larkhill-pass.example.net/now">larkhill-pass.example.net/now</a></p>
+    links:
+      - { match: "larkhill-pass.example.net", outcome: bait_landing }
+    verify_result: "The security desk: \"Not us. Report it.\""
+    red_flags:
+      - { key: number, anchor: from, points: 10, label: "Another random number",
+          explanation: "Still not LarkSecure." }
+      - { key: deleted, quote: "Your pass will be deleted at 9am", points: 5, label: "Escalating pressure",
+          explanation: "A tighter deadline is a sign of a scam." }
+
+hints:
+  - { body: "Which sender name does Larkhill Security say it always uses?", penalty_percent: 20 }
+  - { body: "Check money worries in your bank's own app, not from a text.", penalty_percent: 20 }

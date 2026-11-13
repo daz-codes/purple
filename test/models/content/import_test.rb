@@ -37,8 +37,8 @@ class Content::ImportTest < ActiveSupport::TestCase
       assert messages.any? { |message| message.phish? && message.wants.any? }, "#{shift.slug} needs a phish that wants a detail"
       assert shift.directory.any?, "#{shift.slug} needs a staff directory"
     end
-    assert_equal 3, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
-    assert_equal 1, Shift.where(slug: shipped_shift_slugs).kind_messages.count
+    assert_equal 10, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
+    assert_equal 5, Shift.where(slug: shipped_shift_slugs).kind_messages.count
     shipped = Message.joins(:shift).where(shifts: { slug: shipped_shift_slugs })
     assert shipped.any? { |message| message.details.any? }, "a shift needs a detail learned from a message"
     assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a shift needs an MFA-fatigue run"
@@ -98,6 +98,12 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     @shift["persona"] = persona.merge("security_question" => "The office dog")
     assert_import_error "must be a question"
+
+    [ "Name of your first pet?", "Name of your primary school?", "Town where you were born?", "Street you grew up on?",
+      "Your mother's maiden name?", "Make of your first car?" ].each do |question|
+      @shift["persona"] = persona.merge("security_question" => question)
+      assert_import_error "never the kind real accounts use"
+    end
 
     @shift["persona"] = persona.merge("role" => "Clerk at https://bank.com")
     assert_import_error "role mentions names outside the reserved fictional set"

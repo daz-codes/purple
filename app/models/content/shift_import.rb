@@ -87,6 +87,9 @@ module Content
       # The persona card's fixed part: name, role, staff-number prefix and an in-world security question
       # (answered with a name, as ShiftAttempt::Persona generates them). The details themselves are
       # generated for each attempt.
+      # Words from the security questions real accounts use. A persona's question mustn't sound like one.
+      REAL_LIFE_QUESTION = /\b(first|childhood|school|born|grew up|mother|father|maiden|teacher|street|home ?town|best friend)\b/i
+
       def persona_profile
         return {} unless @node.key?(:persona)
 
@@ -96,6 +99,10 @@ module Content
         persona.error!("staff_prefix must be 2-3 capital letters, like LH") unless prefix.match?(/\A[A-Z]{2,3}\z/)
         question = fictional(persona, :security_question, persona.required(:security_question))
         persona.error!("security_question must be a question (end with ?)") unless question.end_with?("?")
+        if question.match?(REAL_LIFE_QUESTION)
+          persona.error!("security_question must be about the game's world, like \"Name of the office dog?\", never the kind " \
+                         "real accounts use (first pets, schools, birthplaces, family): players shouldn't be nudged to think of real answers")
+        end
 
         { "name" => fictional(persona, :name, persona.required(:name)), "role" => fictional(persona, :role, persona.required(:role)),
           "staff_prefix" => prefix, "security_question" => question }
