@@ -1,0 +1,46 @@
+slug: month-end-invoice-run
+title: "Larkhill Finance at month-end"
+shift: month-end-at-larkhill
+budget: 14
+position: 1
+recon_brief: >
+  Larkhill Finance pays its suppliers at month-end, and Tidemark Supply's invoice #4471 is due this
+  week. Bob in accounts approves payments and is always behind. Carol checks everything twice. Nia
+  started last week and is still learning who's who. Their invoices arrive from accounts@tidemark.example
+  and are approved in the supplier portal.
+
+cards:
+  pretext:
+    - { key: changed_bank_details, technique: payment_change_pretext, label: "Tidemark's bank details have changed",
+        subject: "Invoice #4471: updated remittance details", relevance: 3,
+        text: "Hi, please note our bank details have changed. Invoice #4471 needs paying to our new account before month-end." }
+    - { key: generic_overdue, technique: urgency_pretext, label: "Generic overdue payment", extra_cost: 2,
+        subject: "URGENT: payment overdue", relevance: 0,
+        text: "Your payment is overdue. Please action this immediately to avoid late fees." }
+    - { key: boss_wants_it_paid, technique: authority_pretext, label: "Jordan wants it paid today",
+        subject: "Jordan asked me to chase this", relevance: 1,
+        text: "Jordan has asked for invoice #4471 to be paid today, before the month closes." }
+  sender:
+    - { key: lookalike, technique: lookalike_domain, label: "A lookalike Tidemark domain",
+        text: "Tidemark Supply <accounts@tidemark-billing.example>" }
+    - { key: name_only, technique: display_name_spoof, label: "Tidemark's name on a webmail address",
+        text: "Tidemark Supply <tidemark.accounts@freemail.test>" }
+    - { key: hijacked_mailbox, technique: compromised_supplier, label: "Tidemark's real, hijacked mailbox",
+        text: "Tidemark Supply <accounts@tidemark.example>" }
+  lure:
+    - { key: portal_link, technique: malicious_link, label: "A link to a fake supplier portal",
+        text: "Review and approve the invoice here: portal.tidemark-billing.example/invoices/4471" }
+    - { key: invoice_attachment, technique: malicious_attachment, label: "An invoice that's really a program",
+        text: "Attached: Invoice_4471.pdf.exe (312 KB)" }
+    - { key: qr_slip, technique: qr_lure, label: "A QR code on a remittance slip",
+        text: "Scan the QR code on the attached remittance slip to pay securely from your phone." }
+  payload:
+    - { key: portal_sign_in, technique: credential_harvest, label: "A copy of the supplier portal's sign-in page",
+        text: "A sign-in page that looks just like the Larkhill supplier portal." }
+    - { key: ransomware, technique: malware_download, label: "Malware that locks the shared drive",
+        text: "A program that encrypts the finance team's shared drive." }
+  timing:
+    - { key: friday_afternoon, technique: end_of_day_rush, label: "Friday, just before home time",
+        text: "Friday, 4:55pm" }
+    - { key: monday_morning, technique: monday_morning_pile, label: "Monday morning, under the weekend's mail",
+        text: "Monday, 8:10am" }

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_14_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -39,6 +39,19 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_badges_on_key", unique: true
     t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying, 'purple'::character varying, 'any'::character varying]::text[])", name: "badges_side"
+  end
+
+  create_table "bot_personas", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description", null: false
+    t.integer "vigilance", null: false
+    t.jsonb "detects", default: {}, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_bot_personas_on_key", unique: true
+    t.check_constraint "vigilance >= 1 AND vigilance <= 10", name: "bot_personas_vigilance_range"
   end
 
   create_table "hints", force: :cascade do |t|
@@ -109,6 +122,35 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
     t.check_constraint "expects::text = ANY (ARRAY['reply'::character varying, 'act'::character varying, 'archive'::character varying]::text[])", name: "messages_expects"
     t.check_constraint "legit = (expects IS NOT NULL)", name: "messages_expects_only_when_genuine"
     t.check_constraint "urgent_within_minutes IS NULL OR legit AND urgent_within_minutes > 0", name: "messages_urgent_only_when_genuine"
+  end
+
+  create_table "red_campaigns", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "target_id", null: false
+    t.string "token", null: false
+    t.string "status", default: "draft", null: false
+    t.bigint "chosen_option_ids", default: [], null: false, array: true
+    t.integer "budget_spent", default: 0, null: false
+    t.string "rendered_subject"
+    t.string "rendered_from"
+    t.text "rendered_body_html"
+    t.jsonb "results", default: [], null: false
+    t.integer "score"
+    t.boolean "scored", default: false, null: false
+    t.integer "seed", null: false
+    t.datetime "launched_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["target_id"], name: "index_red_campaigns_on_target_id"
+    t.index ["token"], name: "index_red_campaigns_on_token", unique: true
+    t.index ["user_id", "target_id"], name: "index_red_campaigns_one_draft_per_target", unique: true, where: "((status)::text = 'draft'::text)"
+    t.index ["user_id", "target_id"], name: "index_red_campaigns_one_scored_per_target", unique: true, where: "scored"
+    t.index ["user_id"], name: "index_red_campaigns_on_user_id"
+    t.check_constraint "(status::text = 'launched'::text) = (launched_at IS NOT NULL)", name: "red_campaigns_launched_at_when_launched"
+    t.check_constraint "(status::text = 'launched'::text) = (score IS NOT NULL)", name: "red_campaigns_score_when_launched"
+    t.check_constraint "NOT scored OR status::text = 'launched'::text", name: "red_campaigns_scored_only_when_launched"
+    t.check_constraint "budget_spent >= 0", name: "red_campaigns_budget_spent_non_negative"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'launched'::character varying]::text[])", name: "red_campaigns_status"
   end
 
   create_table "red_flags", force: :cascade do |t|
@@ -187,6 +229,43 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
     t.check_constraint "par_minutes > 0", name: "shifts_par_minutes_positive"
   end
 
+  create_table "target_options", force: :cascade do |t|
+    t.bigint "target_id", null: false
+    t.bigint "technique_id", null: false
+    t.string "key", null: false
+    t.string "category", null: false
+    t.string "label", null: false
+    t.string "subject"
+    t.text "rendered_value", null: false
+    t.integer "relevance", default: 0, null: false
+    t.integer "extra_cost", default: 0, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["target_id", "key"], name: "index_target_options_on_target_id_and_key", unique: true
+    t.index ["target_id"], name: "index_target_options_on_target_id"
+    t.index ["technique_id"], name: "index_target_options_on_technique_id"
+    t.check_constraint "(category::text = 'pretext'::text) = (subject IS NOT NULL)", name: "target_options_subject_only_for_pretexts"
+    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying, 'sender'::character varying, 'lure'::character varying, 'payload'::character varying, 'timing'::character varying]::text[])", name: "target_options_category"
+    t.check_constraint "extra_cost >= 0", name: "target_options_extra_cost_non_negative"
+    t.check_constraint "relevance >= 0 AND relevance <= 3", name: "target_options_relevance_range"
+  end
+
+  create_table "targets", force: :cascade do |t|
+    t.bigint "shift_id", null: false
+    t.string "slug", null: false
+    t.string "title", null: false
+    t.text "recon_brief", null: false
+    t.integer "budget", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "published", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["shift_id"], name: "index_targets_on_shift_id"
+    t.index ["slug"], name: "index_targets_on_slug", unique: true
+    t.check_constraint "budget > 0", name: "targets_budget_positive"
+  end
+
   create_table "techniques", force: :cascade do |t|
     t.string "key", null: false
     t.string "name", null: false
@@ -247,11 +326,16 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_13_170000) do
   add_foreign_key "message_techniques", "messages"
   add_foreign_key "message_techniques", "techniques"
   add_foreign_key "messages", "shifts"
+  add_foreign_key "red_campaigns", "targets"
+  add_foreign_key "red_campaigns", "users"
   add_foreign_key "red_flags", "messages"
   add_foreign_key "sessions", "users"
   add_foreign_key "shift_attempts", "shifts"
   add_foreign_key "shift_attempts", "users"
   add_foreign_key "shifts", "tracks"
+  add_foreign_key "target_options", "targets"
+  add_foreign_key "target_options", "techniques"
+  add_foreign_key "targets", "shifts"
   add_foreign_key "user_badges", "badges"
   add_foreign_key "user_badges", "users"
 end

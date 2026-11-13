@@ -169,3 +169,21 @@ techniques:
     red_cost: 1
     stealth: 5
     red_flag_label: Arrives when you're busy
+
+  - key: monday_morning_pile
+    name: Monday-morning pile-up
+    category: timing
+    description: Lands first thing on a Monday, buried in the weekend's mail, when people clear their inbox on autopilot.
+    defence_tip: A full inbox is a reason to slow down, not speed up. Sort by sender, not by urgency.
+    red_cost: 2
+    stealth: 6
+    red_flag_label: Hidden in a busy inbox
+
+  - key: out_of_office_window
+    name: Out-of-office window
+    category: timing
+    description: Lands while the person it claims to be from is away and can't be reached to check.
+    defence_tip: When someone's away, their requests can wait or be checked with whoever is covering for them.
+    red_cost: 3
+    stealth: 7
+    red_flag_label: Arrives while the real sender is away

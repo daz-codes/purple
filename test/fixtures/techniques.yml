@@ -18,3 +18,58 @@ end_of_day_rush:
   red_cost: 1
   stealth: 5
   red_flag_label: Arrives when you're busy
+
+payment_change_pretext:
+  key: payment_change_pretext
+  name: Changed payment details
+  attack_id: T1656
+  category: pretext
+  description: Claims a supplier's bank details have changed.
+  defence_tip: Confirm bank changes by phone.
+  red_cost: 3
+  stealth: 6
+  red_flag_label: Changed bank or payment details
+
+urgency_pretext:
+  key: urgency_pretext
+  name: Urgency and pressure
+  attack_id: T1566
+  category: pretext
+  description: Invents a deadline.
+  defence_tip: Real deadlines survive a two-minute check.
+  red_cost: 1
+  stealth: 3
+  red_flag_label: Urgency or pressure
+
+display_name_spoof:
+  key: display_name_spoof
+  name: Display name spoofing
+  attack_id: T1672
+  category: sender
+  description: Puts a trusted name on any address.
+  defence_tip: Expand the sender.
+  red_cost: 1
+  stealth: 3
+  red_flag_label: Display name doesn't match the address
+
+malicious_link:
+  key: malicious_link
+  name: Disguised link
+  attack_id: T1566.002
+  category: lure
+  description: A link that goes somewhere else.
+  defence_tip: Hover before you click.
+  red_cost: 1
+  stealth: 4
+  red_flag_label: Link doesn't go where it says
+
+credential_harvest:
+  key: credential_harvest
+  name: Credential harvesting page
+  attack_id: T1056.003
+  category: payload
+  description: A fake sign-in page.
+  defence_tip: Check the address bar.
+  red_cost: 2
+  stealth: 5
+  red_flag_label: Fake sign-in page

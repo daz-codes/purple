@@ -1,0 +1,46 @@
+slug: ceo-out-of-office
+title: "The CEO's week away"
+shift: ceo-on-a-plane
+budget: 15
+position: 2
+recon_brief: >
+  Jordan Hale, Larkhill's CEO, posted a "see you in Singapore!" photo and has an out-of-office on
+  until Friday. Someone is covering Jordan's inbox. Larkhill has just signed a contract with Pellow
+  Clarke Legal, and Jordan likes to treat the team. Carol has seen this kind of thing before; Nia
+  hasn't met Jordan yet.
+
+cards:
+  pretext:
+    - { key: gift_card_favour, technique: authority_pretext, label: "A quiet favour from Jordan",
+        subject: "Quick favour before I board", relevance: 3,
+        text: "I'm about to fly and need ten gift cards for the team today. Please keep it between us, it's a surprise." }
+    - { key: generic_action, technique: urgency_pretext, label: "Generic \"action needed\"", extra_cost: 1,
+        subject: "Action needed today", relevance: 0,
+        text: "This needs doing today, please. I'm counting on you." }
+    - { key: new_contract_bank, technique: payment_change_pretext, label: "Pellow Clarke's new bank account",
+        subject: "Payment details for the new agreement", relevance: 2,
+        text: "Following our new agreement, please send all future payments to our new bank account." }
+  sender:
+    - { key: ceo_webmail, technique: display_name_spoof, label: "Jordan's name on a webmail address",
+        text: "Jordan Hale <jordan.hale.ceo@freemail.test>" }
+    - { key: ceo_lookalike, technique: lookalike_domain, label: "A lookalike Larkhill domain",
+        text: "Jordan Hale <jordan.hale@larkhill-finance.example>" }
+    - { key: hijacked_supplier, technique: compromised_supplier, label: "Pellow Clarke's real, hijacked mailbox",
+        text: "Pellow Clarke Accounts <accounts@pellowclarke.example>" }
+  lure:
+    - { key: order_link, technique: malicious_link, label: "A link to an order form",
+        text: "Order them here and send me the codes: giftcards.larkhill-rewards.example/order" }
+    - { key: order_form, technique: malicious_attachment, label: "An order form with a macro",
+        text: "Attached: Gift_card_order_form.docm (88 KB)" }
+    - { key: qr_order, technique: qr_lure, label: "A QR code to order on your phone",
+        text: "Scan the QR code in the attached image to order from your phone." }
+  payload:
+    - { key: mailbox_sign_in, technique: credential_harvest, label: "A sign-in page for the covering mailbox",
+        text: "A sign-in page asking for the password of the mailbox covering Jordan's email." }
+    - { key: code_grab, technique: mfa_code_theft, label: "A page that asks for the code just texted to you",
+        text: "A page that asks for the six-digit code it has just triggered on your phone." }
+  timing:
+    - { key: while_flying, technique: out_of_office_window, label: "While Jordan is in the air",
+        text: "Tuesday, 9:20am" }
+    - { key: late_tuesday, technique: end_of_day_rush, label: "Late on Tuesday",
+        text: "Tuesday, 5:30pm" }

@@ -1,0 +1,15 @@
+busy_bob:
+  key: busy_bob
+  name: Busy Bob
+  description: Always behind.
+  vigilance: 3
+  detects: { "end_of_day_rush": -2 }
+  position: 1
+
+careful_carol:
+  key: careful_carol
+  name: Careful Carol
+  description: Checks everything.
+  vigilance: 8
+  detects: { "lookalike_domain": 2, "display_name_spoof": 2 }
+  position: 2

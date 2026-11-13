@@ -5,19 +5,23 @@ module Content
   #   content/badges.yml                badges players can earn
   #   content/tracks/<track>/_track.yml a track's details
   #   content/tracks/<track>/<shift>.yml one file per shift
+  #   content/bots.yml                  the Blue bots that judge Red's Workshop emails
+  #   content/targets/<target>.yml      one file per Red's Workshop target
   #
   # Everything is upserted by key or slug in a single transaction, so running it twice changes
   # nothing and any error leaves the database as it was. Tracks and shifts whose files have gone
   # are unpublished rather than deleted, so players' past attempts keep their history.
   class Import
-    Summary = Data.define(:techniques, :badges, :tracks, :shifts, :messages) do
+    Summary = Data.define(:techniques, :badges, :tracks, :shifts, :messages, :bots, :targets) do
       def to_s
-        "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{shifts} shifts and #{messages} messages."
+        "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{shifts} shifts, #{messages} messages, " \
+          "#{bots} bots and #{targets} targets."
       end
     end
 
     TECHNIQUE_KEYS = %i[ key name attack_id category description defence_tip red_cost stealth red_flag_label ].freeze
     BADGE_KEYS = %i[ key name description side ].freeze
+    BOT_KEYS = %i[ key name description vigilance detects ].freeze
     TRACK_KEYS = %i[ title description position difficulty published ].freeze
     TRACK_FILE = "_track.yml".freeze
 
@@ -31,9 +35,11 @@ module Content
         techniques = import_techniques
         badges = import_badges
         tracks, shifts = import_tracks(techniques)
+        bots = import_bots(techniques)
+        targets = import_targets(shifts, techniques)
 
         Summary.new(techniques: techniques.size, badges: badges.size, tracks: tracks.size, shifts: shifts.size,
-                    messages: Message.where(shift: shifts).count)
+                    messages: Message.where(shift: shifts).count, bots: bots.size, targets: targets.size)
       end
     end
 
@@ -113,6 +119,37 @@ module Content
                         published: node.optional(:published, Node::BOOLEAN, default: true))
         end
         track
+      end
+
+      def import_bots(techniques)
+        file = load(@root.join("bots.yml"))
+        bots = file.each_item(:bots) do |node, index|
+          node.allow_only!(*BOT_KEYS)
+          detects = node.optional(:detects, Hash, default: {})
+          detects.each do |key, bonus|
+            node.error!("detects: unknown technique \"#{key}\"") unless techniques.key?(key.to_s)
+            node.error!("detects: #{key} must be a whole number") unless bonus.is_a?(Integer)
+          end
+
+          bot = BotPersona.find_or_initialize_by(key: node.required(:key))
+          node.saving do
+            bot.update!(name: fictional_text(node, :name), description: fictional_text(node, :description),
+                        vigilance: node.required(:vigilance, Integer), detects: detects.transform_keys(&:to_s), position: index + 1)
+          end
+          bot
+        end
+        file.check_unique!("bot", bots.map(&:key))
+        BotPersona.where.not(id: bots.map(&:id)).destroy_all
+        bots
+      end
+
+      def import_targets(shifts, techniques)
+        dir = @root.join("targets")
+        return [] unless dir.directory?
+
+        targets = dir.glob("*.yml").sort.map { |file| TargetImport.new(load(file), shifts:, techniques:).run }
+        Target.where.not(id: targets.map(&:id)).update_all(published: false)
+        targets
       end
 
       def fictional_text(node, key)

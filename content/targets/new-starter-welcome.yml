@@ -1,0 +1,48 @@
+slug: new-starter-welcome
+title: "New starters at Larkhill Finance"
+shift: first-day-at-larkhill
+budget: 12
+position: 3
+recon_brief: >
+  Larkhill Finance announced its new starters on a networking site this morning. New starters set
+  their password on the IT portal (itportal.larkhill.example) on day one and get a welcome email from
+  the IT service desk. Nia is one of them. Bob is too busy to read the welcome emails; Carol helped
+  write them.
+
+cards:
+  pretext:
+    - { key: account_setup, technique: it_support_pretext, label: "Finish setting up your account",
+        subject: "Action required: finish setting up your account", relevance: 3,
+        text: "Welcome to Larkhill! Please finish setting up your account today, or it will be switched off." }
+    - { key: mailbox_full, technique: urgency_pretext, label: "Your mailbox is full", extra_cost: 1,
+        subject: "Your mailbox is almost full", relevance: 0,
+        text: "Your mailbox is 98% full. Act now or new messages will bounce." }
+    - { key: ceo_welcome, technique: authority_pretext, label: "A welcome note from the CEO",
+        subject: "A personal welcome from Jordan Hale", relevance: 1,
+        text: "Jordan Hale has recorded a personal welcome for this month's new starters." }
+  sender:
+    - { key: helpdesk_lookalike, technique: lookalike_domain, label: "A lookalike helpdesk domain",
+        text: "Larkhill IT Service Desk <servicedesk@larkhill-helpdesk.example.net>" }
+    - { key: it_webmail, technique: display_name_spoof, label: "IT's name on a webmail address",
+        text: "Larkhill IT <larkhill.it.desk@freemail.test>" }
+    - { key: hr_reply_to, technique: reply_to_mismatch, label: "HR's real address, with replies going elsewhere",
+        text: "Larkhill HR <hr@larkhill.example>, replies to hr.larkhill@freemail.test" }
+  lure:
+    - { key: setup_link, technique: malicious_link, label: "A link to a fake IT portal",
+        text: "Start here: itportal-larkhill.example.net/setup" }
+    - { key: starter_pack, technique: malicious_attachment, label: "A starter pack that's really a program",
+        text: "Attached: New_starter_pack.pdf.exe (2.1 MB)" }
+    - { key: setup_qr, technique: qr_lure, label: "A QR code to finish on your phone",
+        text: "Scan the QR code with your phone to finish setting up." }
+  payload:
+    - { key: portal_sign_in, technique: credential_harvest, label: "A copy of the IT portal's sign-in page",
+        text: "A sign-in page that looks just like the Larkhill IT portal." }
+    - { key: code_grab, technique: mfa_code_theft, label: "A page that asks for your new authenticator code",
+        text: "A page that asks for the code from the authenticator app you've just set up." }
+    - { key: remote_access, technique: malware_download, label: "A remote-access tool",
+        text: "A program that gives Red remote control of the laptop." }
+  timing:
+    - { key: first_morning, technique: monday_morning_pile, label: "Your first Monday morning",
+        text: "Monday, 8:45am" }
+    - { key: first_evening, technique: end_of_day_rush, label: "The end of your first day",
+        text: "Monday, 5:05pm" }
