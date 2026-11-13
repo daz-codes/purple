@@ -7,12 +7,17 @@
 A gamified web app built around a **Red team vs Blue team** premise. Red (the attacker) crafts social-engineering attacks; Blue (the defender) has to catch them while still getting their job done. Every round ends with a **Purple debrief** that replays both sides' moves.
 
 **Players can play on either side and find out which they prefer.** Each side has its own XP, level and leaderboard.
-- **Blue (main MVP mode):** play **shifts**. A shift is one round: a simulated working day with an inbox, a task list with deadlines and an in-game clock. The attacks in it are hand-authored scenarios, presented as "Red's campaign".
+- **Blue (main MVP mode):** play **shifts**. A shift is one round: a simulated working day spent clearing an inbox, where every genuine message needs dealing with properly and the phishing needs reporting. The attacks in it are hand-authored scenarios, presented as "Red's campaign".
 - **Red (simple MVP mode): "Red's Workshop."** Build a phishing email from technique cards on a budget, aimed at a shift's fictional company. A panel of simulated Blue bots then judges it. There's no human opponent yet.
 
 Multiplayer, where Red's campaigns are played by real Blues, comes later (section 11). The data model is built for it now.
 
 ### The core mechanic: a working day, not a quiz
+
+> **Redesigned in M6b.** The task list, minute clock and live meters described below were built in
+> M3–M6 and are replaced by M6b ("The inbox is the job"): the inbox is the job, genuine messages carry
+> hidden expectations, time is real time with a speed bonus, and nothing during the shift says whether
+> you were right. Where this section and M6b disagree, M6b wins.
 
 Blue can't win by avoiding every link. Each round is a **shift**: an inbox of several emails plus a **task list** with deadlines (pay a supplier invoice, sign an HR form, reset a password through the IT portal). Tasks can **only** be completed by clicking the correct link in a legitimate email. Red's phishing emails imitate those same tasks.
 
@@ -54,8 +59,8 @@ Free-form Red campaigns, multiplayer, AI-generated attacks, organisations and te
 
 - Keep to Rails conventions, 37signals style: RESTful controllers (each game move is its own resource), and behaviour on the models in concerns (`ShiftAttempt::Reportable`, `ShiftAttempt::Clocked`…). No service objects; plain Ruby objects are nouns under their model (e.g. `ShiftAttempt::Scorecard`). *(Changed during M3: originally `Shift::Engine` and `Scoring::Calculator`.)*
 - Every feature ships with model and unit tests plus at least one system test for the happy path.
-- **The server is the single source of truth.** Every game action (open email, expand headers, verify, click link, submit credentials, report, complete task) is a POST that the server records and applies to the clock. The client never computes the score, the clock or the outcome.
-- **Never send hidden answers to the browser:** no `legit` flags, red-flag lists, task-to-link mappings or technique tags before the debrief.
+- **The server is the single source of truth.** Every game action (open message, expand headers, verify, click link, submit credentials, reply, report, flag, archive, clock off) is a POST that the server records with its own timestamp. The client never computes the score, the time or the outcome, and never sends a time.
+- **Never send hidden answers to the browser:** no `legit` flags, expectations, red-flag lists or quotes, link outcomes or technique tags before the debrief.
 - DB constraints (NOT NULL, foreign keys, unique indexes) alongside validations. String-backed enums.
 - Small commits, one milestone per PR, CI green.
 - Write a `CLAUDE.md` in M0 that summarises these conventions.
@@ -69,10 +74,18 @@ Free-form Red campaigns, multiplayer, AI-generated attacks, organisations and te
 5. **Mock login pages never collect anything real.** The lookalike page's "password" field is a game control: the server records only that it was submitted and never stores what was typed. Display a warning in the field placeholder ("Never enter a real password").
 6. Strict Content Security Policy with nonces, `frame-ancestors 'none'`, `force_ssl`, and secure cookie flags.
 7. Rate limiting (Rails 8 `rate_limit`) on sessions, registrations, password resets and game actions.
-8. **Anti-cheat:** a shift attempt is created server-side with a random token. Actions must reference an open attempt owned by the current user. Each user gets XP only for their first completed attempt per shift. The clock is enforced server-side, and actions after it runs out are rejected.
+8. **Anti-cheat:** a shift attempt is created server-side with a random token. Actions must reference an open attempt owned by the current user. Each user gets XP only for their first completed attempt per shift. Time is measured server-side, and actions on a finished or expired attempt are rejected.
 9. Brakeman and bundler-audit must pass in CI.
 
 ## 5. Data model
+
+> **M6b changes:** `Task` and `due_at_minute` go; `Shift` swaps `time_budget_minutes` for
+> `par_minutes`; `Message` swaps `arrives_at_minute` for an arrival trigger (`start`,
+> `after_handled`, `after`) and gains `expects` and `urgent_within`; `RedFlag` gains `quote`;
+> `ShiftAttempt` gains `relaxed` and status `clocked_off`/`expired`, and loses `clock_minutes`;
+> `AttemptAction` loses `minute`/`cost_minutes` in favour of its timestamp, gains `archive`,
+> `send_reply` and `clock_off`, and loses `complete_task`; `User` gains `relaxed_mode`. The model
+> below is as built in M3–M6.
 
 ```
 User
@@ -160,6 +173,10 @@ Badge / UserBadge          (as before)
 ```
 
 ## 6. Shift engine & scoring
+
+> **Superseded by M6b ("The inbox is the job").** This section describes the engine as built in
+> M3–M6: a task list, a minute clock driven by action costs, and live meters. M6b replaces the tasks,
+> the clock and the meters, and changes the scoring. Where the two disagree, M6b wins.
 
 Implement as concerns on `ShiftAttempt` (each move is a method that checks it's allowed, logs it, advances the clock and returns the logged action) and `ShiftAttempt::Scorecard` (pure function over the action log). Both must be fully unit-tested.
 
@@ -258,6 +275,162 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - The phone shows one screen at a time (conversation list or one conversation). There are no headers to expand and no hovering: the sender's number or chat account is all there is. Attachments are for emails only.
 - **Done when:** the system test passes and the message shift is playable.
 
+### M6b — The inbox is the job
+A redesign of Blue's shift after playtesting. The old engine leaked answers: the task list told you
+when you were done, and ticking a task off revealed which look-alike message was the fake. "Wait for
+new mail (N min)" told you exactly when the next message would land, and the live meters and
+compromise alert told you mid-shift that you'd got something wrong. Genuine messages without a task
+link scored nothing however you handled them. M6b replaces the task list, the minute clock, the
+meters and the wait button.
+
+**Ending a shift**
+- A shift is a fixed set of messages, and it **ends when every one has been dealt with**. The player
+  goes straight to the debrief.
+- There's no task list, no wait button and no "End shift" button. A **Clock off early** button ends the
+  shift early (status `clocked_off`, move `clock_off`), and anything left counts as ignored. Clocking off
+  never earns the speed bonus.
+- The inbox shows only what's in it, never a total, so the player can't tell whether more is coming.
+
+**Dealing with a message.** Each message ends in one of three states:
+- **Reported**: the player thinks it's a phish.
+- **Done**: they replied, or acted through its link, then archived it.
+- **Archived**: nothing was needed.
+
+Flags are notes made along the way. They don't finish a message.
+
+**How messages arrive.** Authored per message:
+- `arrives: start`: in the inbox when the shift begins.
+- `after_handled: 2`: arrives once any 2 messages have been dealt with.
+- `after: courier_slot`: a follow-up, arriving once that message has been dealt with.
+
+The rules:
+- Triggers depend only on *that* a message was dealt with, never on whether it was handled right.
+  For example, there's no "thanks for reporting" from security after a correct report.
+- No branching for now: a message always triggers the same follow-up, whichever reply was sent.
+- The importer checks that every message can arrive and that no triggers loop.
+- **A fake never arrives after the genuine message it imitates.** A phish with `imitates: <key>`
+  arrives at the start, or on exactly the same trigger as that genuine message (and is then placed
+  above it). Otherwise the player could act on the real one first and spot the fake as a duplicate,
+  instead of having to decide between them. The importer checks this.
+- **Phishes get follow-ups too.** If any genuine message has an `after:` follow-up, at least one phish
+  must have one as well (the attacker chasing: "Did you get my invoice?"). Otherwise "something arrived
+  after I reported that" would mean it was genuine. The importer checks this.
+- The starting inbox order is shuffled per attempt, seeded from the attempt token.
+
+**What each message expects** (hidden on the server, like `legit`):
+- Each genuine message has `expects: reply | act | archive`. A phish expects a report.
+- `act` means doing the thing through the message's link, on a portal page.
+- `reply` means sending any of its canned replies whose outcome is `safe`. Replies gain a fourth
+  outcome, `poor` (an unhelpful or rude answer to a genuine message): the message counts as dealt
+  with, but scores like archiving it without doing what was needed.
+- A genuine message can be urgent: `urgent_within: 10` means deal with it within 10 minutes of its
+  arrival.
+
+**Scoring** (all of it revealed only in the debrief):
+
+| The player did this | To a genuine message | To a phish |
+|---|---|---|
+| Handled it as expected | `+points`, half if an urgent one was late | +30 for reporting |
+| Archived it without doing what was needed, or sent a poor reply | `−points / 2` | 0 |
+| Left it unhandled when the shift ended (clocked off, or expired) | `−points / 2`, or 0 if it expected archiving | 0 |
+| Reported it | −15 | |
+| Fell for it (signed in, ran a file, handed over a code) | | −50 |
+| Clicked a bait link but backed out (near miss) | | −10 |
+
+Red flags and hints score as before: +each flag's points, −10 per wrong flag, and each hint costs its
+`penalty_percent` of the maximum. Total = message points + flags + speed bonus − hints, floored at 0.
+Stars are 1–3 by thresholds of the maximum, and 3 stars needs no compromise.
+
+**Lazy play must never pay.** The scorecard tests, and the importer for every shift, play these
+strategies and require each to score **below 1 star** and below a careful player:
+- report everything;
+- archive everything;
+- clock off at once;
+- flag every sentence of every message, then report everything.
+
+The importer rejects a shift where any of them reaches 1 star, so content can't drift into an
+exploit.
+
+**Time**
+- Time is real time, measured on the server from the start of the attempt. **No clock is shown.**
+- **Calling the sender back** is instant but adds a **30 s time penalty** to the attempt's elapsed
+  time. Every other move is free.
+- **Speed bonus:** each shift has a target time (`par_minutes`). Only a **cleared inbox** earns it
+  (never clocking off or expiry). The player gets +20 for each full 5-minute block under par, times
+  the share of messages handled as expected (phishes reported, genuine messages as they expected), so
+  rushing through and getting things wrong earns little. Nothing over par, and no per-second scoring.
+- An attempt left open for 2 hours closes the next time it's visited, and anything unhandled counts
+  as ignored.
+- Elapsed time and penalties are computed only on the server. The browser never sends a time.
+
+**Relaxed mode** (a site-wide account setting, on the account page): no speed bonus and no urgency
+penalties. It's copied onto the attempt when it starts (`shift_attempts.relaxed`), so changing the
+setting mid-shift does nothing. Relaxed and timed scores are kept separately for the M9 leaderboards,
+which count each player's **first** scored attempt per shift only: a replay is faster because the
+player already knows the answers. This is also the accessible option for
+anyone who doesn't want to be timed (WCAG 2.2.1).
+
+**No clues during the shift**
+- No productivity or security meters, and no compromise alert. The debrief says what happened ("4
+  minutes in, someone signed in as you from abroad").
+- After the player signs in on a bait page, it quietly sends them on to a plausible page, as real
+  phishing kits do.
+- Real portals end on the same kind of plain "Submitted" confirmation, so neither page says whether
+  the player was right.
+
+**Fine-grained flags**
+- In flag mode the player can **highlight any words** by dragging across them, such as "within 12
+  hours" or "Dear valued customer".
+- **Clicking without dragging flags the whole sentence.** Sentences are reachable by Tab and Enter, so
+  this is also the keyboard and touch route.
+- Headers (sender, To, Reply-To, subject) stay as whole parts. Clicking a highlight removes it.
+- **Red flags are authored as quoted phrases:** `{ quote: "within 12 hours", in: p1, points, label,
+  explanation }`. The importer checks the quote appears exactly once in that paragraph. Header red
+  flags keep `anchor: from` and so on.
+- **The importer splits every paragraph into sentences with neutral ids** (`p1s1`, `p1s2`…). Every
+  sentence gets one, so the markup says nothing about where the red flags are.
+- The browser posts only the paragraph and the character range of the selection. The quote never
+  reaches the page.
+- **Both sides count characters the same way:** a paragraph's text is its text nodes in document
+  order, with each run of whitespace collapsed to one space and the ends trimmed. The importer works
+  this out and stores it, the browser applies the same rule to the element's `textContent`, and the
+  server rejects ranges outside it.
+- A quote must sit inside one sentence; the importer rejects quotes that cross a sentence boundary.
+- **What counts as a hit:**
+  - A highlight finds a red flag if it covers **at least 60%** of the quote's characters and is **no
+    longer than twice the quote, or the quote plus 20 characters**, whichever is longer. Highlighting
+    a whole paragraph to catch everything doesn't count.
+  - A sentence click finds **every** red flag whose quote is in that sentence.
+  - Each red flag scores once, however many flags found it. A flag that finds nothing, including a
+    highlight that overlaps a quote but is too long, is a wrong flag (−10).
+- **The debrief shows each message with the player's highlights and the real red flags marked on
+  the text:** caught, missed, and flagged by mistake.
+
+**What goes**
+- The `tasks` table and `due_at_minute`.
+- Per-move minute costs (`action_costs`) and the minute clock.
+- The productivity and security meters, and the wait button.
+
+What stays: the action log, opaque message refs, the in-game browser, canned replies, hints, the
+Purple debrief, XP only for the first scored attempt, and `imitates` (now in terms of triggers).
+
+**Also update** `CLAUDE.md` (the game moves, and "actions after the clock runs out" becomes "actions on
+a closed or expired attempt"), the README, and the "Productive Paranoid" badge, which becomes "handle
+every genuine message as it needed and report every phish in a single shift".
+
+**Content.** Re-author all four shifts for this model. Each gets:
+- genuine messages that need a reply (like Sam's text) or an action;
+- at least one triggered follow-up;
+- a genuine message that looks suspicious;
+- red flags as quoted phrases.
+
+**Done when:**
+- System tests cover clearing an inbox that has a triggered follow-up, clocking off early, relaxed
+  mode against timed mode, the 30 s call penalty, and flagging by highlight and by sentence. They also check that no
+  score, outcome, red-flag quote or expectation reaches the page mid-shift.
+- The scorecard, the trigger rules (including imitation order and phish follow-ups), the
+  highlight-matching rules and the lazy-play strategies are unit-tested.
+
 ### M7 — Red's Workshop
 - Models from section 5 (Target, TargetOption, BotPersona, RedCampaign). Seed 3 bot personas. Extend the importer for `content/targets/*.yml`.
 - Workshop flow: target list → recon brief → card builder (slots, budget bar, live email preview via Turbo Frame) → launch → animated bot results → Purple debrief.
@@ -269,7 +442,7 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - XpEvent (with `side`) on scored completion; update that side's XP and level and `xp_total` in one transaction.
 - Onboarding: "Which side do you want to try first?" Then a side switcher on the dashboard.
 - Streak logic with tests across day boundaries.
-- Badges: First Catch, Eagle Eye (all flags, no hints), Clean Shift (3 stars), Productive Paranoid (all tasks done + all phish reported), Near Miss Ninja (close 3 bait pages before submitting), 7-Day Streak, **Red:** Fooled Carol, Budget Hacker (3 stars with half the budget left), **Both:** Purple Belt (3 stars on a shift and on its matching target).
+- Badges: First Catch, Eagle Eye (all flags, no hints), Clean Shift (3 stars), Productive Paranoid (every genuine message handled as it needed + every phish reported), Near Miss Ninja (close 3 bait pages before submitting), 7-Day Streak, **Red:** Fooled Carol, Budget Hacker (3 stars with half the budget left), **Both:** Purple Belt (3 stars on a shift and on its matching target).
 - Awarded by a Solid Queue job, with a Turbo Stream toast.
 - **Done when:** every badge rule is unit-tested.
 
@@ -287,6 +460,10 @@ Implement as concerns on `ShiftAttempt` (each move is a method that checks it's 
 - **Done when:** the app is live, sign-up email arrives, and a full shift works in production.
 
 ## 8. Content YAML example
+
+> This is the M3–M6 format. M6b replaces `tasks`, `arrives_at_minute` and anchor-only red flags with
+> arrival triggers, `expects` and quoted red flags; the re-authored shifts in `content/` are the
+> reference once M6b lands.
 
 ```yaml
 # content/tracks/phishing-basics/month-end-at-larkhill.yml
@@ -369,7 +546,7 @@ hints:
 - All milestones complete with green CI (tests, rubocop, brakeman, bundler-audit)
 - ~15 Blue shifts across 3 tracks, 3+ Red Workshop targets, 3 bot personas, 9 badges, ≈12 techniques
 - A new player can choose either side, play it, switch sides, and see separate Red and Blue progress
-- System tests verify that no hidden answers (`legit`, outcomes, task mappings, techniques) appear in any HTML or Turbo Stream before the debrief
+- System tests verify that no hidden answers (`legit`, outcomes, expectations, red-flag quotes, techniques) appear in any HTML or Turbo Stream before the debrief
 - Deployed with backups, error tracking and working email
 - README covers setup, content authoring and deployment
 
