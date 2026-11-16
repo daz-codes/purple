@@ -46,6 +46,45 @@ The plain-English verbs stay: you *play* a mission, *finish* it, or *stand down*
 early" becomes **Stand down**, and "the inbox is the job" becomes "the inbox is the mission".
 P0 renames the code and every page to match.
 
+### Where Purple fits
+
+Purple isn't another hands-on hacking platform. It sits between awareness training and the specialist
+platforms, and leads into them.
+
+| | TryHackMe | XINTRA | **Purple** |
+|---|---|---|---|
+| Teaches | Hands-on technical skills with real tools (Linux, nmap, Burp) | Expert investigation of real attack campaigns, from realistic logs and evidence | **Everyday judgement**, and how attacks work **from both sides** |
+| For | People training for a security career | Working security analysts and incident responders | **Anyone**: students curious about cyber security, and every member of staff at a company |
+| How | Guided rooms on real virtual machines; answers checked as you go | Deep labs in real analysis tools | **A game in the browser**: missions, XP, a light-hearted story; nothing on screen says how you're doing until the debrief |
+| Sides | Mostly separate attack and defence content | Defence only | **Red and Blue mirrored**: build the attack, face it, and see both in the Purple debrief |
+
+**What only Purple does**, and where most effort goes:
+1. **Judgement under realistic ambiguity.** Most messages are genuine work that has to be done.
+   Being paranoid costs points as surely as being careless.
+2. **No tells.** The server holds every answer, and the presentation never gives one away (P2).
+3. **The Red and Blue mirror**, and later players' attacks against each other (section 3, rule 4).
+4. **Measured behaviour**: reporting accuracy, false alarms, work done, checking through a trusted
+   channel, and difficulty from the NIST Phish Scale (P4). These are the numbers a security team wants.
+5. **Anyone can play**: no install, no technical background, and a sense of humour.
+
+**Where Purple would lose.** The technical paths (Break-in, Supply Chain, Forensics) are simulated.
+A player who wants to operate real tools will always prefer TryHackMe; a working analyst will prefer
+XINTRA's real evidence. So the technical paths teach **how an attack works and what to decide**
+("why does this fix fail?", "what do you contain first?", "which build setting lets it in?"), not how
+to drive tools, and they're a ramp towards those platforms, not a replacement.
+
+**Ideas we borrow.**
+- From XINTRA: an attack campaign told through its evidence, by a recurring attacker with habits you
+  learn to recognise. Exercise SOGGY BISCUIT does this in miniature: a handful of artifacts per
+  mission and a dossier, not a whole company network.
+- From TryHackMe: learning paths, leagues, and live contests where players face each other. Purple's
+  version is the competition of players' attacks.
+
+**Where next.** The last track of each technical path ends with an honest "where next" panel that
+points players who want to go deeper towards hands-on and specialist training, and towards
+recognised entry routes into the field (section 9). Pointing outwards builds trust with teachers and
+security teams, which matters more to Purple than keeping every player.
+
 ## 2. Assessment of the review suggestions
 
 Class names here are the code as it is today; P0 renames `Shift…` to `Mission…`.
@@ -185,6 +224,11 @@ real teams specialise in, so a player can tell what they're good at.
 
 **Exercise SOGGY BISCUIT** is a campaign that cuts across paths (section 4). Each campaign mission
 opens when the path it belongs to is open, so the campaign follows the player's progress.
+
+**Where next.** Each technical path's last track ends with a "where next" panel (section 1, "Where
+Purple fits"): what to learn next, the hands-on and specialist platforms that teach it with real
+tools, and the jobs that use it. Links are plain text in the panel, from a reviewed list in the
+content, never in mission content.
 
 **One ladder.** All paths share one XP economy and one Blue and one Red level, as now. Each path also
 shows its own progress (tracks finished, best stars), so the profile and dashboard can say "strongest
@@ -582,3 +626,70 @@ blue:
 9. **Missions, not shifts.** Every challenge is a mission; "shift" is retired (P0).
 10. **Six paths** (Phishing, Codebreaking, Forensics, Break-in, Supply Chain, Incident Response),
     with hacking split into its specialisms (section 5a).
+11. **Positioning:** Purple teaches judgement and both sides of an attack to anyone, as a game, and
+    leads into hands-on and specialist platforms rather than competing with them (section 1).
+12. **Future audiences:** students starting out in cyber security, and companies training their
+    staff (section 9).
+
+## 9. Beyond phase 2: students and companies
+
+Two audiences shape where Purple goes after phase 2. Neither needs a separate product: both are
+ways of using the same missions, with an organisation around them. This is direction, not a
+commitment. Each item becomes a milestone in a later plan.
+
+### Getting students into cyber security
+
+The aim: a teenager or student who's never thought about cyber security plays a mission, enjoys it,
+and comes away knowing it's a career they could have, and what to do next.
+- **Classroom mode.** A teacher creates a class and gets a join code. Students play without an email
+  address, under a nickname, and the teacher sees the class's progress. Guest play without saved
+  progress for one-off lessons (from `docs/PLAN.md` section 11).
+- **Children's privacy first.** Under-18s, and especially under-13s, need the UK Age Appropriate
+  Design Code and its equivalents designed in: minimal data, no public profile or leaderboard by
+  default, no free text from under-13s, and teacher or parent consent where the law requires it. This
+  must be settled before classroom mode is built.
+- **Lesson packs.** Each path's first track as a ready-made lesson: teacher notes, timings, discussion
+  questions and a short quiz, mapped to the computing curriculum and to the Cyber Security Body of
+  Knowledge (CyBOK) where it fits.
+- **Careers made visible.** Each path names the jobs that use it (security operations analyst,
+  penetration tester, forensics investigator, incident responder), with a short "a day in the life"
+  and the next steps: qualifications, apprenticeships, degree routes, and national schemes and
+  competitions for young people.
+- **Competitions.** School and university leagues, built on the players' attacks competition
+  (section 3, rule 4): teams build attacks, others defend, and the Purple debrief scores both.
+- **A record of learning.** A shareable, verifiable summary of paths completed and mastery, which a
+  student can put on a CV or a university application. Not a certification, and never presented as one.
+
+### Training for companies
+
+The aim: staff training people don't dread, which a security team can measure.
+- **Organisation accounts.** A company workspace with single sign-on (SAML or OIDC), automatic
+  removal of leavers, and its own leaderboard (opt-in, never public).
+- **Assignments.** The security team assigns missions or tracks with due dates (new starters get
+  Phishing Basics in their first week), and staff get gentle reminders.
+- **A manager's view that isn't surveillance.** Team-level measures by default: reporting rate,
+  false alarms, genuine work done, trusted-channel checks, and mastery by technique, weighted by the
+  Phish Scale. Individual results only to the person themselves, and to administrators where the
+  company's policy says so and staff are told. Never "wall of shame" reporting.
+- **Evidence for compliance.** Exportable records of who completed what training and when, for
+  awareness requirements in standards and regulations such as ISO/IEC 27001, Cyber Essentials, NIS2
+  and PCI DSS.
+- **Made to look like their world, safely.** A company can choose a setting close to its own
+  (finance, healthcare, logistics, a school) and set its own role names and processes ("we never
+  change bank details by email"). The fiction-only rule still applies: missions use invented
+  companies and reserved domains, never the customer's real name or domain, so nothing built in
+  Purple could be used as a real phish. Any exception to that would be a separate, explicit decision.
+- **Still not a phishing simulator.** Purple never sends real phishing emails to staff (out of scope
+  in `docs/PLAN.md`). Companies that run those can use Purple as the training that follows.
+- **Commercial basics** when the time comes: per-seat pricing, data processing agreements, data
+  residency, and a security page for customers' procurement teams.
+
+### What this asks of phase 2 now
+
+Nothing extra to build, but some choices made now keep these doors open:
+- Model ownership so a future `Organisation` can own classes, assignments and private leaderboards
+  without reworking users.
+- Keep measures (P4) per person and per technique, so team-level views are only aggregation.
+- Keep every personal datum deletable and exportable, and keep public profiles and leaderboards opt-in
+  friendly.
+- Keep content free of anything that would stop it being used in a classroom.
