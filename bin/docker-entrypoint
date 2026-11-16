@@ -14,7 +14,12 @@ rails_server_command() {
 }
 
 if rails_server_command "$@"; then
+  # Create or migrate all four databases, then load the game content from content/. The import is
+  # idempotent and runs in one transaction, so new shifts go live with each deploy and a bad
+  # content file stops the boot (kamal-proxy keeps serving the old container) instead of
+  # half-importing.
   ./bin/rails db:prepare
+  ./bin/rails content:import
 fi
 
 exec "${@}"
