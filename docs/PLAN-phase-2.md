@@ -62,21 +62,41 @@ adds:
    payload is tokenised and classified, never run.
 3. **Free text in labs, and only in labs.** Phase 1 has no free-text field anywhere in play. Phase 2
    allows free text in *lab inputs*: a terminal command, a form field in a target app, a decoded flag.
+   - Every lab input carries the warning "Never type real passwords or personal details".
    - Capped at 200 characters, with control characters stripped.
    - Evaluated only by the simulator, and always rendered escaped.
-   - Saved only on the player's own attempt, so their debrief can show what they typed and what it
-     did, and Blue's patch can replay their real attacks. It's never shown to other players and is
-     deleted with the attempt.
+   - Filtered from the server logs (`filter_parameters`), and never shown on public profiles or
+     leaderboards.
+   - Saved on the player's attempt, so their debrief can show what they typed and what it did, and
+     Blue's patch can replay their real attacks. Deleted with the attempt.
    - Private-detail sharing stays chip-only, exactly as M7b.
-4. **Answers stay on the server.** Flags, lab states, which inputs succeed, which fix holds and what
+4. **Playing against other players' attacks.** A long-term aim is a big competition where everyone's
+   defences face everyone's attacks. So, unlike phase 1, an attack one player builds in a Red lab can
+   be used against other players, with these safeguards:
+   - **Opt-in** when the attack is submitted ("your attack may be used against other players"), and
+     the author's leaderboard opt-out is honoured.
+   - **Only attacks travel.** What's shared is an input the recogniser classified as an attack,
+     re-rendered from its tokens and classification, never the raw text, so stray personal details
+     or abuse can't reach anyone else.
+   - **No spoilers.** Another player's working payload is a Red lab's answer. It's only shown to a
+     player who has finished that Red stage. Before then, it's only used inside Blue's patch replay,
+     with its text hidden until the debrief.
+   - **Moderation.** Rendered escaped, with a "report this attack" button.
+   - The competition format (seasons, credit by display name or anonymously) comes in a later
+     milestone. From P5, the data model keeps each shared attack's author and their consent.
+5. **A password on the persona card.** The card gains a generated, fictional password chip (this
+   reverses M7b's "no password on the card"). Sign-in pages take it by picking the chip, like any other
+   detail: there is still no password box to type into, so mock pages never take typed passwords. P2
+   updates CLAUDE.md's security rule 5 and the M7b section of `docs/PLAN.md` to match.
+6. **Answers stay on the server.** Flags, lab states, which inputs succeed, which fix holds and what
    the next turn of an incident brings are never in HTML, data attributes, JSON or Turbo Streams.
    Flags are compared server-side, in constant time, against a stored digest.
-5. **Fiction only, extended.** The reserved-domain rule still applies. Nations, militaries, units,
+7. **Fiction only, extended.** The reserved-domain rule still applies. Nations, militaries, units,
    bases and package indexes are invented too: no real country, armed force, APT name or package
    registry. Real incidents are re-enacted by their *mechanism* ("a 2021 supply-chain attack on
    internal package names") with a short, factual "based on" note in the debrief, never with real
    companies' assets.
-6. **Nothing operational.** Labs teach well-documented mechanisms at the depth of OWASP or
+8. **Nothing operational.** Labs teach well-documented mechanisms at the depth of OWASP or
    PortSwigger training labs. Payloads only work against our simulator's fictional schema.
    Industrial control (OT) scenarios are decision-making ("isolate the pump controller?"), never
    instructions for real equipment.
@@ -127,7 +147,8 @@ supplies, its water and its pride.
 All challenge kinds live in the same track list and the same XP economy. Tracks unlock by tier: a
 tier opens once the player has finished a set number of challenges in the tier before (set per
 tier, around three). Within a tier, tracks can be played in any order. The dashboard always suggests
-the next challenge. The tiers:
+the next challenge. A player who has already played a track before tiers arrive keeps access to it:
+tiers only ever unlock, never lock. The tiers:
 
 | Tier | Tracks | Kinds |
 |---|---|---|
@@ -164,6 +185,9 @@ the next challenge. The tiers:
      image's least significant bits, a packet log with data hidden in DNS subdomains
 - **Scoring:** flags found, hints used (as in phase 1), and wrong submissions, which are capped and
   rate-limited so guessing doesn't pay.
+- **Checking a flag:** the submission and the authored flag are normalised the same way before the
+  digests are compared: Unicode NFKC, case folded, whitespace collapsed, and leading or trailing
+  punctuation dropped. So "Fuel depot" and "fuel depot." both count.
 - **Intercept of the day:** one daily puzzle that keeps a streak going. It earns Blue XP like any
   challenge.
 - **First taste of Exercise SOGGY BISCUIT.** The intercepts introduce TRUCULENT TEAPOT and Puffin
@@ -192,14 +216,15 @@ is locked until enough tier-1 challenges are finished.
   - a payment portal that asks for bank details, not a password
   - a browser-in-the-browser pop-up with a fake address bar *inside* the page, so only the
     in-game browser's own address bar is trustworthy
-- The sign-in page treats the password like any other detail. Genuine SSO accepts the persona's
-  password chip. A lookalike page records it as handed over.
+- The sign-in page treats the password like any other detail (section 3, rule 5). Genuine SSO
+  accepts the persona's password chip. A lookalike page records it as handed over.
 - Content tests: every template is used by at least one genuine and one malicious link, and
   `Shift::LazyPlay` gains a "judge the page" strategy that must stay under one star.
 
 **Verification is a choice of channel.** Replace "Verify sender" with **Check this**, which offers:
-- **Call the number in this message.** The attacker answers and reassures you. It costs time and
-  earns nothing.
+- **Call the number in this message.** Whoever answers reassures you: the attacker on a phish, the
+  real sender on a genuine message. It costs time and teaches nothing, because the lesson is the
+  channel you chose, not what you heard. Author both kinds of answer to sound alike.
 - **Call someone from the directory.** Their scripted answer is the truth (`verify_result`).
 - **Go to the portal yourself.** A bookmarks bar in the in-game browser opens the real portal,
   which shows whether there really is an invoice, an expired password or a new supplier waiting.
@@ -229,14 +254,22 @@ test verifies through the directory and through a bookmark; no outcome, landing 
 
 - **The AI briefing assistant** is a scripted, fictional assistant on the play screen that summarises
   an email when asked. Its summaries are authored. An injected message's summary has been "hijacked",
-  and the debrief explains prompt injection. It never calls a real model.
+  and the debrief explains prompt injection. It never calls a real model. Genuine summaries recommend
+  actions too ("reply to confirm the slot"), so a summary telling you to do something is never the
+  tell by itself.
+- **View raw** and **Select all** are free and offered on every message, so using them hints at
+  nothing.
 - **Hidden content is always a red flag.** It has no legitimate use in the game, as in real life.
   Each trick is authored as a red flag on the message. Finding and flagging it earns the usual
   flag points, and the debrief praises the check ("You selected the text and found the instructions
   hidden in white").
 - The CSP blocks inline styles, so tricks are importer-allowlisted Tailwind classes (hidden-colour
   text, tiny text) with neutral names. They're in the HTML, but that's fine: looking at the source
-  is exactly the skill being taught.
+  is exactly the skill being taught. The importer strips `class` today, so P3 adds an explicit list of
+  allowed classes.
+- Homoglyph domains need a Punycode rule in `Content::ReservedNames` (the encoded host must still be
+  under a reserved domain). Zero-width and right-to-left characters are tested against the
+  character counting shared by the browser and the server (from #20), so flags and notes still land.
 - New techniques: T1027 (obfuscation), T1036.002 (right-to-left override), a prompt-injection
   technique, and homoglyph lookalike domains under T1583.001.
 
@@ -310,8 +343,9 @@ a system test misses a technique and is offered a variant of it; replaying a see
   - a stored procedure that concatenates inside, which fails
   - a WAF rule, which only partly holds
 
-  Then **replay**: the saved payloads from Red, plus a canned set, run against the chosen fix, and
-  the player watches the bad fixes fall. That replay is the Purple moment.
+  Then **replay**: the player's own saved Red payloads, other players' shared attacks (section 3, rule
+  4) and a canned set run against the chosen fix, and the player watches the bad fixes fall. That
+  replay is the Purple moment.
 - New techniques: T1190 (exploit a public-facing app).
 - **XP:** the Red half earns Red XP and the Blue half earns Blue XP, first scored attempt only.
 
@@ -419,6 +453,9 @@ Lab                      shift_id, screens (jsonb), recognisers (jsonb), dataset
 Campaign / Mission       campaign_id, position, shift_id, briefings by prior state (held/breached)
 CampaignProgress         user_id, campaign_id, mission states
 DossierEntry / UserDossierEntry
+SharedAttack             author (user_id), lab shift, stage, recognised tokens/classification (never raw
+                         text), consent_at, reports_count; hidden from players who haven't finished
+                         that Red stage
 TechniqueMastery         user_id, technique_id, side, reported, done, false_positives,
                          compromises, trusted_checks, weighted_score
 WorkshopCard             gains: beaten_by
@@ -479,10 +516,12 @@ blue:
    light-hearted (section 4).
 3. **Audience:** one game. The labs are challenges on the same ladder, further along than the
    phishing basics (section 5a), not a separate product.
-4. **What a player types into a lab** (a SQL payload, a terminal command) is saved on their own
-   attempt. That lets their debrief show "you typed this, and here's the query it built", and lets
-   Blue's patch replay their real attacks. It's never shown to anyone else and is deleted with the
-   attempt.
+4. **Free text is allowed in labs, with a warning** (section 3, rule 3). What a player types (a SQL
+   payload, a terminal command) is saved on their own attempt, so their debrief can show "you typed
+   this, and here's the query it built".
 5. **Red labs earn Red XP** and count on the Red leaderboard, alongside the Workshop.
 6. **Hidden text is always malicious** in the game, as in real life. Spotting it is credited, and it
    needs no harmless counterpart (section 2).
+7. **Players' attacks can be played by other players**, building towards a big competition, with the
+   safeguards in section 3, rule 4.
+8. **A password on the persona card** is fine: a generated chip, never typed (section 3, rule 5).
