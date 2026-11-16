@@ -39,7 +39,11 @@
     <footer class="border-t border-line">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-sm text-ink-muted flex flex-wrap gap-x-6 gap-y-2 justify-between">
         <p>Every company, person and domain in Purple is fictional. Never enter a real password.</p>
-        <p>&copy; <%= Date.current.year %> Purple</p>
+        <nav aria-label="Legal" class="flex gap-x-6">
+          <%= link_to "Privacy", privacy_path, class: "hover:text-ink underline" %>
+          <%= link_to "Terms", terms_path, class: "hover:text-ink underline" %>
+          <p>&copy; <%= Date.current.year %> Purple</p>
+        </nav>
       </div>
     </footer>
   </body>

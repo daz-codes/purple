@@ -75,6 +75,10 @@ Rails.application.routes.draw do
     end
   end
 
+  # Legal pages, linked from the footer and the sign-up form.
+  get "privacy" => "pages#privacy"
+  get "terms" => "pages#terms"
+
   # Health check for load balancers and uptime monitors.
   get "up" => "rails/health#show", as: :rails_health_check
 

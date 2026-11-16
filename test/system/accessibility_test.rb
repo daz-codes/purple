@@ -5,7 +5,8 @@ class AccessibilityTest < ApplicationSystemTestCase
   test "public pages" do
     { root_path => "Attack", new_session_path => "Sign in", new_registration_path => "Create", tracks_path => "Pick a track",
       track_path(tracks(:basics)) => "Month-end", shift_path(shifts(:month_end)) => "Briefing", targets_path => "Red's Workshop",
-      target_path(targets(:month_end_target)) => "Recon", leaderboard_path => "Leaderboard", profile_path("blue_one") => "blue_one" }.each do |path, text|
+      target_path(targets(:month_end_target)) => "Recon", leaderboard_path => "Leaderboard", profile_path("blue_one") => "blue_one",
+      privacy_path => "What we store", terms_path => "Play fair" }.each do |path, text|
       visit path
       assert_text(/#{Regexp.escape(text)}/i)
       assert_accessible

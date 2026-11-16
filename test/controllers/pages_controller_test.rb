@@ -8,6 +8,25 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: /Attack. Defend. Debrief./
   end
 
+  test "the privacy and terms pages are public and flagged as drafts until reviewed" do
+    { privacy_path => "Privacy", terms_path => "Terms of use" }.each do |path, heading|
+      get path
+
+      assert_response :success
+      assert_select "h1", text: heading
+      assert_select "[data-testid=draft-notice]", text: /Draft, not yet reviewed/
+    end
+  end
+
+  test "every page links to the privacy and terms pages, and sign-up mentions them" do
+    get new_registration_path
+
+    assert_select "footer a[href=?]", privacy_path
+    assert_select "footer a[href=?]", terms_path
+    assert_select "form a[href=?]", terms_path
+    assert_select "form a[href=?]", privacy_path
+  end
+
   test "sends a strict content security policy" do
     get root_path
     csp = response.headers["Content-Security-Policy"]
