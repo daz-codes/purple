@@ -45,4 +45,49 @@ class RewardedTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs(only: AwardBadgesJob) { expired.expire_if_stale }
     assert_equal 0, @user.reload.xp_total
   end
+
+  test "an XP failure rolls completion and its final action back so finishing can be retried" do
+    attempt = ShiftAttempt.start(user: @user, shift: shifts(:month_end))
+    attempt.archive(messages(:newsletter))
+    attempt.report(messages(:fake_invoice))
+
+    # #record reloads the user association, so inject the failure for every instance of this user.
+    user_id = @user.id
+    callback = ->(event) { raise "XP unavailable" if event.user_id == user_id }
+    XpEvent.set_callback(:create, :before, callback)
+    begin
+      assert_no_enqueued_jobs(only: AwardBadgesJob) do
+        assert_raises(RuntimeError) { attempt.clock_off }
+      end
+    ensure
+      XpEvent.skip_callback(:create, :before, callback)
+    end
+
+    assert attempt.reload.open?
+    assert_empty attempt.result_content
+    assert_not attempt.actions.any?(&:clock_off?)
+    assert_equal 0, @user.reload.xp_total
+
+    attempt.clock_off
+    assert attempt.reload.scored?
+    assert_equal attempt.score + User::Streaks::STREAK_BONUS, @user.reload.blue_xp
+  end
+
+  test "a failed Red reward leaves the draft available to launch again" do
+    campaign = RedCampaign.start(user: @user, target: targets(:month_end_target))
+    %i[ bank_change spoof link sign_in friday ].each { |key| campaign.choose(target_options(key)) }
+    user_id = @user.id
+    callback = ->(event) { raise "XP unavailable" if event.user_id == user_id }
+    XpEvent.set_callback(:create, :before, callback)
+    begin
+      assert_raises(RuntimeError) { campaign.launch }
+    ensure
+      XpEvent.skip_callback(:create, :before, callback)
+    end
+
+    assert campaign.reload.draft?
+    assert_equal 0, @user.reload.xp_total
+    campaign.launch
+    assert_equal campaign.score + User::Streaks::STREAK_BONUS, @user.reload.red_xp
+  end
 end

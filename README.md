@@ -214,4 +214,6 @@ The importer enforces these rules:
 
 _Coming in M10: Kamal 2 to a single VPS, with Thruster in front of Puma._
 
-See `CLAUDE.md` for project conventions and security rules.
+See `CLAUDE.md` for project conventions and security rules, and
+[`docs/CODE_STRUCTURE.md`](docs/CODE_STRUCTURE.md) for concern dependencies, cache invalidation
+and historical result snapshots.

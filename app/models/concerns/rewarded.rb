@@ -7,7 +7,9 @@ module Rewarded
   extend ActiveSupport::Concern
 
   included do
-    after_update_commit :reward, if: :just_finished?
+    # XP and streaks must commit with completion, so a failed award leaves the round playable.
+    after_update :reward, if: :just_finished?
+    after_update_commit :check_badges, if: :just_finished?
   end
 
   private
@@ -20,6 +22,9 @@ module Rewarded
         user.award_xp(side:, amount: score, reason: xp_reason, source: self, at: finished_at) if scored?
         user.record_play(side:, source: self, at: finished_at)
       end
-      AwardBadgesJob.perform_later(user, self)
+    end
+
+    def check_badges
+      AwardBadgesJob.perform_later(user, self) if user.earns_xp?
     end
 end

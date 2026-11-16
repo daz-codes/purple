@@ -140,8 +140,8 @@ export default class extends Controller {
     const range = document.createRange()
     range.setStart(block, 0)
     range.setEnd(node, offset)
-    const before = range.toString().replace(/\s+/g, " ").replace(/^ /, "").length
-    return Math.min(before, block.textContent.replace(/\s+/g, " ").trim().length)
+    const before = Array.from(range.toString().replace(/\s+/g, " ").replace(/^ /, "")).length
+    return Math.min(before, Array.from(block.textContent.replace(/\s+/g, " ").trim()).length)
   }
 
   clickOffset(event, block) {
@@ -161,14 +161,15 @@ export default class extends Controller {
     let count = 0, started = false, afterSpace = false, start = null, last = null
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent
-      for (let i = 0; i < text.length; i++) {
+      for (let i = 0; i < text.length;) {
+        const character = String.fromCodePoint(text.codePointAt(i))
         if (!start && count >= from) start = [ node, i ]
         if (start && count >= to) {
           range.setStart(...start)
           range.setEnd(node, i)
           return range
         }
-        if (/\s/.test(text[i])) {
+        if (/\s/.test(character)) {
           if (started && !afterSpace) count++
           afterSpace = true
         } else {
@@ -176,6 +177,7 @@ export default class extends Controller {
           afterSpace = false
           count++
         }
+        i += character.length
       }
       last = node
     }

@@ -215,6 +215,8 @@ class ShiftAttempt::Scorecard
 
   attr_reader :elapsed_seconds
 
+  def shift = @shift
+
   def relaxed? = @relaxed
   def cleared? = @cleared
 
@@ -313,9 +315,13 @@ class ShiftAttempt::Scorecard
   end
 
   private
-    # A message removed by a later content import no longer counts either way.
+    # Finished attempts supply the read-only content captured when they were judged.
     def shift_messages
-      @shift_messages ||= @shift.messages.includes(:techniques, :red_flags, :links).to_a
+      @shift_messages ||= if @shift.association(:messages).loaded?
+        @shift.messages.to_a
+      else
+        @shift.messages.includes(:techniques, :red_flags, :links).to_a
+      end
     end
 
     # Moves can only be made on a message once it has arrived, so any logged against one that never did
