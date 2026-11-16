@@ -1,0 +1,17 @@
+<%= @error_class %>: <%= @message %>
+
+When:    <%= @occurred_at.utc.iso8601 %>
+Handled: <%= @handled ? "yes" : "no" %>
+Source:  <%= @source.presence || "unknown" %>
+Context: <%= @context_keys.any? ? @context_keys.join(", ") : "none" %>
+
+Backtrace (app lines):
+<% if @backtrace.any? -%>
+<% @backtrace.each do |line| -%>
+  <%= line %>
+<% end -%>
+<% else -%>
+  (none: the error came from outside the app's code)
+<% end -%>
+
+Further errors like this one won't be emailed for an hour. See them all with: bin/kamal logs
