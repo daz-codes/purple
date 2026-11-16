@@ -10,26 +10,45 @@
 Phase 1 is a solid, honest inbox trainer: the server holds every answer, nothing on screen says how
 you're doing, and the Purple debrief teaches. Playtesting and a review point at four gaps:
 
-1. **The setting is one office.** Every shift is a working day at Larkhill Finance. The stakes are
+1. **The setting is one office.** Every mission is a working day at Larkhill Finance. The stakes are
    invoices and gift cards.
 2. **The attack is almost always a message.** 19 techniques, nearly all pretext, sender or lure.
    No exploitation, no cryptography, no systems, no incident response.
 3. **Red is a budgeting puzzle.** Choosing one card per slot is safe and clever, but it never feels
    like breaking in.
 4. **Some answers leak through the presentation, and learning isn't measured.** Sign-in pages and
-   download prompts only ever appear on malicious paths. One shot per shift means a mistake uses up
+   download prompts only ever appear on malicious paths. One shot per mission means a mistake uses up
    the scenario, and nothing shows a player getting better.
 
-Phase 2 opens with something new and fun: CTF-style signals puzzles (P1). Then it fixes the fairness
-and learning gaps (P2–P4), and widens the game with simulated hacking labs based on real incidents
-and a tongue-in-cheek military campaign against a recurring attacker (P5–P9).
+Phase 2 starts by renaming things and organising the game into paths (P0), then opens with something
+new and fun: CTF-style codebreaking puzzles (P1). Then it fixes the fairness and learning gaps
+(P2–P4), and widens the game with simulated hacking labs based on real incidents and a
+tongue-in-cheek military campaign against a recurring attacker (P5–P9).
 
-**One ladder, many kinds of challenge.** Everything sits in one progression, not separate products.
-Inbox and phone shifts, signals puzzles, deception tricks, labs, terminals and incidents are all
-challenges on the same track list, and earn the same XP. The phishing basics come first. The
-technical labs sit further along, unlocked as the player progresses (section 5a).
+**One ladder, many paths.** Everything sits in one progression, not separate products. Inbox and
+phone missions, codebreaking puzzles, forensics, deception tricks, labs, terminals and incidents are
+all missions on one of six **paths**, and earn the same XP. Phishing comes first. The technical paths
+open as the player progresses (section 5a).
+
+### Words we use
+
+Phase 1 called each round a **shift**, which makes the game feel like work. Phase 2 drops the word.
+
+| Word | Means | Was |
+|---|---|---|
+| **Mission** | One playable challenge of any kind: an inbox, a phone, a codebreaking puzzle, a lab, an incident | shift |
+| **Path** | A skill area, such as Phishing or Codebreaking (section 5a) | (new) |
+| **Track** | A themed series of missions within a path, played in order | track |
+| **Campaign** | A story told across missions from several paths, such as Exercise SOGGY BISCUIT | (new) |
+| **Attempt** | One go at a mission | attempt |
+
+The plain-English verbs stay: you *play* a mission, *finish* it, or *stand down* early. "Clock off
+early" becomes **Stand down**, and "the inbox is the job" becomes "the inbox is the mission".
+P0 renames the code and every page to match.
 
 ## 2. Assessment of the review suggestions
+
+Class names here are the code as it is today; P0 renames `Shift…` to `Mission…`.
 
 | Suggestion | Checked against the code | Verdict | Where it goes |
 |---|---|---|---|
@@ -37,12 +56,12 @@ technical labs sit further along, unlocked as the player progresses (section 5a)
 | **Make verification meaningful** | Confirmed. `ShiftAttempt::Verifiable#verify_sender` is one button that "calls the sender back on a number you already hold" and returns a scripted line for 30s. The M7b staff directory exists but isn't part of verifying. There's no way to go to a portal yourself. | **Adopt.** Choosing *which* channel is the real skill. Real attackers answer the phone number they gave you. | P2 |
 | **Fresh scenarios to show learning; NIST Phish Scale** | Confirmed gap: no variants, no per-technique record. Phish Scale fits what we already author: its *cues* map to red flags, and its *premise alignment* is the Workshop's `relevance` (0–3). | **Adopt.** Difficulty ratings come almost free from existing content. | P4 |
 | **Give practice visible value** | Confirmed: `ShiftAttempt::Finishable#first_scored_attempt?` scores only the first attempt, including a clock-off. That *must* stay: the debrief reveals every answer, so a replay is never a fair test. | **Adopt in a different form.** Keep the first-attempt XP rule. Make practice valuable through **fresh variants** and a **mastery** record, not replays. | P4 |
-| **Connect Red and Blue more closely** | Partly done: a Workshop target names its shift, and the Red debrief has a "Play Blue's side" link. What's missing is the *specific* verification step that beats each card, and a Blue round that contains the player's own attack. | **Adopt.** It's cheap and makes the Purple promise concrete. | P3 |
+| **Connect Red and Blue more closely** | Partly done: a Workshop target names its mission, and the Red debrief has a "Play Blue's side" link. What's missing is the *specific* verification step that beats each card, and a Blue round that contains the player's own attack. | **Adopt.** It's cheap and makes the Purple promise concrete. | P3 |
 
 The review also changes two of my earlier ideas:
 - **"Consequences carry forward"** (miss a phish in mission 1, mission 3 starts with the attacker
   inside) only branches *between* missions, after a debrief has already revealed everything. That
-  keeps the phase 1 rule that nothing inside a shift depends on being right. See section 4.
+  keeps the phase 1 rule that nothing inside a mission depends on being right. See section 4.
 - **Hidden text is different from landing pages.** Genuine services really do show sign-in pages and
   downloads, so those need genuine counterparts (P2). Hiding text in white-on-white or a 1px font
   has no real legitimate use. Hidden text is a red flag to find, just as it is in real life, and
@@ -56,7 +75,7 @@ adds:
 1. **No tell in the presentation.** Every landing template, attachment type, lab screen and terminal
    output that can appear on a malicious path must also appear on a genuine one somewhere in the
    shipped content. (Hidden-content tricks are exempt: finding them *is* the skill, see section 2.) A content test checks this per template, alongside
-   `Shift::LazyPlay`, which gains a "judge by the page alone" strategy that must stay under one star.
+   `Mission::LazyPlay` (today's `Shift::LazyPlay`), which gains a "judge by the page alone" strategy that must stay under one star.
 2. **Simulate, never execute.** Labs, terminals and the Workbench run on authored state machines and
    fictional data. No player input reaches a real database, shell, package index or network. A SQL
    payload is tokenised and classified, never run.
@@ -103,7 +122,7 @@ adds:
 
 ## 4. The setting: Exercise SOGGY BISCUIT
 
-Larkhill Finance stays as the civilian tracks. Phase 2 adds a second world, framed as a **military
+Larkhill Finance stays as the setting for the civilian paths. Phase 2 adds a second world, framed as a **military
 cyber exercise**. Armed forces really do run red-on-blue exercises against an opposing force (OPFOR),
 which gives Red a legitimate role: you're the exercise's OPFOR, not a criminal.
 
@@ -125,7 +144,7 @@ supplies, its water and its pride.
 
   | # | Mission | Stage | Main play |
   |---|---|---|---|
-  | 1 | *Quartermaster's inbox* | Initial access | Inbox shift: phishing the logistics office |
+  | 1 | *Quartermaster's inbox* | Initial access | Inbox mission: phishing the logistics office |
   | 2 | *Kettle chatter* | Command and control | Signals: intercepts and the Workbench |
   | 3 | *Open door* | Exploiting a public-facing app | Lab: SQL injection on the visitor booking portal |
   | 4 | *Borrowed name* | Supply chain | Lab: dependency confusion in the base's software build |
@@ -142,33 +161,66 @@ supplies, its water and its pride.
   missions only, measured in biscuits; ranks as the Blue and Red level titles in this world; mission
   patches as badges (a teapot with a crack in it for *Low tide*).
 
-## 5a. The ladder: how the challenges fit together
+## 5a. Paths: how the missions fit together
 
-All challenge kinds live in the same track list and the same XP economy. Tracks unlock by tier: a
-tier opens once the player has finished a set number of challenges in the tier before (set per
-tier, around three). Within a tier, tracks can be played in any order. The dashboard always suggests
-the next challenge. A player who has already played a track before tiers arrive keeps access to it:
-tiers only ever unlock, never lock. The tiers:
+Six paths, each a skill area with its own tracks, played in order. "Hacking" is split into the parts
+real teams specialise in, so a player can tell what they're good at.
 
-| Tier | Tracks | Kinds |
-|---|---|---|
-| 1. Basics | Phishing Basics, Dodgy Links, Signals 1 (encodings and Caesar) | inbox, phone, signals |
-| 2. Deception | Business Email Compromise, Hidden in Plain Sight (P3), Signals 2 (Vigenère, XOR) | inbox, signals |
-| 3. Exercise SOGGY BISCUIT | Missions 1–3 | inbox, signals, lab |
-| 4. Technical | Web labs (P5), Supply chain (P7), Signals 3 (forensics) | lab, signals |
-| 5. Incident | Missions 4–6, the case-file library (P9) | lab, terminal, incident |
+| Path | What you learn | Tracks, in order | Kinds | Sides |
+|---|---|---|---|---|
+| **Phishing** | Spotting and resisting social engineering | Phishing Basics, Dodgy Links, Business Email Compromise, Hidden in Plain Sight (P3) | inbox, phone | Blue; Red in the Workshop |
+| **Codebreaking** | Encodings and ciphers, and how they break | Encodings (base64, hex, Caesar), Classic Ciphers (Vigenère), Broken Crypto (XOR, a reused one-time pad) | signals | Blue |
+| **Forensics** | Finding what's hidden in files, traffic and logs | Metadata (EXIF, document authors), Hidden Pictures (steganography), Traffic and Logs (DNS tunnelling, log triage) | signals, terminal | Blue |
+| **Break-in** | How web apps and accounts get broken into, and fixed | Injection (SQL injection), Access (default credentials, reused passwords, IDOR), Trust Me (OAuth consent, ClickFix) | lab | Red and Blue |
+| **Supply Chain** | Attacks on the software and services you depend on | Borrowed Name (dependency confusion), Patient Maintainer, Open Bucket | lab | Red and Blue |
+| **Incident Response** | Containing an attack that's already happening | First Responder (exfil triage), Low Tide (control systems) | terminal, incident | Blue |
+
+**How paths open.**
+- Phishing, Codebreaking and Forensics are open from the start, each at its first track.
+- Break-in and Supply Chain open once the player has finished three missions on any path.
+- Incident Response opens once the player has finished the first Forensics track.
+- Within a path, each track opens once a set number of missions (around three) on the track before
+  is finished. Any open track's missions can be played in any order.
+- Paths and tracks only ever unlock, never lock: a player keeps access to anything they've played.
+
+**Exercise SOGGY BISCUIT** is a campaign that cuts across paths (section 4). Each campaign mission
+opens when the path it belongs to is open, so the campaign follows the player's progress.
+
+**One ladder.** All paths share one XP economy and one Blue and one Red level, as now. Each path also
+shows its own progress (tracks finished, best stars), so the profile and dashboard can say "strongest
+at Phishing, just starting Break-in". The dashboard always suggests the next mission.
 
 **XP for every challenge, on both sides.**
-- Blue challenges (shifts, signals, patching labs, incidents) earn Blue XP.
-- Red challenges (the Workshop *and* Red labs, such as the SQL injection and dependency-confusion
+- Blue missions (inbox, phone, codebreaking, forensics, patching labs, incidents) earn Blue XP.
+- Red missions (the Workshop *and* Red labs, such as the SQL injection and dependency-confusion
   attacks) earn Red XP and count on the Red leaderboard.
 - The first-scored-attempt rule applies to every kind.
 
 ## 5. Milestones
 
-### P1 — Signals: intercepts and the Workbench (CTF, part 1)
+### P0 — Missions and paths
 
-- **New shift kind: `signals`.** The player is a signals intelligence analyst with a queue of intercepted TRUCULENT TEAPOT traffic. Each intercept
+A rename and reorganisation, done before anything new is built on top.
+- **Rename in the code:**
+  - `Shift` → `Mission`, `ShiftAttempt` → `MissionAttempt`, and their concerns and tests;
+  - routes `/shifts` → `/missions`, and `/attempts` keeps its name;
+  - `content/tracks/<track>/<shift>.yml` → `content/paths/<path>/<track>/<mission>.yml`;
+  - "Clock off early" → "Stand down" (move `stand_down`, status `stood_down`).
+  It's mechanical, and is cheapest before production has players, so it lands as soon as M10 allows.
+  The tables are renamed in a migration, with strong_migrations' `safety_assured` and a note on why.
+- **Rename in the words:** every page, email, badge, the README, CLAUDE.md and `docs/PLAN.md`'s
+  remaining references.
+- **Paths:** a `Path` model (slug, title, description, position, how it opens). `Track` gains
+  `path_id` and its unlock rule. The three phase 1 tracks move into the Phishing path. The track
+  list page becomes a paths page, showing each path's tracks, which are open, and progress.
+
+**Done when:** no page, email or document says "shift"; the content imports from `content/paths/`;
+the paths page shows Phishing open and the others marked "coming soon" until their missions exist;
+existing attempts, XP and badges are untouched by the rename.
+
+### P1 — Codebreaking and Forensics: intercepts and the Workbench (CTF, part 1)
+
+- **New mission kind: `signals`**, used by the Codebreaking and Forensics paths. The player is a signals intelligence analyst with a queue of intercepted TRUCULENT TEAPOT traffic. Each intercept
   gives up a **flag**, which is a fact needed elsewhere in the story, such as a meeting time, a
   domain or a person's name, and not a random string.
 - **The Workbench**, a CyberChef-style tool: chain operations such as base64, hex, URL decode,
@@ -191,14 +243,14 @@ tiers only ever unlock, never lock. The tiers:
 - **Intercept of the day:** one daily puzzle that keeps a streak going. It earns Blue XP like any
   challenge.
 - **First taste of Exercise SOGGY BISCUIT.** The intercepts introduce TRUCULENT TEAPOT and Puffin
-  Point before the campaign exists. Signals 1 covers puzzle levels 1–2, Signals 2 levels 3–5 and
-  Signals 3 level 6.
-- **The ladder (section 5a) arrives here.** Tracks gain a `tier` and unlock as described there, and
-  Signals 1 sits in tier 1 next to Phishing Basics.
+  Point before the campaign exists. Codebreaking's tracks cover puzzle levels 1–5 (Encodings: 1–2,
+  Classic Ciphers: 3, Broken Crypto: 4–5), and Forensics' first two tracks cover level 6.
+- **Unlocking (section 5a) arrives here**: the rules for opening paths and tracks, on the models P0
+  added.
 
 **Done when:** flags are stored as digests and compared on the server; a system test decodes a
-multi-step intercept with the Workbench; no plaintext or flag appears in the page; a tier-2 track
-is locked until enough tier-1 challenges are finished.
+multi-step intercept with the Workbench; no plaintext or flag appears in the page; Classic Ciphers stays locked
+until enough Encodings missions are finished.
 
 ### P2 — Fair play: no tells, real verification
 
@@ -219,7 +271,7 @@ is locked until enough tier-1 challenges are finished.
 - The sign-in page treats the password like any other detail (section 3, rule 5). Genuine SSO
   accepts the persona's password chip. A lookalike page records it as handed over.
 - Content tests: every template is used by at least one genuine and one malicious link, and
-  `Shift::LazyPlay` gains a "judge the page" strategy that must stay under one star.
+  `Mission::LazyPlay` gains a "judge the page" strategy that must stay under one star.
 
 **Verification is a choice of channel.** Replace "Verify sender" with **Check this**, which offers:
 - **Call the number in this message.** Whoever answers reassures you: the attacker on a phish, the
@@ -230,7 +282,7 @@ is locked until enough tier-1 challenges are finished.
   which shows whether there really is an invoice, an expired password or a new supplier waiting.
   This is the habit we most want to build.
 - Every option costs the same, so the price never hints at the right one.
-- **Time cost:** beginner shifts cost nothing to verify. Intermediate ones cost 15s, advanced 30s.
+- **Time cost:** beginner missions cost nothing to verify. Intermediate ones cost 15s, advanced 30s.
   The speed bonus tapers rather than steps down, so one sensible check never visibly "costs" a star.
 - **Debrief credit** for "checked through a trusted channel before acting" on every high-stakes
   message (payments, credentials, details), whether it turned out genuine or not.
@@ -278,7 +330,7 @@ test verifies through the directory and through a bookmark; no outcome, landing 
   Clarke on the directory number", "Going to the payroll portal yourself"). The Red debrief shows it
   per bot.
 - After a Workshop launch, offer **"Your attack, from the other side"**: a short Blue round on the
-  target's shift with *the player's own email* inserted among the genuine mail. The email is
+  target's mission with *the player's own email* inserted among the genuine mail. The email is
   assembled from the chosen cards' pre-written text, so it's safe. It's practice only (no XP), and
   its debrief shows the step that would have stopped it.
 - The Blue debrief links each phish to the Workshop target that teaches building it.
@@ -289,7 +341,7 @@ View raw and flags it for points; the Red debrief lists
 
 ### P4 — Mastery and fresh variants
 
-- **Scenario families.** A shift can declare `variant_of: <slug>` and the techniques it re-tests,
+- **Scenario families.** A mission can declare `variant_of: <slug>` and the techniques it re-tests,
   with different wording, people and circumstances. Each family needs at least three variants
   before it's published.
 - **Mastery per technique and side**, recorded per user:
@@ -301,9 +353,9 @@ View raw and flags it for points; the Red debrief lists
 
   The profile and dashboard show a mastery grid. A missed technique schedules a fresh variant that
   re-tests it ("You missed a changed-bank-details scam on Tuesday. Here's another one").
-- **XP rules unchanged** for competition: the first scored attempt per shift. Each *variant* is its
-  own shift, so practice on a fresh variant does earn XP and leaderboard points, and replaying a
-  seen shift earns mastery only, marked "practice".
+- **XP rules unchanged** for competition: the first scored attempt per mission. Each *variant* is
+  its own mission, so practice on a fresh variant does earn XP and leaderboard points, and replaying a
+  seen mission earns mastery only, marked "practice".
 - **Difficulty from the NIST Phish Scale.** Each phish gets a rating from its **cues**, counted
   from its red flags and grouped into Phish Scale categories, and its **premise alignment**,
   authored 0–3 as in the Workshop's `relevance`. That gives *least*, *moderately* or *very
@@ -312,7 +364,7 @@ View raw and flags it for points; the Red debrief lists
   These are separate numbers, not one score, so being paranoid shows up as clearly as being careless.
 
 **Done when:** the importer validates families and Phish Scale fields; mastery updates are unit-tested;
-a system test misses a technique and is offered a variant of it; replaying a seen shift earns no XP.
+a system test misses a technique and is offered a variant of it; replaying a seen mission earns no XP.
 
 ### P5 — The Lab engine and the first case file: SQL injection (CTF, part 2)
 
@@ -320,10 +372,10 @@ a system test misses a technique and is offered a variant of it; replaying a see
 - A lab is an authored state machine: **screens** (a fictional web app in the in-game browser, or a
   terminal), **inputs** (free text, within the limits in section 3), and **recognisers** that
   classify each input and move the lab to its next state.
-- `ShiftAttempt` gains lab concerns, such as `ShiftAttempt::Exploiting` and
-  `ShiftAttempt::Patching`. Every input is a POST recorded as an `AttemptAction`, as now.
+- `MissionAttempt` gains lab concerns, such as `MissionAttempt::Exploiting` and
+  `MissionAttempt::Patching`. Every input is a POST recorded as an `AttemptAction`, as now.
 
-**Case file: *Open door*, the visitor booking portal at Puffin Point**
+**Case file: *Open door*, the visitor booking portal at Puffin Point** (Break-in path, Injection track)
 - **Red, three stages.** After every attempt the screen shows **the query the server built**:
   1. Bypass the sign-in. `name = '' OR '1'='1' --` is recognised as a tautology after
      breaking out of the string.
@@ -355,7 +407,7 @@ patch-and-replay; no lab state or accepted pattern reaches the browser.
 
 ### P6 — Exercise SOGGY BISCUIT: the campaign
 
-- A **Campaign** model is an ordered list of missions, each pointing at a shift of any kind (inbox,
+- A **Campaign** model is an ordered list of missions, each pointing at a mission of any kind (inbox,
   signals, lab, terminal, incident), with between-mission state (`held` / `breached`) and
   briefings for each state.
 - The **dossier**: entries unlocked by debriefs, each linked to techniques and the TRUCULENT TEAPOT
@@ -365,13 +417,13 @@ patch-and-replay; no lab state or accepted pattern reaches the browser.
 - **Military flavour:** a theatre map, rank titles, mission patches, and the threat level between
   missions.
 - This picks up section 11.4 of `docs/PLAN.md` (one attacker per track, facts carried across
-  shifts). The rule against branching on results is kept *within* a mission and relaxed
+  missions). The rule against branching on results is kept *within* a mission and relaxed
   *between* missions, for the reason in section 4.
 
 **Done when:** a system test plays missions 1–3 through both branches; a mission's briefing reflects
 the previous result; a standard start works.
 
-### P7 — Case file: *Borrowed name* (dependency confusion)
+### P7 — Case file: *Borrowed name* (dependency confusion, Supply Chain path)
 
 This is based on the 2021 dependency-confusion research, re-enacted with a fictional package index,
 **PyPkg** (`pypkg.example`).
@@ -399,7 +451,7 @@ This is based on the 2021 dependency-confusion research, re-enacted with a ficti
 **Done when:** all three halves play end to end in system tests; the version-resolution recogniser is
 unit-tested.
 
-### P8 — Terminal, log triage and live incident
+### P8 — Terminal, log triage and live incident (Forensics and Incident Response paths)
 
 **Terminal**
 - A simulated shell over an authored fictional filesystem and logs. It accepts an allowlist of
@@ -425,7 +477,7 @@ the exfil and contains the incident.
 ### P9 — Case-file library
 
 Each case file is a mirrored Red/Blue lab based on a real incident's mechanism, written as content
-on the P5/P8 engines. In rough order:
+on the P5/P8 engines and filed on the path it teaches. In rough order:
 
 | Case file | Mechanism | Technique |
 |---|---|---|
@@ -442,18 +494,19 @@ on the P5/P8 engines. In rough order:
 ## 6. Data model additions (sketch)
 
 ```
-Track                    gains: tier (int), unlock_after (count of challenges in the tier before)
-Shift                    kind gains: signals / lab / terminal / incident; side (blue/red) for labs
+Path                     slug, title, description, position, opens (always / after N missions / after a track)
+Track                    gains: path_id, position within the path, unlock_after (missions on the track before)
+Mission (was Shift)      kind gains: signals / lab / terminal / incident; side (blue/red) for labs
                          gains: variant_of_id, phish_scale (jsonb per message), campaign fields below
 Message                  gains: premise_alignment (0–3), tricks (jsonb, allowlisted)
 Link                     landing (template, now independent of outcome)
 DirectoryEntry / Bookmark  (from M7b's directory: who answers truthfully; which portals are bookmarked)
-Intercept                shift_id, key, ciphertext/artefact, flag_digest, hints
-Lab                      shift_id, screens (jsonb), recognisers (jsonb), dataset (jsonb), fixes (jsonb)
-Campaign / Mission       campaign_id, position, shift_id, briefings by prior state (held/breached)
+Intercept                mission_id, key, ciphertext/artefact, flag_digest, hints
+Lab                      mission_id, screens (jsonb), recognisers (jsonb), dataset (jsonb), fixes (jsonb)
+Campaign / CampaignStep  campaign_id, position, mission_id, briefings by prior state (held/breached)
 CampaignProgress         user_id, campaign_id, mission states
 DossierEntry / UserDossierEntry
-SharedAttack             author (user_id), lab shift, stage, recognised tokens/classification (never raw
+SharedAttack             author (user_id), lab mission, stage, recognised tokens/classification (never raw
                          text), consent_at, reports_count; hidden from players who haven't finished
                          that Red stage
 TechniqueMastery         user_id, technique_id, side, reported, done, false_positives,
@@ -465,7 +518,7 @@ AttemptAction            kinds gain: check_via_message / check_via_directory / o
 ```
 
 Every new move is its own resource controller with a one-line `create`. Every new behaviour lives on
-the models as concerns (`ShiftAttempt::Decoding`, `::Exploiting`, `::Patching`, `::Containing`), and
+the models as concerns (`MissionAttempt::Decoding`, `::Exploiting`, `::Patching`, `::Containing`), and
 plain objects are nouns (`Lab::Query`, `Lab::Recogniser`, `Intercept::Workbench`).
 
 ## 7. A case file in YAML (sketch)
@@ -474,8 +527,9 @@ plain objects are nouns (`Lab::Query`, `Lab::Recogniser`, `Intercept::Workbench`
 slug: open-door
 title: "Open door"
 kind: lab
+# content/paths/break-in/injection/open-door.yml
 campaign: soggy-biscuit
-mission: 3
+campaign_step: 3
 based_on: "SQL injection in a public booking form, a top web-app weakness for two decades."
 
 app:
@@ -525,3 +579,6 @@ blue:
 7. **Players' attacks can be played by other players**, building towards a big competition, with the
    safeguards in section 3, rule 4.
 8. **A password on the persona card** is fine: a generated chip, never typed (section 3, rule 5).
+9. **Missions, not shifts.** Every challenge is a mission; "shift" is retired (P0).
+10. **Six paths** (Phishing, Codebreaking, Forensics, Break-in, Supply Chain, Incident Response),
+    with hacking split into its specialisms (section 5a).
