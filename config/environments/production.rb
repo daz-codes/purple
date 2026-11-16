@@ -57,23 +57,32 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
+  # Emails are sent by Solid Queue (deliver_later), so a delivery error fails the job: Solid Queue
+  # keeps it as a failed job and Rails.error reports it, instead of the email silently vanishing.
+  config.action_mailer.raise_delivery_errors = true
 
   # Set host to be used by links generated in mailer templates.
   # APP_HOST is set in config/deploy.yml. The fallback is a reserved .invalid domain that can never
   # resolve, so a missing setting breaks links visibly instead of sending tokens to someone else's site.
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "purple.invalid"), protocol: "https" }
 
-  # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
-  # config.action_mailer.smtp_settings = {
-  #   user_name: Rails.app.credentials.dig(:smtp, :user_name),
-  #   password: Rails.app.credentials.dig(:smtp, :password),
-  #   address: "smtp.example.com",
-  #   port: 587,
-  #   authentication: :plain
-  # }
+  # Outgoing mail goes through any SMTP provider, configured in the encrypted credentials
+  # (bin/rails credentials:edit; see "Deployment" in README.md):
+  #
+  #   smtp:
+  #     address: smtp.example.com
+  #     port: 587
+  #     user_name: ...
+  #     password: ...
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: Rails.app.credentials.dig(:smtp, :address),
+    port: Rails.app.credentials.dig(:smtp, :port) || 587,
+    user_name: Rails.app.credentials.dig(:smtp, :user_name),
+    password: Rails.app.credentials.dig(:smtp, :password),
+    authentication: :plain,
+    enable_starttls: true
+  }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
@@ -85,12 +94,8 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # Only answer requests for the public host (DNS rebinding and Host header attacks), except the
+  # health check, which kamal-proxy calls by the container's address.
+  config.hosts = [ ENV["APP_HOST"] ].compact
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end
