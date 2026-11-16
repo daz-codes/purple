@@ -31,12 +31,24 @@ module ShiftAttempt::Finishable
     end
   end
 
+  # A finished attempt's scorecard is judged against the content captured when it finished, and can't
+  # change, so it's built once (rebuilding the captured content is the expensive part).
   def scorecard
-    content = result_content.present? ? ShiftAttempt::ContentSnapshot.new(result_content).shift : shift
-    ShiftAttempt::Scorecard.new(shift: content, actions:, elapsed_seconds:, cleared: completed?, relaxed:)
+    return build_scorecard(shift) unless finished? && result_content.present?
+
+    @finished_scorecard ||= build_scorecard(ShiftAttempt::ContentSnapshot.new(result_content).shift)
+  end
+
+  def reload(*)
+    @finished_scorecard = nil
+    super
   end
 
   private
+    def build_scorecard(content)
+      ShiftAttempt::Scorecard.new(shift: content, actions:, elapsed_seconds:, cleared: completed?, relaxed:)
+    end
+
     def finish_if_cleared
       finish :completed if open? && inbox_messages.empty?
     end

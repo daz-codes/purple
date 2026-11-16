@@ -7,7 +7,8 @@ module User::Badged
 
   # Awards every badge the source has just earned. Returns the badges that are new.
   def award_badges_for(source)
-    # Serialize concurrent jobs before checking ownership; each badge and its XP commit together.
+    # Serialize concurrent jobs before checking ownership. The badges earned here, and their XP, commit
+    # together: if one fails, none are awarded, and the retried job awards them all.
     with_lock do
       return [] unless earns_xp?
 

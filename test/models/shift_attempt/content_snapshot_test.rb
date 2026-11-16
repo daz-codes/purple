@@ -25,6 +25,26 @@ class ShiftAttempt::ContentSnapshotTest < ActiveSupport::TestCase
     assert attempt.scorecard.messages.all? { |entry| entry.message.readonly? }
   end
 
+  test "a copy taken under an older schema still loads: removed columns are dropped and new ones take their defaults" do
+    captured = ShiftAttempt::ContentSnapshot.capture(shifts(:month_end))
+    captured["retired_column"] = "gone"
+    captured.delete("persona")
+    captured["messages"].each { |message| message.delete("needs") }
+
+    shift = ShiftAttempt::ContentSnapshot.new(captured).shift
+    assert_equal({}, shift.persona)
+    assert shift.messages.all? { |message| message.needs == [] }
+    assert_not shift.has_attribute?(:retired_column)
+  end
+
+  test "a finished attempt builds its scorecard once" do
+    attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
+    attempt.clock_off
+
+    assert_same attempt.scorecard, attempt.scorecard
+    assert_not_same attempt.scorecard, attempt.reload.scorecard
+  end
+
   test "the captured graph resolves story links and private details without querying live messages" do
     shift = shifts(:site_visit)
     snapshot = ShiftAttempt::ContentSnapshot.new(ShiftAttempt::ContentSnapshot.capture(shift)).shift
