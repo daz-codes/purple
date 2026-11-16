@@ -275,7 +275,10 @@ Purple runs at **https://purple.daz.codes** on the same ARM VPS as the other daz
 
 - **The site:** open https://purple.daz.codes, sign up, and confirm the email arrives. Then play a shift.
 - **Backups:** `bin/kamal backup-logs` should show `wrote purple_production-….dump`, and
-  `bin/kamal offsite-logs` should show `copied to …`. Check the file is in the bucket.
+  `bin/kamal offsite-logs` should show `copied to …`. Check the file is in the bucket. Every finished
+  attempt keeps a full copy of its shift's content (see `docs/CODE_STRUCTURE.md`), so dumps grow
+  with play. The log line shows each dump's size, so keep an eye on it and on the bucket's 30-day
+  total.
 - **Errors:** production errors are emailed to `ERROR_ALERTS_TO`, at most once an hour for each
   kind of error (`ErrorAlert`). The full log is in `bin/kamal logs`.
 - **Uptime:** point the monitor at `/up`. It returns 200 when the app has booted.
