@@ -6,15 +6,14 @@
     <p class="mt-3 text-ink-muted">What Purple stores about you, why, and how to have it removed.</p>
   </header>
 
-  <%= render "pages/draft_notice" %>
-
   <div class="space-y-8 leading-relaxed">
     <section aria-labelledby="who">
       <h2 id="who" class="text-xl font-bold">Who runs Purple</h2>
       <p class="mt-2 text-ink-muted">
-        Purple is run by <strong>[to confirm: name or company]</strong>, who is responsible for your
-        data under UK data protection law. Questions and requests go to
-        <strong>[to confirm: contact email]</strong>.
+        Purple is run by <strong class="text-ink">Darren Jones</strong>, an individual based in the
+        UK, who is the controller of your data under UK data protection law (the UK GDPR and the Data
+        Protection Act 2018). Questions and requests go to
+        <%= mail_to "privacy@purple.daz.codes", nil, class: "text-purple-team underline" %>.
       </p>
     </section>
 
@@ -27,6 +26,9 @@
           address and browser, so you can see and sign out your sessions on your account page.</li>
         <li><strong class="text-ink">Your play:</strong> the moves you make in shifts and Workshop
           campaigns, your scores, XP, levels, streaks and badges.</li>
+        <li><strong class="text-ink">Server logs:</strong> the IP address, time and page of each
+          request, used to keep the site secure and fix faults. Logs are overwritten automatically as
+          new ones come in.</li>
       </ul>
       <p class="mt-3 text-ink-muted">
         Everything inside the game is fictional. The staff numbers, passwords and other "private
@@ -36,11 +38,18 @@
     </section>
 
     <section aria-labelledby="why">
-      <h2 id="why" class="text-xl font-bold">Why</h2>
-      <p class="mt-2 text-ink-muted">
-        To run your account and the game: signing you in, scoring your play, keeping your progress and
-        showing leaderboards. We email you only to confirm your address and to reset your password.
-        There's no advertising, no tracking or analytics, and we don't sell or share your data.
+      <h2 id="why" class="text-xl font-bold">Why, and on what basis</h2>
+      <ul class="mt-2 list-disc space-y-2 pl-6 text-ink-muted">
+        <li><strong class="text-ink">To provide the game you signed up for</strong> (contract):
+          your account, signing you in, scoring your play, keeping your progress and showing
+          leaderboards. We email you only to confirm your address and to reset your password.</li>
+        <li><strong class="text-ink">To keep Purple secure and working</strong> (legitimate
+          interests): sign-in records, server logs and reports of errors, which never include your
+          email address or what you typed.</li>
+      </ul>
+      <p class="mt-3 text-ink-muted">
+        There's no advertising, no tracking or analytics, and we don't sell your data or use it for
+        anything else.
       </p>
     </section>
 
@@ -55,30 +64,60 @@
     <section aria-labelledby="cookies">
       <h2 id="cookies" class="text-xl font-bold">Cookies</h2>
       <p class="mt-2 text-ink-muted">
-        One cookie, to keep you signed in. It's needed for the site to work, so there's no cookie banner.
+        Two cookies, both needed for the site to work: one keeps you signed in, and one protects
+        forms from being submitted by other websites and carries one-off messages like "Signed out".
+        There are no tracking cookies, so there's no cookie banner.
       </p>
     </section>
 
     <section aria-labelledby="where">
-      <h2 id="where" class="text-xl font-bold">Where it's kept, and for how long</h2>
+      <h2 id="where" class="text-xl font-bold">Who else handles it</h2>
       <p class="mt-2 text-ink-muted">
-        On a server hosted by <strong>[to confirm: hosting provider and country]</strong>. Emails are
-        sent through <strong>[to confirm: email provider]</strong>. Database backups are
-        kept in <strong>[to confirm: storage provider]</strong> for 30 days. Your data is kept while
-        you have an account.
+        A few providers handle data on our behalf, only to run Purple:
+      </p>
+      <ul class="mt-2 list-disc space-y-2 pl-6 text-ink-muted">
+        <li><strong class="text-ink">Hetzner</strong> hosts the server and database, in Finland (EU).</li>
+        <li><strong class="text-ink">Resend</strong> sends our emails, from its EU region, so it sees
+          your email address and the message.</li>
+        <li><strong class="text-ink">Cloudflare</strong> stores copies of our database backups
+          (R2 storage).</li>
+      </ul>
+      <p class="mt-3 text-ink-muted">
+        Resend and Cloudflare are US companies, so your data may be accessed from the US. Where it
+        is, it's protected by the UK's adequacy arrangements for the US or by the standard data
+        protection clauses in their contracts.
+      </p>
+    </section>
+
+    <section aria-labelledby="how-long">
+      <h2 id="how-long" class="text-xl font-bold">How long we keep it</h2>
+      <p class="mt-2 text-ink-muted">
+        Your account and play are kept while you have an account. When it's deleted, they're removed
+        from the live database straight away and drop out of backups within 30 days. Records of
+        devices you've signed out of are removed when you sign out.
+      </p>
+    </section>
+
+    <section aria-labelledby="age">
+      <h2 id="age" class="text-xl font-bold">Age</h2>
+      <p class="mt-2 text-ink-muted">
+        You need to be 13 or over to make an account. If we learn that an account belongs to someone
+        younger, we'll delete it.
       </p>
     </section>
 
     <section aria-labelledby="rights">
       <h2 id="rights" class="text-xl font-bold">Your rights</h2>
       <p class="mt-2 text-ink-muted">
-        You can ask for a copy of your data, ask us to correct it, or ask us to delete your account
-        and everything linked to it, by emailing <strong>[to confirm: contact email]</strong>. If
-        you're unhappy with how we handle your data, you can complain to the Information
-        Commissioner's Office (ico.org.uk).
+        You can ask for a copy of your data, ask us to correct it, object to how we use it, or ask us
+        to delete your account and everything linked to it, by emailing
+        <%= mail_to "privacy@purple.daz.codes", nil, class: "text-purple-team underline" %>. We'll reply
+        within a month. If you're unhappy with how we handle your data, you can complain to the
+        Information Commissioner's Office at
+        <%= link_to "ico.org.uk", "https://ico.org.uk/make-a-complaint/", class: "text-purple-team underline" %>.
       </p>
     </section>
 
-    <p class="text-sm text-ink-muted">Last updated <strong>[to confirm: date]</strong>.</p>
+    <p class="text-sm text-ink-muted">Last updated 16 November 2026.</p>
   </div>
 </article>

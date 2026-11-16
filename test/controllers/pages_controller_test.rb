@@ -8,13 +8,15 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: /Attack. Defend. Debrief./
   end
 
-  test "the privacy and terms pages are public and flagged as drafts until reviewed" do
+  test "the privacy and terms pages are public, name who runs Purple and have nothing left to fill in" do
     { privacy_path => "Privacy", terms_path => "Terms of use" }.each do |path, heading|
       get path
 
       assert_response :success
       assert_select "h1", text: heading
-      assert_select "[data-testid=draft-notice]", text: /Draft, not yet reviewed/
+      assert_select "a[href=?]", "mailto:privacy@purple.daz.codes"
+      assert_includes response.body, "Darren Jones"
+      assert_not_includes response.body, "[to confirm"
     end
   end
 

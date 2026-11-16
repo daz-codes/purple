@@ -3,31 +3,37 @@
 <article class="max-w-2xl">
   <header class="mb-8">
     <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Terms of use</h1>
-    <p class="mt-3 text-ink-muted">The rules for playing Purple.</p>
+    <p class="mt-3 text-ink-muted">The rules for playing Purple. By making an account, you agree to them.</p>
   </header>
-
-  <%= render "pages/draft_notice" %>
 
   <div class="space-y-8 leading-relaxed">
     <section aria-labelledby="game">
       <h2 id="game" class="text-xl font-bold">Purple is a training game</h2>
       <p class="mt-2 text-ink-muted">
         Purple teaches you to spot and stop cyber attacks by playing both sides. Every company, person,
-        message and web address in it is fictional. It's provided as it is, for learning, and isn't
-        professional security advice.
+        message and web address in it is fictional. It's free, it's provided as it is for learning, and
+        it isn't professional security advice.
+      </p>
+    </section>
+
+    <section aria-labelledby="who-can">
+      <h2 id="who-can" class="text-xl font-bold">Who can play</h2>
+      <p class="mt-2 text-ink-muted">
+        You need to be 13 or over to make an account. One account per person, and keep your password
+        to yourself.
       </p>
     </section>
 
     <section aria-labelledby="fair">
       <h2 id="fair" class="text-xl font-bold">Play fair</h2>
       <ul class="mt-2 list-disc space-y-2 pl-6 text-ink-muted">
-        <li>One account per person. Keep your password to yourself.</li>
         <li>Don't try to get scores or XP you didn't earn by playing: no scripts, bots or tampering
           with the game's requests.</li>
         <li>Pick a display name that's fine for everyone to see. We may rename or remove accounts with
           offensive names.</li>
         <li>Don't attack, overload or probe the Purple website itself. The attacks belong inside the
-          game, against fictional targets.</li>
+          game, against fictional targets. If you find a security problem, please tell us at
+          <%= mail_to "privacy@purple.daz.codes", nil, class: "text-purple-team underline" %> instead.</li>
       </ul>
     </section>
 
@@ -36,29 +42,38 @@
       <p class="mt-2 text-ink-muted">
         Red's side teaches how attacks work so you can defend against them. Never use these techniques
         against real people or organisations without their written permission. Doing so can be a
-        crime.
+        crime, including under the Computer Misuse Act 1990 and the Fraud Act 2006.
       </p>
     </section>
 
     <section aria-labelledby="accounts">
       <h2 id="accounts" class="text-xl font-bold">Your account</h2>
       <p class="mt-2 text-ink-muted">
-        We may suspend accounts that break these rules. You can ask for your account to be deleted at
-        any time (see the <%= link_to "privacy page", privacy_path, class: "text-purple-team underline" %>).
-        We may change the game, reset leaderboards between seasons, or change these terms; if the terms
-        change in a way that matters, we'll say so on the site.
+        We may suspend or delete accounts that break these rules. You can ask for your account to be
+        deleted at any time (see the <%= link_to "privacy page", privacy_path, class: "text-purple-team underline" %>).
+        We may change the game, reset leaderboards between seasons, or stop running Purple. If these
+        terms change in a way that matters, we'll say so on the site before the change applies.
+      </p>
+    </section>
+
+    <section aria-labelledby="liability">
+      <h2 id="liability" class="text-xl font-bold">Our responsibility</h2>
+      <p class="mt-2 text-ink-muted">
+        We try to keep Purple running and accurate, but can't promise it will always be available or
+        free of mistakes. As far as the law allows, we're not liable for any loss from using it.
+        Nothing in these terms limits liability that can't legally be limited, such as for death or
+        personal injury caused by negligence, or for fraud.
       </p>
     </section>
 
     <section aria-labelledby="contact">
       <h2 id="contact" class="text-xl font-bold">Contact</h2>
       <p class="mt-2 text-ink-muted">
-        Purple is run by <strong>[to confirm: name or company]</strong>. These terms are governed by
-        the law of <strong>[to confirm: England and Wales]</strong>. Contact:
-        <strong>[to confirm: contact email]</strong>.
+        Purple is run by Darren Jones. These terms are governed by the law of England and Wales.
+        Contact: <%= mail_to "privacy@purple.daz.codes", nil, class: "text-purple-team underline" %>.
       </p>
     </section>
 
-    <p class="text-sm text-ink-muted">Last updated <strong>[to confirm: date]</strong>.</p>
+    <p class="text-sm text-ink-muted">Last updated 16 November 2026.</p>
   </div>
 </article>
