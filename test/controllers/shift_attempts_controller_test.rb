@@ -41,6 +41,27 @@ class ShiftAttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_no_answers_in response.body
   end
 
+  test "a finished debrief shows the content and score it was judged against" do
+    attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
+    attempt.archive(messages(:newsletter))
+    attempt.report(messages(:fake_invoice))
+    attempt.clock_off
+    original_title = shifts(:month_end).title
+    original_summary = shifts(:month_end).learning_summary
+    messages(:newsletter).update!(points: 100)
+    messages(:fake_invoice).destroy!
+    shifts(:month_end).update!(title: "Changed title", learning_summary: "Changed summary")
+    sign_in_as users(:one)
+
+    get shift_attempt_path(attempt)
+    assert_response :success
+    assert_select "h1", text: original_title
+    assert_select "[data-testid=score]", text: attempt.score.to_s
+    assert_includes response.body, ERB::Util.html_escape(original_summary)
+    assert_select "[data-testid=debrief-message]", text: /URGENT invoice/
+    assert_not_includes response.body, "Changed title"
+  end
+
   private
     def assert_no_answers_in(html)
       secrets = %w[ legit outcome expects bait_landing credential_harvest real_invoice fake_invoice newsletter supplier_thanks

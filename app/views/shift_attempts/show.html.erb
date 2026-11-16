@@ -1,4 +1,4 @@
-<% content_for :title, @attempt.shift.title %>
+<% content_for :title, @attempt.finished? ? @attempt.scorecard.shift.title : @attempt.shift.title %>
 
 <% if @attempt.open? %>
   <% content_for :main_width, "max-w-[96rem]" %>

@@ -40,7 +40,7 @@ class Message < ApplicationRecord
 
   # The earlier message that held the answer to the question this one asks. Debrief only.
   def answer_source
-    shift.messages.find_by(key: answer_in_key) if answer_in_key
+    shift.messages.find { |message| message.key == answer_in_key } if answer_in_key
   end
 
   def arrives_at_start?

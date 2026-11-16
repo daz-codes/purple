@@ -7,15 +7,16 @@ module User::Badged
 
   # Awards every badge the source has just earned. Returns the badges that are new.
   def award_badges_for(source)
-    return [] unless earns_xp?
+    # Serialize concurrent jobs before checking ownership; each badge and its XP commit together.
+    with_lock do
+      return [] unless earns_xp?
 
-    keys = Badge::Rulebook.new(self, source).earned_keys - badges.pluck(:key)
-    Badge.where(key: keys).ordered.filter_map do |badge|
-      user_badges.create!(badge:, awarded_at: Time.current)
-      award_xp(side: source.side, amount: BADGE_XP, reason: :badge_awarded, source: badge)
-      badge
-    rescue ActiveRecord::RecordNotUnique
-      nil
+      keys = Badge::Rulebook.new(self, source).earned_keys - badges.pluck(:key)
+      Badge.where(key: keys).ordered.map do |badge|
+        user_badges.create!(badge:, awarded_at: Time.current)
+        award_xp(side: source.side, amount: BADGE_XP, reason: :badge_awarded, source: badge)
+        badge
+      end
     end
   end
 end

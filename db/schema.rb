@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_16_150100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -208,6 +208,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_14_150000) do
     t.integer "penalty_seconds", default: 0, null: false
     t.boolean "relaxed", default: false, null: false
     t.jsonb "persona_details", default: {}, null: false
+    t.jsonb "result_content", default: {}, null: false
     t.index ["shift_id"], name: "index_shift_attempts_on_shift_id"
     t.index ["token"], name: "index_shift_attempts_on_token", unique: true
     t.index ["user_id", "shift_id"], name: "index_shift_attempts_one_open_per_shift", unique: true, where: "((status)::text = 'open'::text)"

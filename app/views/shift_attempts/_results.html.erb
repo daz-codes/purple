@@ -1,6 +1,6 @@
 <%# The Purple debrief. Only rendered once the shift is over: it names the answers. %>
 <% scorecard = attempt.scorecard %>
-<% shift = attempt.shift %>
+<% shift = scorecard.shift %>
 
 <nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
   <%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= link_to shift.track.title, shift.track, class: "hover:text-ink" %>

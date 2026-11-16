@@ -3,6 +3,31 @@ require "application_system_test_case"
 # Flag mode and hints on the fixture month-end shift. The fake invoice's red flags: its sender, and
 # the words "Please pay today" in "Please pay today. Our bank details have changed."
 class ShiftFlagsAndHintsTest < ApplicationSystemTestCase
+  test "notes and highlights use character offsets after emoji" do
+    messages(:newsletter).update!(body_html: Content::MessageBody.new("<p>🔒 BLUEBELL is the code.</p>").html)
+    sign_in users(:one)
+    visit shift_path(shifts(:month_end))
+    click_on "Start shift"
+    within("#shift_inbox") { click_on "This week at Larkhill" }
+
+    within("#shift_reader") do
+      click_on "📝 Save to notes"
+      highlight "p1", "BLUEBELL"
+      assert_selector "[data-testid=your-notes]", text: "BLUEBELL"
+      assert_equal "BLUEBELL", evaluate_script("Array.from(CSS.highlights.get('noted'))[0].toString()")
+      click_on "🚩 Flag red flags"
+      highlight "p1", "BLUEBELL"
+      assert_selector "[data-testid=your-flags]", text: "BLUEBELL"
+      assert_equal "BLUEBELL", evaluate_script("Array.from(CSS.highlights.get('flagged'))[0].toString()")
+    end
+
+    attempt = users(:one).shift_attempts.open.sole
+    assert_equal "BLUEBELL", attempt.notes.sole.text
+    assert_equal 2, attempt.flags_on(messages(:newsletter)).sole.from
+    accept_confirm { click_on "Clock off early" }
+    assert_selector "[data-testid=debrief-marked-text] mark", text: "BLUEBELL"
+  end
+
   test "flag a part, highlight words and a sentence, take a hint, and see it all in the debrief" do
     sign_in users(:one)
     visit shift_path(shifts(:month_end))

@@ -76,11 +76,11 @@ module DebriefsHelper
   def debrief_ending(attempt, scorecard)
     case attempt.status
     when "completed"
-      time = "You cleared your #{attempt.shift.kind_inbox? ? "inbox" : "phone"} in #{debrief_duration(scorecard.elapsed_seconds)}"
+      time = "You cleared your #{scorecard.shift.kind_inbox? ? "inbox" : "phone"} in #{debrief_duration(scorecard.elapsed_seconds)}"
       if scorecard.relaxed?
         "#{time}, in relaxed mode."
       else
-        "#{time}. The target was #{attempt.shift.par_minutes} minutes."
+        "#{time}. The target was #{scorecard.shift.par_minutes} minutes."
       end
     when "clocked_off"
       "You clocked off after #{debrief_duration(scorecard.elapsed_seconds)}. Anything you hadn't dealt with counts as ignored."

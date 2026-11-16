@@ -1,5 +1,5 @@
 # Shared by the controllers for moves in a shift. Each one makes its move inside #play; the response
-# re-renders the clock, meters and panes by Turbo Stream, or goes to the results if the shift ended.
+# re-renders the panes by Turbo Stream, or goes to the results if the shift ended.
 # A move that isn't allowed changes nothing and tells the player why.
 module ShiftPlay
   extend ActiveSupport::Concern

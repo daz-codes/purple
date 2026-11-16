@@ -32,7 +32,8 @@ module ShiftAttempt::Finishable
   end
 
   def scorecard
-    ShiftAttempt::Scorecard.new(shift:, actions:, arrivals:, elapsed_seconds:, cleared: completed?, relaxed:)
+    content = result_content.present? ? ShiftAttempt::ContentSnapshot.new(result_content).shift : shift
+    ShiftAttempt::Scorecard.new(shift: content, actions:, elapsed_seconds:, cleared: completed?, relaxed:)
   end
 
   private
@@ -45,6 +46,7 @@ module ShiftAttempt::Finishable
 
       self.status = status
       self.completed_at = Time.current
+      self.result_content = ShiftAttempt::ContentSnapshot.capture(shift)
       update! scored: !timed_out? && first_scored_attempt?, score: scorecard.total
     end
 
