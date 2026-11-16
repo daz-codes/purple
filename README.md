@@ -212,7 +212,93 @@ The importer enforces these rules:
 
 ## Deployment
 
-_Coming in M10: Kamal 2 to a single VPS, with Thruster in front of Puma._
+Purple runs at **https://purple.daz.codes** on the same ARM VPS as the other daz.codes apps
+(`157.180.83.205`), deployed with Kamal 2 (`config/deploy.yml`):
+
+- **The app:** Puma behind Thruster, with Solid Queue inside Puma. Each container start runs
+  `db:prepare`, which creates or migrates all four databases, then `content:import`. A bad content
+  file stops the new container from booting, and kamal-proxy keeps serving the old one.
+- **kamal-proxy:** HTTPS with a Let's Encrypt certificate. It only routes to containers whose `/up`
+  is healthy.
+- **Accessories on the same server:**
+  - `db`: Postgres 17, reachable only from the server.
+  - `backup`: a `pg_dump` of the main database at start-up and every night at 03:00 UTC, kept on
+    the server for 7 days.
+  - `offsite`: rclone copies new dumps to object storage hourly and deletes ones older than 30 days.
+- **The image** is built for arm64 and pushed to `ghcr.io/daz-codes/purple`, as for the other apps.
+
+### You need
+
+- SSH access to the server as root, and `KAMAL_REGISTRY_PASSWORD` in your shell (the same GitHub
+  token the other apps use)
+- A DNS A record for `purple.daz.codes` pointing at `157.180.83.205`
+- An SMTP provider (Postmark, SES, Resend…) with a verified sending domain
+- An S3-compatible bucket for backups (Cloudflare R2, Backblaze B2, S3…) and a key that can read and
+  write it. Keep the bucket private.
+- An uptime monitor (Better Stack, UptimeRobot…) checking `https://purple.daz.codes/up`
+
+### One-time setup
+
+1. **Secrets** go in the encrypted credentials, which only `config/master.key` can open. Never commit
+   that file. Run `bin/rails credentials:edit` and add:
+
+   ```yaml
+   deploy:
+     database_password: <run `openssl rand -hex 32`>
+     backup_access_key_id: <bucket access key>
+     backup_secret_access_key: <bucket secret key>
+   smtp:
+     address: <e.g. smtp.postmarkapp.com>
+     port: 587
+     user_name: <SMTP user>
+     password: <SMTP password>
+   ```
+
+   `.kamal/secrets` reads the `deploy:` values from there. The app reads `smtp:` itself.
+
+2. **Settings** that aren't secret come from your shell, for example in a `.envrc`:
+
+   ```sh
+   export ERROR_ALERTS_TO=you@example.com                # who's emailed about production errors
+   export BACKUP_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+   export BACKUP_S3_BUCKET=purple-backups
+   # export BACKUP_S3_REGION=eu-west-2                   # only if your provider needs one (default "auto")
+   ```
+
+   Kamal stops with a clear error if any of them is missing.
+
+3. **First deploy:** `bin/kamal setup`. Docker and kamal-proxy are already on the server for the
+   other apps, so this starts the three accessories, then builds, pushes and boots the app. After that,
+   deploy with `bin/kamal deploy`.
+
+### Checking it works
+
+- **The site:** open https://purple.daz.codes, sign up, and confirm the email arrives. Then play a shift.
+- **Backups:** `bin/kamal backup-logs` should show `wrote purple_production-….dump`, and
+  `bin/kamal offsite-logs` should show `copied to …`. Check the file is in the bucket.
+- **Errors:** production errors are emailed to `ERROR_ALERTS_TO`, at most once an hour for each
+  kind of error (`ErrorAlert`). The full log is in `bin/kamal logs`.
+- **Uptime:** point the monitor at `/up`. It returns 200 when the app has booted.
+
+### Restoring a backup
+
+Restoring overwrites the live database, so do it deliberately:
+
+```sh
+# 1. Get the dump onto the server's backup folder (skip if it's still there; dumps stay 7 days).
+#    The bucket is in BACKUP_S3_BUCKET under purple/.
+# 2. Stop the app so nothing writes during the restore:
+bin/kamal app stop
+# 3. Restore into the main database (drops and recreates its objects):
+bin/kamal accessory exec backup --reuse \
+  "pg_restore --clean --if-exists --no-owner --dbname=purple_production /backups/purple_production-YYYYMMDD-HHMMSS.dump"
+# 4. Start the app again (it migrates if the dump is from an older version):
+bin/kamal app boot
+```
+
+Restoring was tested on 2026-11-16 against Postgres 17.7: a dump taken by `config/backup/dump.sh`
+restored into an empty database with its data intact. Practise it once on the real server after the
+first deploy.
 
 See `CLAUDE.md` for project conventions and security rules, and
 [`docs/CODE_STRUCTURE.md`](docs/CODE_STRUCTURE.md) for concern dependencies, cache invalidation
