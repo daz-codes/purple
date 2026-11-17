@@ -3,18 +3,19 @@ module Content
   #
   #   content/techniques.yml            the technique vocabulary (ATT&CK-mapped)
   #   content/badges.yml                badges players can earn
-  #   content/tracks/<track>/_track.yml a track's details
-  #   content/tracks/<track>/<shift>.yml one file per shift
+  #   content/paths/<path>/_path.yml   a path's details, and how it opens
+  #   content/paths/<path>/<track>/_track.yml     a track's details
+  #   content/paths/<path>/<track>/<mission>.yml  one file per mission
   #   content/bots.yml                  the Blue bots that judge Red's Workshop emails
   #   content/targets/<target>.yml      one file per Red's Workshop target
   #
   # Everything is upserted by key or slug in a single transaction, so running it twice changes
-  # nothing and any error leaves the database as it was. Tracks and shifts whose files have gone
-  # are unpublished rather than deleted, so players' past attempts keep their history.
+  # nothing and any error leaves the database as it was. Paths, tracks and missions whose files have
+  # gone are unpublished rather than deleted, so players' past attempts keep their history.
   class Import
-    Summary = Data.define(:techniques, :badges, :tracks, :shifts, :messages, :bots, :targets) do
+    Summary = Data.define(:techniques, :badges, :paths, :tracks, :missions, :messages, :bots, :targets) do
       def to_s
-        "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{shifts} shifts, #{messages} messages, " \
+        "Imported #{techniques} techniques, #{badges} badges, #{paths} paths, #{tracks} tracks, #{missions} missions, #{messages} messages, " \
           "#{bots} bots and #{targets} targets."
       end
     end
@@ -22,7 +23,9 @@ module Content
     TECHNIQUE_KEYS = %i[ key name attack_id category description defence_tip red_cost stealth red_flag_label ].freeze
     BADGE_KEYS = %i[ key name description side ].freeze
     BOT_KEYS = %i[ key name description vigilance detects ].freeze
-    TRACK_KEYS = %i[ title description position difficulty published ].freeze
+    PATH_KEYS = %i[ title description position opens published ].freeze
+    PATH_FILE = "_path.yml".freeze
+    TRACK_KEYS = %i[ title description position difficulty unlock_after published ].freeze
     TRACK_FILE = "_track.yml".freeze
 
     def initialize(root = Rails.root.join("content"))
@@ -34,12 +37,12 @@ module Content
       ActiveRecord::Base.transaction do
         techniques = import_techniques
         badges = import_badges
-        tracks, shifts = import_tracks(techniques)
+        paths, tracks, missions = import_paths(techniques)
         bots = import_bots(techniques)
-        targets = import_targets(shifts, techniques)
+        targets = import_targets(missions, techniques)
 
-        Summary.new(techniques: techniques.size, badges: badges.size, tracks: tracks.size, shifts: shifts.size,
-                    messages: Message.where(shift: shifts).count, bots: bots.size, targets: targets.size)
+        Summary.new(techniques: techniques.size, badges: badges.size, paths: paths.size, tracks: tracks.size, missions: missions.size,
+                    messages: Message.where(mission: missions).count, bots: bots.size, targets: targets.size)
       end
     end
 
@@ -78,34 +81,98 @@ module Content
         badges
       end
 
-      def import_tracks(techniques)
-        tracks_dir = @root.join("tracks")
-        raise ImportError.new("no tracks folder found at #{relative(tracks_dir)}") unless tracks_dir.directory?
+      def import_paths(techniques)
+        paths_dir = @root.join("paths")
+        raise ImportError.new("no paths folder found at #{relative(paths_dir)}") unless paths_dir.directory?
 
-        track_dirs = tracks_dir.children.select(&:directory?).sort
-        raise ImportError.new("no track folders found in #{relative(tracks_dir)}") if track_dirs.empty?
+        path_dirs = paths_dir.children.select(&:directory?).sort
+        raise ImportError.new("no path folders found in #{relative(paths_dir)}") if path_dirs.empty?
+
+        nodes = path_dirs.to_h { |dir| import_path(dir) }
+        paths = nodes.keys
+        nodes.each { |path, node| import_opening(path, node, paths.index_by(&:slug)) }
+        check_openings_finish!(paths)
 
         tracks = []
-        shifts = []
-        track_dirs.each do |dir|
-          track = import_track(dir)
-          tracks << track
-
-          dir.glob("*.yml").reject { |file| file.basename.to_s == TRACK_FILE }.sort.each do |file|
-            if (clash = shifts.find { |shift| shift.slug == file.basename(".yml").to_s })
-              raise ImportError.new("a shift called #{clash.slug} already exists in the #{clash.track.slug} track",
-                                    file: relative(file))
+        missions = []
+        path_dirs.zip(paths).each do |dir, path|
+          dir.children.select(&:directory?).sort.each do |track_dir|
+            if (clash = tracks.find { |track| track.slug == track_dir.basename.to_s })
+              raise ImportError.new("a track called #{clash.slug} already exists in the #{clash.path.slug} path",
+                                    file: relative(track_dir))
             end
-            shifts << ShiftImport.new(load(file), track:, techniques:).run
+            track = import_track(track_dir, path)
+            tracks << track
+
+            track_dir.glob("*.yml").reject { |file| file.basename.to_s == TRACK_FILE }.sort.each do |file|
+              if (clash = missions.find { |mission| mission.slug == file.basename(".yml").to_s })
+                raise ImportError.new("a mission called #{clash.slug} already exists in the #{clash.track.slug} track",
+                                      file: relative(file))
+              end
+              missions << MissionImport.new(load(file), track:, techniques:).run
+            end
           end
         end
 
+        Path.where.not(id: paths.map(&:id)).update_all(published: false)
         Track.where.not(id: tracks.map(&:id)).update_all(published: false)
-        Shift.where.not(id: shifts.map(&:id)).update_all(published: false)
-        [ tracks, shifts ]
+        Mission.where.not(id: missions.map(&:id)).update_all(published: false)
+        [ paths, tracks, missions ]
       end
 
-      def import_track(dir)
+      # Saves a path's details and returns it with its node, so how it opens can be read once every
+      # path exists. A new path opens always until then.
+      def import_path(dir)
+        file = dir.join(PATH_FILE)
+        raise ImportError.new("is missing #{PATH_FILE}", file: relative(dir)) unless file.exist?
+
+        node = load(file)
+        node.allow_only!(*PATH_KEYS)
+        path = Path.find_or_initialize_by(slug: dir.basename.to_s)
+        path.opens = "always" if path.new_record?
+        node.saving do
+          path.update!(title: fictional_text(node, :title), description: fictional_text(node, :description),
+                       position: node.optional(:position, Integer, default: 0),
+                       published: node.optional(:published, Node::BOOLEAN, default: true))
+        end
+        [ path, node ]
+      end
+
+      # opens: always (the default) | { after_missions: 3 } | { after_first_track_of: <path slug> }
+      def import_opening(path, node, paths_by_slug)
+        opening = { opens: "always", opens_after_missions: nil, opens_after_path: nil }
+        if node.mapping?(:opens)
+          opens = node.child(:opens)
+          opens.allow_only!(:after_missions, :after_first_track_of)
+          if opens.key?(:after_missions) == opens.key?(:after_first_track_of)
+            opens.error!("give one of after_missions or after_first_track_of")
+          elsif opens.key?(:after_missions)
+            opening.merge!(opens: "after_missions", opens_after_missions: opens.required(:after_missions, Integer))
+          else
+            slug = opens.required(:after_first_track_of)
+            other = paths_by_slug[slug] || opens.error!("after_first_track_of names no path in the content: #{slug}")
+            opening.merge!(opens: "after_first_track", opens_after_path: other)
+          end
+        elsif node.optional(:opens, default: "always") != "always"
+          node.error!("opens must be always, or a mapping with after_missions or after_first_track_of")
+        end
+        node.saving { path.update!(opening) }
+      end
+
+      # A path that waits on another path's first track must never, through others, wait on itself.
+      def check_openings_finish!(paths)
+        paths.each do |path|
+          chain = [ path ]
+          while (path = path.opens_after_path)
+            if chain.include?(path)
+              raise ImportError.new("paths wait on each other in a loop: #{(chain + [ path ]).map(&:slug).join(" → ")}")
+            end
+            chain << path
+          end
+        end
+      end
+
+      def import_track(dir, path)
         file = dir.join(TRACK_FILE)
         raise ImportError.new("is missing #{TRACK_FILE}", file: relative(dir)) unless file.exist?
 
@@ -113,9 +180,10 @@ module Content
         node.allow_only!(*TRACK_KEYS)
         track = Track.find_or_initialize_by(slug: dir.basename.to_s)
         node.saving do
-          track.update!(title: fictional_text(node, :title), description: fictional_text(node, :description),
+          track.update!(path:, title: fictional_text(node, :title), description: fictional_text(node, :description),
                         position: node.optional(:position, Integer, default: 0),
                         difficulty: node.required(:difficulty),
+                        unlock_after: node.optional(:unlock_after, Integer, default: 0),
                         published: node.optional(:published, Node::BOOLEAN, default: true))
         end
         track
@@ -143,11 +211,11 @@ module Content
         bots
       end
 
-      def import_targets(shifts, techniques)
+      def import_targets(missions, techniques)
         dir = @root.join("targets")
         return [] unless dir.directory?
 
-        targets = dir.glob("*.yml").sort.map { |file| TargetImport.new(load(file), shifts:, techniques:).run }
+        targets = dir.glob("*.yml").sort.map { |file| TargetImport.new(load(file), missions:, techniques:).run }
         Target.where.not(id: targets.map(&:id)).update_all(published: false)
         targets
       end

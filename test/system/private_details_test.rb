@@ -13,15 +13,15 @@ class PrivateDetailsTest < ApplicationSystemTestCase
     messages(:fake_invoice).update!(wants: %w[ staff_number ])
 
     sign_in users(:one)
-    visit shift_path(shifts(:month_end))
-    click_on "Start shift"
+    visit mission_path(missions(:month_end))
+    click_on "Start mission"
     assert_selector "[data-testid=persona-card]"
-    staff_number = users(:one).shift_attempts.open.sole.persona.staff_number
+    staff_number = users(:one).mission_attempts.open.sole.persona.staff_number
     within("[data-testid=authenticator]") { assert_text "No sign-in requests" }
 
     # A note: words saved from a message, ready to send later.
-    within("#shift_inbox") { click_on "This week at Larkhill" }
-    within("#shift_reader") do
+    within("#mission_inbox") { click_on "This week at Larkhill" }
+    within("#mission_reader") do
       click_on "📝 Save to notes"
       find("[data-anchor=p1s1]").click
       assert_selector "[data-testid=your-notes]", text: "The canteen has a new menu."
@@ -31,31 +31,31 @@ class PrivateDetailsTest < ApplicationSystemTestCase
     assert_no_answers
 
     # The real portal asks for the staff number in a field filled by picking a chip.
-    within("#shift_inbox") { click_on "Invoice ready" }
-    within("#shift_reader") { find(".fake-link", text: "Review").click }
+    within("#mission_inbox") { click_on "Invoice ready" }
+    within("#mission_reader") { find(".fake-link", text: "Review").click }
     within("dialog") do
       select "Staff number: #{staff_number}", from: "Staff number"
       click_on "Approve invoice"
       assert_text "that's been submitted"
       click_on "Close tab"
     end
-    within("#shift_reader") { click_on "Archive" }
+    within("#mission_reader") { click_on "Archive" }
     assert_no_answers
 
     # The lookalike page wants it too, and gets it.
-    within("#shift_inbox") { click_on "URGENT invoice" }
-    within("#shift_reader") { find(".fake-link", text: "Pay now").click }
+    within("#mission_inbox") { click_on "URGENT invoice" }
+    within("#mission_reader") { find(".fake-link", text: "Pay now").click }
     within("dialog") do
       select "Staff number: #{staff_number}", from: "Staff number"
       click_on "Sign in"
       assert_text "that's been submitted"
       click_on "Close tab"
     end
-    within("#shift_reader") { click_on "Report phishing" }
+    within("#mission_reader") { click_on "Report phishing" }
     assert_no_answers
 
-    within("#shift_inbox") { click_on "Thanks for approving" }
-    within("#shift_reader") { click_on "Archive" }
+    within("#mission_inbox") { click_on "Thanks for approving" }
+    within("#mission_reader") { click_on "Archive" }
 
     assert_selector "[data-testid=red-knows]", text: "Your staff number (#{staff_number}): Red could quote it to HR or the service desk to pass as you."
     assert_selector "[data-testid=debrief-details]", text: "It got the staff number it needed, in the right place."
@@ -63,23 +63,23 @@ class PrivateDetailsTest < ApplicationSystemTestCase
   end
 
   test "ask the fake IT chat why it wants your details, then refuse and report it" do
-    shifts(:site_visit).update!(persona: shifts(:month_end).persona)
+    missions(:site_visit).update!(persona: missions(:month_end).persona)
     messages(:it_chat).update!(wants: %w[ name ],
       replies: messages(:it_chat).replies + [ { "id" => "r4", "text" => "Why do you need this?", "outcome" => "ask_why",
                                                 "response" => "No time to explain, just send it!" } ])
 
     sign_in users(:one)
-    visit shift_path(shifts(:site_visit))
-    click_on "Start shift"
+    visit mission_path(missions(:site_visit))
+    click_on "Start mission"
 
-    within("#shift_inbox") { click_on "Sam (Ops)" }
-    within("#shift_reader") do
+    within("#mission_inbox") { click_on "Sam (Ops)" }
+    within("#mission_reader") do
       click_on "Sure, see you there"
       click_on "Archive"
     end
 
-    within("#shift_inbox") { click_on "IT Support (Larkhill)" }
-    within("#shift_reader") do
+    within("#mission_inbox") { click_on "IT Support (Larkhill)" }
+    within("#mission_reader") do
       click_on "Why do you need this?"
       assert_selector "[data-testid=why-answer]", text: "No time to explain, just send it!"
       assert_no_button "Why do you need this?"

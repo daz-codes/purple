@@ -3,7 +3,7 @@
 # kind of XP once.
 class XpEvent < ApplicationRecord
   enum :side, { blue: "blue", red: "red" }, prefix: true, validate: true
-  enum :reason, { shift_completed: "shift_completed", workshop_completed: "workshop_completed",
+  enum :reason, { mission_completed: "mission_completed", workshop_completed: "workshop_completed",
                   streak_bonus: "streak_bonus", badge_awarded: "badge_awarded" }, validate: true
 
   belongs_to :user

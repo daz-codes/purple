@@ -35,14 +35,17 @@ Rails.application.routes.draw do
     end
   end
 
-  # Blue: tracks of shifts, and the attempts that play them.
-  resources :tracks, only: %i[ index show ]
-  resources :shifts, only: :show do
-    resources :attempts, only: %i[ new create ], controller: "shift_attempts"
+  # Blue: paths of tracks of missions, and the attempts that play them.
+  resources :paths, only: :index
+  get "tracks", to: redirect("/paths")
+  resources :tracks, only: :show
+  get "shifts/:id", to: redirect("/missions/%{id}")
+  resources :missions, only: :show do
+    resources :attempts, only: %i[ new create ], controller: "mission_attempts"
   end
-  # Each move in a shift is its own resource. Messages are addressed by their opaque per-attempt ref.
-  resources :shift_attempts, path: "attempts", param: :token, only: :show do
-    scope module: :shift_attempts do
+  # Each move in a mission is its own resource. Messages are addressed by their opaque per-attempt ref.
+  resources :mission_attempts, path: "attempts", param: :token, only: :show do
+    scope module: :mission_attempts do
       resources :messages, param: :ref, only: [] do
         scope module: :messages do
           resource :reading, only: :create
@@ -71,7 +74,7 @@ Rails.application.routes.draw do
         end
       end
       resources :hints, only: :create
-      resource :clock_off, only: :create
+      resource :stand_down, only: :create
     end
   end
 

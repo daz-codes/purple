@@ -15,27 +15,27 @@ class ProgressionTest < ApplicationSystemTestCase
     assert_equal "red", User.find_by!(email_address: "fresh@example.com").preferred_side
   end
 
-  test "finishing a shift earns XP and a badge, and the dashboard shows them" do
+  test "finishing a mission earns XP and a badge, and the dashboard shows them" do
     ActiveJob::Base.queue_adapter.perform_enqueued_jobs = true
     sign_in users(:one)
-    visit shift_path(shifts(:month_end))
-    click_on "Start shift"
-    within("#shift_inbox") { click_on "This week at Larkhill" }
-    within("#shift_reader") do
+    visit mission_path(missions(:month_end))
+    click_on "Start mission"
+    within("#mission_inbox") { click_on "This week at Larkhill" }
+    within("#mission_reader") do
       assert_selector "h2", text: "This week at Larkhill"
       click_on "Archive"
     end
-    within("#shift_inbox") { click_on "URGENT invoice" }
-    within("#shift_reader") do
+    within("#mission_inbox") { click_on "URGENT invoice" }
+    within("#mission_reader") do
       assert_selector "h2", text: "URGENT invoice"
       click_on "Report phishing"
     end
-    accept_confirm { click_on "Clock off early" }
+    accept_confirm { click_on "Stand down" }
 
     assert_selector "[data-testid=xp-earned]"
-    score = ShiftAttempt.sole.score
+    score = MissionAttempt.sole.score
     within("[data-testid=xp-earned]") do
-      assert_text "+#{score} XP for the shift" if score.positive?
+      assert_text "+#{score} XP for the mission" if score.positive?
       assert_text "+10 XP first play today"
     end
 

@@ -10,9 +10,9 @@ class RedCampaign::BalanceTest < ActiveSupport::TestCase
     @targets = Target.published.includes(options: :technique).to_a
   end
 
-  test "there's a target for each of the three Blue shifts' companies" do
+  test "there's a target for each of the three Blue missions' companies" do
     assert_equal 3, @targets.size
-    assert_equal 3, @targets.map(&:shift).uniq.size
+    assert_equal 3, @targets.map(&:mission).uniq.size
   end
 
   test "no combination of cards fools every bot every time" do

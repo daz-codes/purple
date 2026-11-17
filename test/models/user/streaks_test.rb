@@ -4,7 +4,7 @@ require "test_helper"
 class User::StreaksTest < ActiveSupport::TestCase
   setup do
     @user = users(:one)
-    @source = ShiftAttempt.start(user: @user, shift: shifts(:month_end))
+    @source = MissionAttempt.start(user: @user, mission: missions(:month_end))
   end
 
   test "the first play of a day starts a streak and earns the bonus; later plays that day don't" do
@@ -52,6 +52,6 @@ class User::StreaksTest < ActiveSupport::TestCase
 
   private
     def record(*times)
-      times.map { |time| @user.record_play(side: "blue", source: ShiftAttempt.new(id: rand(1_000_000)), at: Time.zone.parse(time)) }.last
+      times.map { |time| @user.record_play(side: "blue", source: MissionAttempt.new(id: rand(1_000_000)), at: Time.zone.parse(time)) }.last
     end
 end

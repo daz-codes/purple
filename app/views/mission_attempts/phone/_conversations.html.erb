@@ -1,0 +1,36 @@
+<%# SECRET-FREE ZONE, like the inbox: only what the player can already see. %>
+<% messages = attempt.inbox_messages %>
+<% current = attempt.current_message %>
+<div id="mission_inbox">
+  <h2 id="inbox-heading" class="px-5 pb-3 text-2xl font-bold">Messages</h2>
+
+  <% if messages.empty? %>
+    <p class="px-5 py-6 text-sm text-ink-muted">No messages yet.</p>
+  <% else %>
+    <ul class="divide-y divide-line border-y border-line" aria-labelledby="inbox-heading">
+      <% messages.each do |message| %>
+        <% unread = !attempt.opened?(message) %>
+        <li>
+          <%= button_to mission_attempt_message_reading_path(attempt, attempt.message_ref(message)),
+                class: "flex w-full items-center gap-3 px-4 py-3 text-left cursor-pointer hover:bg-surface #{"bg-surface" if message == current}",
+                aria: { current: message == current ? "true" : nil },
+                form: { class: "block" } do %>
+            <span class="grid size-10 shrink-0 place-items-center rounded-full font-bold <%= message.chat? ? "bg-purple-team-soft text-purple-team" : "bg-blue-team-soft text-blue-team" %>" aria-hidden="true"><%= avatar_initial(message) %></span>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-baseline justify-between gap-2">
+                <span class="truncate <%= unread ? "font-bold" : "text-ink-muted" %>">
+                  <% if unread %><span class="sr-only">Unread: </span><% end %><%= message.from_name %>
+                </span>
+              </span>
+              <span class="block text-xs text-ink-muted"><%= channel_label(message) %></span>
+              <span class="block truncate text-sm <%= unread ? "font-semibold" : "text-ink-muted" %>"><%= strip_tags(message.body_html).squish %></span>
+            </span>
+            <% if unread %><span class="size-2.5 shrink-0 rounded-full bg-blue-team" aria-hidden="true"></span><% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <%= render "mission_attempts/dealt_with", attempt:, label: ->(message) { message.from_name } %>
+</div>

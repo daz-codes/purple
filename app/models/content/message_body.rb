@@ -29,7 +29,7 @@ module Content
     ].freeze
 
     # html: the safe HTML to store and render. element_ids: every neutral anchor (p1…, l1…), for
-    # checking red flags. links: the extracted links, matched against the shift's link rules.
+    # checking red flags. links: the extracted links, matched against the mission's link rules.
     attr_reader :html, :element_ids, :links
 
     # Raises Invalid, naming the problem, if the authored body breaks any of the rules above.

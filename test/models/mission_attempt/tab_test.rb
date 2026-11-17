@@ -1,0 +1,59 @@
+require "test_helper"
+
+class MissionAttempt::TabTest < ActiveSupport::TestCase
+  test "a link tab shows the link's real address and the page its landing names" do
+    tab = MissionAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l1" })
+
+    assert_equal "credential_harvest", tab.landing
+    assert_equal "https://larkhill-portal.example.net/login", tab.address
+    assert_equal "larkhill-portal.example.net", tab.title
+    assert tab.padlock?, "https phishing sites have padlocks too"
+    assert_nil tab.portal_action
+  end
+
+  test "only sign-in and download pages are traps" do
+    assert MissionAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l1" }).trap?
+    assert MissionAttempt::Tab.new(message: messages(:fake_invoice), source: { "attachment" => "a1" }).trap?
+    assert_not MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }).trap?
+    assert_not MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "attachment" => "a1" }).trap?
+  end
+
+  test "a tab whose link or attachment no longer exists can't be shown" do
+    assert_not MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l9" }).showable?
+    assert_not MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "attachment" => "a9" }).showable?
+    assert MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }).showable?
+  end
+
+  test "a portal tab knows what its button does, and whether it's been pressed" do
+    tab = MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" })
+
+    assert_equal [ "portal", "Approve invoice" ], [ tab.landing, tab.portal_action ]
+    assert_not tab.submitted?
+    assert MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "link" => "l1" }, submitted: true).submitted?
+  end
+
+  test "attachments preview documents and prompt before running programs" do
+    document = MissionAttempt::Tab.new(message: messages(:real_invoice), source: { "attachment" => "a1" })
+    program = MissionAttempt::Tab.new(message: messages(:fake_invoice), source: { "attachment" => "a1" })
+
+    assert_equal [ "file_preview", "Invoice_4471.pdf", nil ], [ document.landing, document.file_name, document.address ]
+    assert_equal [ "malware_download", "Remittance_4471.pdf.exe" ], [ program.landing, program.file_name ]
+  end
+
+  test "a download link offers the file named in its URL" do
+    links(:fake_invoice_link).update!(actual_url: "https://files.example.net/Invoice_4471.zip", outcome: "malware",
+                                      landing_template: "malware_download")
+    tab = MissionAttempt::Tab.new(message: messages(:fake_invoice).reload, source: { "link" => "l1" })
+
+    assert_equal "Invoice_4471.zip", tab.file_name
+  end
+
+  test "a tab whose link a re-import removed has no address, host or file name" do
+    tab = MissionAttempt::Tab.new(message: messages(:fake_invoice), source: { "link" => "l9" })
+
+    assert_not tab.showable?
+    assert_nil tab.address
+    assert_nil tab.host
+    assert_nil tab.file_name
+  end
+end

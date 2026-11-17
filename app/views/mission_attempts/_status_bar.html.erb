@@ -1,0 +1,16 @@
+<%# No clock and no meters: nothing here says how the player is doing. That waits for the debrief. %>
+<header id="mission_status" class="card p-4 flex flex-wrap items-center justify-between gap-4">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-widest text-blue-team">
+      On mission<% if attempt.relaxed? %> · <span class="text-purple-team">Relaxed mode</span><% end %>
+    </p>
+    <h1 class="text-lg font-bold truncate"><%= attempt.mission.title %></h1>
+  </div>
+  <div class="flex items-center gap-4">
+    <p class="text-sm text-ink-muted" data-testid="inbox-count">
+      <%= pluralize(attempt.inbox_messages.size, attempt.mission.kind_inbox? ? "email" : "message") %> to deal with
+    </p>
+    <%= button_to "Stand down", mission_attempt_stand_down_path(attempt), class: "btn-ghost",
+          form: { data: { turbo_confirm: "Stand down? Anything you haven't dealt with counts as ignored." } } %>
+  </div>
+</header>

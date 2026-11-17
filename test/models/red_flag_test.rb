@@ -56,6 +56,6 @@ class RedFlagTest < ActiveSupport::TestCase
 
   private
     def flag(anchor, from = nil, to = nil)
-      ShiftAttempt::Flag.new(anchor:, from:, to:)
+      MissionAttempt::Flag.new(anchor:, from:, to:)
     end
 end

@@ -2,8 +2,8 @@ require "test_helper"
 
 class LeaderboardsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    users(:two).xp_events.create!(side: "blue", amount: 300, reason: :shift_completed, occurred_at: Time.current)
-    users(:one).xp_events.create!(side: "blue", amount: 100, reason: :shift_completed, occurred_at: Time.current)
+    users(:two).xp_events.create!(side: "blue", amount: 300, reason: :mission_completed, occurred_at: Time.current)
+    users(:one).xp_events.create!(side: "blue", amount: 100, reason: :mission_completed, occurred_at: Time.current)
   end
 
   test "anyone can see the board, with links to profiles" do

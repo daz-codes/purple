@@ -1,0 +1,8 @@
+<% content_for :title, @attempt.finished? ? @attempt.scorecard.mission.title : @attempt.mission.title %>
+
+<% if @attempt.open? %>
+  <% content_for :main_width, "max-w-[96rem]" %>
+  <%= render "mission_attempts/play", attempt: @attempt %>
+<% else %>
+  <%= render "mission_attempts/results", attempt: @attempt %>
+<% end %>

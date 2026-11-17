@@ -11,7 +11,7 @@
   <h1 class="text-3xl font-extrabold tracking-tight">Leaderboard</h1>
   <p class="mt-1 text-ink-muted">
     XP earned <%= board.period == "week" ? "since Monday (London time)" : "all time" %>.
-    Only each player's first scored attempt at a shift or target counts here; streak bonuses and badges raise your
+    Only each player's first scored attempt at a mission or target counts here; streak bonuses and badges raise your
     level but not your rank. Ties go to whoever got there first.
   </p>
 </header>
@@ -32,7 +32,7 @@
 <section class="card mt-6 p-0 overflow-hidden" aria-labelledby="ranking-heading">
   <h2 id="ranking-heading" class="sr-only">Rankings</h2>
   <% if entries.empty? %>
-    <p class="p-6 text-ink-muted">Nobody's on this board yet. Play a shift or launch a campaign to be the first.</p>
+    <p class="p-6 text-ink-muted">Nobody's on this board yet. Play a mission or launch a campaign to be the first.</p>
   <% else %>
     <table class="w-full text-left">
       <thead class="border-b border-line text-sm text-ink-muted">

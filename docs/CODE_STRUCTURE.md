@@ -1,6 +1,6 @@
 # Game state and content
 
-`ShiftAttempt` concerns share the attempt's persisted attributes and append-only action log.
+`MissionAttempt` concerns share the attempt's persisted attributes and append-only action log.
 `Logged#acting_on` locks the attempt and checks whether a move is allowed. `Logged#record` writes
 the action, reloads the attempt, and asks `Finishable` whether the inbox has cleared. New actions
 must use these methods rather than writing the log or invalidating individual caches themselves.
@@ -25,7 +25,7 @@ debrief. Open attempts continue to use current content. The upgrade migration ca
 available for existing finished attempts, preserving their recorded scores and XP; content already
 overwritten before this migration cannot be reconstructed.
 
-`Content::ShiftImport` owns the import transaction context: `@node`, `@shift`, `@messages`,
+`Content::MissionImport` owns the import transaction context: `@node`, `@mission`, `@messages`,
 `@message_nodes`, `@story_links` and the technique catalogue. Its internal `PrivateDetails` and
 `StoryLinks` modules group the sharing and narrative rules. They use the importer's field helpers
 and error reporting, and run after the message records exist. `PrivateDetails` also uses

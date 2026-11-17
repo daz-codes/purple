@@ -1,7 +1,7 @@
 # A ranking of players by XP: for one side or both (overall), this ISO week or all time, and for timed
 # or relaxed play. Built from the XP ledger, so a week's board is just that week's events.
 #
-# Only XP for playing counts (a player's first scored attempt at each shift or target): streak bonuses
+# Only XP for playing counts (a player's first scored attempt at each mission or target): streak bonuses
 # and badges raise a player's level but not their rank, so daily replays can't climb the board.
 #
 # Ties go to whoever reached the score first: the player whose last counted event is earliest. Players
@@ -10,7 +10,7 @@ class Leaderboard
   SIDES = %w[ blue red overall ].freeze
   PERIODS = %w[ week all ].freeze
   TIME_ZONE = User::Streaks::TIME_ZONE
-  REASONS = %w[ shift_completed workshop_completed ].freeze
+  REASONS = %w[ mission_completed workshop_completed ].freeze
   SIZE = 50
   CACHE_FOR = 60.seconds
 

@@ -1,0 +1,24 @@
+phishing:
+  slug: phishing
+  title: Phishing
+  description: Spotting and resisting social engineering.
+  position: 1
+  published: true
+  opens: always
+
+codebreaking:
+  slug: codebreaking
+  title: Codebreaking
+  description: Encodings and ciphers, and how they break.
+  position: 2
+  published: true
+  opens: always
+
+break_in:
+  slug: break-in
+  title: Break-in
+  description: How web apps get broken into.
+  position: 3
+  published: true
+  opens: after_missions
+  opens_after_missions: 3

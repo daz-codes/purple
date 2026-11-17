@@ -1,4 +1,5 @@
 basics:
+  path: phishing
   slug: basics
   title: Basics
   description: The basics.

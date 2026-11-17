@@ -3,10 +3,10 @@ require "test_helper"
 class User::BadgedTest < ActiveSupport::TestCase
   test "a failed XP award rolls the badge back and can be retried" do
     user = users(:one)
-    attempt = ShiftAttempt.start(user:, shift: shifts(:month_end))
+    attempt = MissionAttempt.start(user:, mission: missions(:month_end))
     attempt.archive(messages(:newsletter))
     attempt.report(messages(:fake_invoice))
-    attempt.clock_off
+    attempt.stand_down
     xp = user.reload.xp_total
 
     original = user.method(:award_xp)

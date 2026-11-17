@@ -9,19 +9,19 @@ class User::ProgressionTest < ActiveSupport::TestCase
   end
 
   test "XP goes into the ledger and the side's total and level together, and xp_total is both sides" do
-    event = @user.award_xp(side: "blue", amount: 120, reason: :shift_completed)
+    event = @user.award_xp(side: "blue", amount: 120, reason: :mission_completed)
     @user.award_xp(side: "red", amount: 40, reason: :workshop_completed)
 
-    assert_equal [ "blue", 120, "shift_completed" ], [ event.side, event.amount, event.reason ]
+    assert_equal [ "blue", 120, "mission_completed" ], [ event.side, event.amount, event.reason ]
     assert_equal [ 120, 2, 40, 1, 160 ], @user.reload.values_at(:blue_xp, :blue_level, :red_xp, :red_level, :xp_total)
     assert_equal 2, @user.xp_events.count
   end
 
   test "each source earns each kind of XP once" do
-    attempt = ShiftAttempt.start(user: @user, shift: shifts(:month_end))
+    attempt = MissionAttempt.start(user: @user, mission: missions(:month_end))
 
-    assert @user.award_xp(side: "blue", amount: 50, reason: :shift_completed, source: attempt)
-    assert_nil @user.award_xp(side: "blue", amount: 50, reason: :shift_completed, source: attempt)
+    assert @user.award_xp(side: "blue", amount: 50, reason: :mission_completed, source: attempt)
+    assert_nil @user.award_xp(side: "blue", amount: 50, reason: :mission_completed, source: attempt)
     assert_equal 50, @user.reload.blue_xp
   end
 
@@ -30,7 +30,7 @@ class User::ProgressionTest < ActiveSupport::TestCase
   end
 
   test "progress through the current level, and what's left to the next" do
-    @user.award_xp(side: "blue", amount: 150, reason: :shift_completed)
+    @user.award_xp(side: "blue", amount: 150, reason: :mission_completed)
 
     assert_in_delta (150 - 100).fdiv(283 - 100), @user.level_progress("blue")
     assert_equal 133, @user.xp_to_next_level("blue")

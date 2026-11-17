@@ -5,10 +5,10 @@ class AwardBadgesJobTest < ActiveJob::TestCase
 
   test "awards new badges once, with their XP, and toasts each one" do
     user = users(:one)
-    attempt = ShiftAttempt.start(user:, shift: shifts(:month_end))
+    attempt = MissionAttempt.start(user:, mission: missions(:month_end))
     attempt.archive(messages(:newsletter))
     attempt.report(messages(:fake_invoice))
-    attempt.clock_off
+    attempt.stand_down
     xp = user.reload.blue_xp
 
     stream = [ user.to_gid_param, "notifications" ].join(":") # the name turbo_stream_from(user, :notifications) listens on

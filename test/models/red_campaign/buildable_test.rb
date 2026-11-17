@@ -65,7 +65,7 @@ class RedCampaign::BuildableTest < ActiveSupport::TestCase
   end
 
   test "only this target's cards, and only while it's a draft" do
-    other = Target.create!(shift: shifts(:site_visit), slug: "other", title: "Other", recon_brief: "x", budget: 5)
+    other = Target.create!(mission: missions(:site_visit), slug: "other", title: "Other", recon_brief: "x", budget: 5)
     card = other.options.create!(technique: techniques(:malicious_link), key: "x", category: "lure", label: "x", rendered_value: "x")
     assert_raises(RedCampaign::Rejected, match: /isn't for this target/) { @campaign.choose(card) }
 

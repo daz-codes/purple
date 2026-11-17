@@ -1,7 +1,7 @@
 # A Red's Workshop brief: what Red has learned about one of Blue's companies (the one in the linked
-# shift), the budget for the campaign, and the cards Red can pick from.
+# mission), the budget for the campaign, and the cards Red can pick from.
 class Target < ApplicationRecord
-  belongs_to :shift
+  belongs_to :mission
   has_many :options, -> { order(:position, :id) }, class_name: "TargetOption", dependent: :destroy
   has_many :red_campaigns, dependent: :restrict_with_exception
 

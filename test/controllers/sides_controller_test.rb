@@ -13,7 +13,7 @@ class SidesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "red", users(:one).reload.preferred_side
 
     post side_path, params: { side: "blue" }
-    assert_redirected_to tracks_path
+    assert_redirected_to paths_path
   end
 
   test "the dashboard's switcher comes back to the dashboard" do

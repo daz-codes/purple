@@ -1,10 +1,10 @@
 require "test_helper"
 
 class DebriefsHelperTest < ActionView::TestCase
-  include ShiftAttemptsHelper # flag_label, channel names
+  include MissionAttemptsHelper # flag_label, channel names
 
   setup do
-    @shift = shifts(:month_end)
+    @mission = missions(:month_end)
   end
 
   test "a reported phish is praised" do
@@ -58,7 +58,7 @@ class DebriefsHelperTest < ActionView::TestCase
   end
 
   test "replies: handing over a code, refusing, or replying poorly to a genuine message" do
-    @shift = shifts(:site_visit)
+    @mission = missions(:site_visit)
     gave = result("it_chat", archive("sam_text"), reply("it_chat", "compromise", "Here it is: 482 913"))
     assert_includes debrief_story(gave).join, "You replied “Here it is: 482 913”, handing over exactly what they asked for"
     assert_includes debrief_lessons(gave).join, "Never share a one-time code"
@@ -71,7 +71,7 @@ class DebriefsHelperTest < ActionView::TestCase
   end
 
   test "a question says where its answer was, whether or not the player found it" do
-    @shift = shifts(:site_visit)
+    @mission = missions(:site_visit)
     right = result("sam_text", reply("sam_text", "safe", "Sure, see you there"), archive("sam_text"))
     assert_equal "You'd read carefully: the answer was in Larkhill IT's text: “ready to collect on Thursday”.", debrief_answer_source(right)
 
@@ -86,7 +86,7 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_nil debrief_contradiction(red_flags(:pay_today))
   end
 
-  test "the headline sums up the shift" do
+  test "the headline sums up the mission" do
     assert_equal "You reported 0 of 1 phish, dealt with 0 of 3 genuine messages, and spotted 0 of 2 red flags.", debrief_headline(scorecard)
   end
 
@@ -123,11 +123,11 @@ class DebriefsHelperTest < ActionView::TestCase
     assert_empty debrief_marked_paragraphs(result("newsletter"))
   end
 
-  test "how the shift ended" do
-    attempt = ShiftAttempt.start(user: users(:one), shift: @shift)
-    attempt.clock_off
+  test "how the mission ended" do
+    attempt = MissionAttempt.start(user: users(:one), mission: @mission)
+    attempt.stand_down
 
-    assert_match(/\AYou clocked off after \d+ s\./, debrief_ending(attempt, attempt.scorecard))
+    assert_match(/\AYou stood down after \d+ s\./, debrief_ending(attempt, attempt.scorecard))
   end
 
   test "points and durations read naturally" do
@@ -149,11 +149,11 @@ class DebriefsHelperTest < ActionView::TestCase
     end
 
     def flag(key, anchor, from = nil, to = nil)
-      action("flag_element", key, result: ShiftAttempt::Flag.new(anchor:, from:, to:).to_result)
+      action("flag_element", key, result: MissionAttempt::Flag.new(anchor:, from:, to:).to_result)
     end
 
     def scorecard(*actions)
-      ShiftAttempt::Scorecard.new(shift: @shift, actions:)
+      MissionAttempt::Scorecard.new(mission: @mission, actions:)
     end
 
     def result(key, *actions)
