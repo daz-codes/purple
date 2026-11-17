@@ -232,7 +232,9 @@ Purple runs at **https://purple.daz.codes** on the same ARM VPS as the other daz
 - SSH access to the server as root, and `KAMAL_REGISTRY_PASSWORD` in your shell (the same GitHub
   token the other apps use)
 - A DNS A record for `purple.daz.codes` pointing at `157.180.83.205`
-- An SMTP provider (Postmark, SES, Resend…) with a verified sending domain
+- An SMTP provider (Resend, Postmark, SES…) with `purple.daz.codes` verified as a sending domain.
+  Emails come from `noreply@purple.daz.codes` (`MAILER_FROM` in `config/deploy.yml`), and verifying
+  `daz.codes` alone doesn't cover the subdomain.
 - An S3-compatible bucket for backups (Cloudflare R2, Backblaze B2, S3…) and a key that can read and
   write it. Keep the bucket private.
 - An uptime monitor (Better Stack, UptimeRobot…) checking `https://purple.daz.codes/up`
