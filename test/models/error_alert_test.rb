@@ -23,6 +23,34 @@ class ErrorAlertTest < ActiveSupport::TestCase
     assert_not_includes body, "player@purple.example"
   end
 
+  test "removes email addresses and Postgres DETAIL lines from the message" do
+    message = "PG::UniqueViolation: ERROR:  duplicate key value violates unique constraint\n" \
+              "DETAIL:  Key (email_address)=(player@purple.example) already exists.\n" \
+              "Couldn't email Someone.Else+tag@mail.purple.example"
+
+    assert_emails 1 do
+      report raised(ActiveRecord::RecordNotUnique, message)
+    end
+
+    email = ActionMailer::Base.deliveries.last
+    body = email.body.to_s
+    assert_includes body, "duplicate key value violates unique constraint"
+    assert_includes body, "DETAIL: [removed]"
+    assert_includes body, "Couldn't email [email]"
+    [ body, email.subject ].each do |text|
+      assert_not_includes text, "player@purple.example"
+      assert_not_includes text, "Someone.Else"
+    end
+  end
+
+  test "counts the quiet hour in memory by default, so it still alerts when the database is down" do
+    alert = ErrorAlert.new(to: "team@purple.example")
+
+    assert_emails 1 do
+      2.times { alert.report(raised(ActiveRecord::ConnectionNotEstablished, "no db"), handled: false, severity: :error, context: {}) }
+    end
+  end
+
   test "the same error alerts once an hour, a different one alerts straight away" do
     error = raised(RuntimeError, "boom")
 
