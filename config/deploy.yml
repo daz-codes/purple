@@ -70,11 +70,11 @@ builder:
   arch: arm64
 
 accessories:
-  # Postgres 17. Only reachable from the server itself (and the app over Kamal's network).
+  # Postgres 17. No published port: only the app and the backup accessory reach it, over Kamal's
+  # network (restores go through the backup accessory too; see README.md).
   db:
     image: postgres:17.7
     host: <%= server %>
-    port: "127.0.0.1:5432:5432"
     env:
       clear:
         POSTGRES_USER: purple
