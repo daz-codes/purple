@@ -8,6 +8,16 @@ class MissionAttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, MissionAttempt.count
   end
 
+  test "a mission on an unpublished path can't be started" do
+    paths(:phishing).update!(published: false)
+    sign_in_as users(:one)
+
+    post mission_attempts_path(missions(:month_end))
+
+    assert_response :not_found
+    assert_equal 0, MissionAttempt.count
+  end
+
   test "starting a mission twice resumes the same attempt" do
     sign_in_as users(:one)
 

@@ -11,7 +11,7 @@ class MissionAttemptsController < ApplicationController
 
   # Starts a mission, or resumes the one already in progress.
   def create
-    mission = Mission.published.find_by!(slug: params[:mission_id])
+    mission = Mission.playable.find_by!(slug: params[:mission_id])
     redirect_to MissionAttempt.start(user: Current.user, mission:)
   end
 

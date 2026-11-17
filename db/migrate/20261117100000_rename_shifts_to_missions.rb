@@ -4,9 +4,10 @@
 # types, the Clean Shift badge's key, and the mission ids inside finished attempts' content snapshots.
 #
 # safety_assured: renaming tables and columns breaks code still running the old names, which
-# strong_migrations rightly flags. Here it's deliberate: the app and this migration ship in one deploy
-# (Kamal runs migrations before the new containers take traffic), the tables are small, and the
-# rename is cheapest now, before production has many players. Everything runs in one transaction.
+# strong_migrations rightly flags. Here it's deliberate: it ships before Purple's first production
+# deploy, so no live data or players are affected, and the rename is cheapest now. (Once production
+# is live, beware: bin/docker-entrypoint migrates as the new container boots, while the old one is
+# still serving, so old code would briefly hit the renamed tables.) Everything runs in one transaction.
 class RenameShiftsToMissions < ActiveRecord::Migration[8.2]
   ACTION_KINDS = %w[ open_message expand_headers verify_sender click_link close_landing submit_credentials
                      open_attachment run_download use_portal report_message archive_message flag_element

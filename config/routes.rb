@@ -39,6 +39,7 @@ Rails.application.routes.draw do
   resources :paths, only: :index
   get "tracks", to: redirect("/paths")
   resources :tracks, only: :show
+  get "shifts/:id", to: redirect("/missions/%{id}")
   resources :missions, only: :show do
     resources :attempts, only: %i[ new create ], controller: "mission_attempts"
   end

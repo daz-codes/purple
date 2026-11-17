@@ -72,6 +72,22 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "a mission on an unpublished track or path isn't found" do
+    tracks(:basics).update!(published: false)
+    get mission_path(missions(:month_end))
+    assert_response :not_found
+
+    tracks(:basics).update!(published: true)
+    paths(:phishing).update!(published: false)
+    get mission_path(missions(:month_end))
+    assert_response :not_found
+  end
+
+  test "old shift links go to the mission" do
+    get "/shifts/month-end"
+    assert_redirected_to "/missions/month-end"
+  end
+
   test "unpublished missions aren't found" do
     missions(:month_end).update!(published: false)
 
