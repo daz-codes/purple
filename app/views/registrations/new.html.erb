@@ -30,6 +30,11 @@
             maxlength: User::PASSWORD_MAX_LENGTH, class: "form-input" %>
     </div>
 
+    <p class="text-xs text-ink-muted">
+      By creating an account you agree to the <%= link_to "terms", terms_path, class: "text-purple-team underline" %>
+      and the <%= link_to "privacy policy", privacy_path, class: "text-purple-team underline" %>.
+    </p>
+
     <%= form.submit "Create account", class: "btn-primary w-full" %>
   <% end %>
 

@@ -10,6 +10,15 @@ class HomeTest < ApplicationSystemTestCase
     assert_text "See both sides of every move"
   end
 
+  test "the footer leads to the privacy and terms pages" do
+    visit root_path
+    within("footer") { click_on "Privacy" }
+    assert_selector "h1", text: "Privacy"
+
+    within("footer") { click_on "Terms" }
+    assert_selector "h1", text: "Terms of use"
+  end
+
   test "the whole Blue card is a link to the tracks, and each track card is a link to its shifts" do
     visit root_path
     find("a", text: "Work a shift").click

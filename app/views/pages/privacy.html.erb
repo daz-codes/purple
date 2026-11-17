@@ -1,0 +1,84 @@
+<% content_for :title, "Privacy" %>
+
+<article class="max-w-2xl">
+  <header class="mb-8">
+    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Privacy</h1>
+    <p class="mt-3 text-ink-muted">What Purple stores about you, why, and how to have it removed.</p>
+  </header>
+
+  <%= render "pages/draft_notice" %>
+
+  <div class="space-y-8 leading-relaxed">
+    <section aria-labelledby="who">
+      <h2 id="who" class="text-xl font-bold">Who runs Purple</h2>
+      <p class="mt-2 text-ink-muted">
+        Purple is run by <strong>[to confirm: name or company]</strong>, who is responsible for your
+        data under UK data protection law. Questions and requests go to
+        <strong>[to confirm: contact email]</strong>.
+      </p>
+    </section>
+
+    <section aria-labelledby="what">
+      <h2 id="what" class="text-xl font-bold">What we store</h2>
+      <ul class="mt-2 list-disc space-y-2 pl-6 text-ink-muted">
+        <li><strong class="text-ink">Your account:</strong> your email address, your display name and
+          your password, which is stored only as a one-way hash that nobody can read back.</li>
+        <li><strong class="text-ink">Sign-ins:</strong> for each device you're signed in on, its IP
+          address and browser, so you can see and sign out your sessions on your account page.</li>
+        <li><strong class="text-ink">Your play:</strong> the moves you make in shifts and Workshop
+          campaigns, your scores, XP, levels, streaks and badges.</li>
+      </ul>
+      <p class="mt-3 text-ink-muted">
+        Everything inside the game is fictional. The staff numbers, passwords and other "private
+        details" you can share in a shift are made up for your character, and the sign-in pages in
+        the game never record what you type. Never enter a real password into a game page.
+      </p>
+    </section>
+
+    <section aria-labelledby="why">
+      <h2 id="why" class="text-xl font-bold">Why</h2>
+      <p class="mt-2 text-ink-muted">
+        To run your account and the game: signing you in, scoring your play, keeping your progress and
+        showing leaderboards. We email you only to confirm your address and to reset your password.
+        There's no advertising, no tracking or analytics, and we don't sell or share your data.
+      </p>
+    </section>
+
+    <section aria-labelledby="public">
+      <h2 id="public" class="text-xl font-bold">What other players see</h2>
+      <p class="mt-2 text-ink-muted">
+        Your display name, levels, badges and preferred side are on your public profile, and on the
+        leaderboards unless you opt out on your account page. Your email address is never shown.
+      </p>
+    </section>
+
+    <section aria-labelledby="cookies">
+      <h2 id="cookies" class="text-xl font-bold">Cookies</h2>
+      <p class="mt-2 text-ink-muted">
+        One cookie, to keep you signed in. It's needed for the site to work, so there's no cookie banner.
+      </p>
+    </section>
+
+    <section aria-labelledby="where">
+      <h2 id="where" class="text-xl font-bold">Where it's kept, and for how long</h2>
+      <p class="mt-2 text-ink-muted">
+        On a server hosted by <strong>[to confirm: hosting provider and country]</strong>. Emails are
+        sent through <strong>[to confirm: email provider]</strong>. Database backups are
+        kept in <strong>[to confirm: storage provider]</strong> for 30 days. Your data is kept while
+        you have an account.
+      </p>
+    </section>
+
+    <section aria-labelledby="rights">
+      <h2 id="rights" class="text-xl font-bold">Your rights</h2>
+      <p class="mt-2 text-ink-muted">
+        You can ask for a copy of your data, ask us to correct it, or ask us to delete your account
+        and everything linked to it, by emailing <strong>[to confirm: contact email]</strong>. If
+        you're unhappy with how we handle your data, you can complain to the Information
+        Commissioner's Office (ico.org.uk).
+      </p>
+    </section>
+
+    <p class="text-sm text-ink-muted">Last updated <strong>[to confirm: date]</strong>.</p>
+  </div>
+</article>

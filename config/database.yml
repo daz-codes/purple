@@ -88,6 +88,8 @@ production:
   primary: &primary_production
     <<: *default
     database: purple_production
+    # The Postgres accessory in config/deploy.yml (purple-db on Kamal's network).
+    host: <%= ENV["DB_HOST"] %>
     username: purple
     password: <%= ENV["PURPLE_DATABASE_PASSWORD"] %>
   cache:

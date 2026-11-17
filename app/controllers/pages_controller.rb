@@ -15,4 +15,10 @@ class PagesController < ApplicationController
     @earned = @user.user_badges.index_by(&:badge_id)
     render :dashboard
   end
+
+  def privacy
+  end
+
+  def terms
+  end
 end

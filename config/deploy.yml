@@ -1,122 +1,130 @@
-# Name of your application. Used to uniquely configure containers.
+# Kamal 2 deploy for Purple: one VPS running the app (Puma behind Thruster, Solid Queue inside
+# Puma), kamal-proxy for SSL, and three accessories on the same server: Postgres, a nightly
+# pg_dump, and an rclone copy of the dumps to object storage. See "Deployment" in README.md.
+#
+# It shares the ARM server and the GitHub container registry with the other daz.codes apps
+# (matheminute, sumz). Secrets come from .kamal/secrets. These settings come from your shell (or
+# a direnv .envrc); a missing one stops the deploy with a clear error:
+#
+#   KAMAL_REGISTRY_PASSWORD  a GitHub token that can push to ghcr.io/daz-codes (as for the other apps)
+#   ERROR_ALERTS_TO          who gets emailed about production errors
+#   BACKUP_S3_ENDPOINT       the object storage endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+#   BACKUP_S3_BUCKET         the bucket for database dumps
+<%
+  server = "157.180.83.205"
+  host = "purple.daz.codes"
+%>
+
 service: purple
+image: daz-codes/purple
 
-# Name of the container image (use your-user/app-name on external registries).
-image: purple
-
-# Deploy to these servers.
 servers:
   web:
-    - 192.168.0.1
-  # job:
-  #   hosts:
-  #     - 192.168.0.1
-  #   cmd: bin/jobs
+    - <%= server %>
 
-# Enable SSL auto certification via Let's Encrypt and allow for multiple apps on a single web server.
-# If used with Cloudflare, set encryption mode in SSL/TLS setting to "Full" to enable CF-to-app encryption.
-#
-# Using an SSL proxy like this requires turning on config.assume_ssl and config.force_ssl in production.rb!
-#
-# Don't use this when deploying to multiple web servers (then you have to terminate SSL at your load balancer).
-#
-# proxy:
-#   ssl: true
-#   host: app.example.com
+# kamal-proxy terminates SSL with a Let's Encrypt certificate for the domain (production.rb has
+# assume_ssl and force_ssl on) and only routes healthy containers, checked at /up.
+proxy:
+  ssl: true
+  host: <%= host %>
+  healthcheck:
+    path: /up
+    timeout: 5
 
-# Where you keep your container images.
 registry:
-  # Alternatives: hub.docker.com / registry.digitalocean.com / ghcr.io / ...
-  server: localhost:5555
+  server: ghcr.io
+  username: daz-codes
+  password:
+    - KAMAL_REGISTRY_PASSWORD
 
-  # Needed for authenticated registries.
-  # username: your-user
-
-  # Always use an access token rather than real password when possible.
-  # password:
-  #   - KAMAL_REGISTRY_PASSWORD
-
-# Inject ENV variables into containers (secrets come from .kamal/secrets).
 env:
   secret:
     - RAILS_MASTER_KEY
+    - PURPLE_DATABASE_PASSWORD
   clear:
-    # The public host name, used for links in emails (confirmation, password reset).
-    APP_HOST: purple.example
-
-    # Run the Solid Queue Supervisor inside the web server's Puma process to do jobs.
-    # When you start using multiple servers, you should split out job processing to a dedicated machine.
+    # The public host name: links in emails, and the only Host header the app answers.
+    APP_HOST: <%= host %>
+    MAILER_FROM: "Purple <noreply@<%= host %>>"
+    # Who gets emailed when production reports an error (see ErrorAlert). Comma-separated.
+    ERROR_ALERTS_TO: <%= ENV.fetch("ERROR_ALERTS_TO") { raise "Set ERROR_ALERTS_TO to the address(es) for error emails" } %>
+    # The Postgres accessory below, reached over Kamal's Docker network.
+    DB_HOST: purple-db
+    # Run the Solid Queue supervisor inside Puma: one server, so no separate job container.
     SOLID_QUEUE_IN_PUMA: true
 
-    # Set number of processes dedicated to Solid Queue (default: 1)
-    # JOB_CONCURRENCY: 3
-
-    # Set number of cores available to the application on each server (default: 1).
-    # WEB_CONCURRENCY: 2
-
-    # Match this to any external database server to configure Active Record correctly
-    # Use purple-db for a db accessory server on same machine via local kamal docker network.
-    # DB_HOST: 192.168.0.2
-
-    # Log everything from Rails
-    # RAILS_LOG_LEVEL: debug
-
-# Aliases are triggered with "bin/kamal <alias>". You can overwrite arguments on invocation:
-# "bin/kamal logs -r job" will tail logs from the first server in the job section.
 aliases:
   console: app exec --interactive --reuse "bin/rails console"
   shell: app exec --interactive --reuse "bash"
   logs: app logs -f
   dbc: app exec --interactive --reuse "bin/rails dbconsole --include-password"
+  backup-logs: accessory logs backup -f
+  offsite-logs: accessory logs offsite -f
 
-# Use a persistent storage volume for sqlite database files and local Active Storage files.
-# Recommended to change this to a mounted volume path that is backed up off server.
 volumes:
   - "purple_storage:/rails/storage"
 
-# Bridge fingerprinted assets, like JS and CSS, between versions to avoid
-# hitting 404 on in-flight requests. Combines all files from new and old
-# version inside the asset_path.
 asset_path: /rails/public/assets
 
-# Configure the image builder.
 builder:
-  arch: amd64
+  # The server is ARM, like the other daz.codes apps.
+  arch: arm64
 
-  # # Build image via remote server (useful for faster amd64 builds on arm64 computers)
-  # remote: ssh://docker@docker-builder-server
-  #
-  # # Pass arguments and secrets to the Docker build process
-  # args:
-  #   RUBY_VERSION: 3.4.12
-  # secrets:
-  #   - GITHUB_TOKEN
-  #   - RAILS_MASTER_KEY
+accessories:
+  # Postgres 17. No published port: only the app and the backup accessory reach it, over Kamal's
+  # network (restores go through the backup accessory too; see README.md).
+  db:
+    image: postgres:17.7
+    host: <%= server %>
+    env:
+      clear:
+        POSTGRES_USER: purple
+        POSTGRES_DB: purple_production
+      secret:
+        - POSTGRES_PASSWORD:PURPLE_DATABASE_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
 
-# Use a different ssh user than root
-# ssh:
-#   user: app
+  # A dump of the main database at start-up and every night at 03:00 UTC, kept on the server for
+  # 7 days. The same image as the database, so pg_dump matches the server version.
+  backup:
+    image: postgres:17.7
+    host: <%= server %>
+    cmd: bash /backup/dump.sh
+    env:
+      clear:
+        PGHOST: purple-db
+        PGUSER: purple
+        PGDATABASE: purple_production
+        BACKUP_AT: "03:00"
+        BACKUP_LOCAL_DAYS: 7
+      secret:
+        - PGPASSWORD:PURPLE_DATABASE_PASSWORD
+    files:
+      - config/backup/dump.sh:/backup/dump.sh:ro
+    volumes:
+      - /var/lib/purple-backups:/backups
 
-# Use accessory services (secrets come from .kamal/secrets).
-# accessories:
-#   db:
-#     image: mysql:9.7
-#     host: 192.168.0.2
-#     # Change to 3306 to expose port to the world instead of just local network.
-#     port: "127.0.0.1:3306:3306"
-#     env:
-#       clear:
-#         MYSQL_ROOT_HOST: '%'
-#       secret:
-#         - MYSQL_ROOT_PASSWORD
-#     files:
-#       - config/mysql/production.cnf:/etc/mysql/my.cnf
-#       - db/production.sql:/docker-entrypoint-initdb.d/setup.sql
-#     directories:
-#       - data:/var/lib/mysql
-#   redis:
-#     image: valkey/valkey:9
-#     host: 192.168.0.2
-#     port: 6379
-#     directories:
-#       - data:/data
+  # Copies new dumps to object storage every hour and prunes ones older than 30 days. Any
+  # S3-compatible provider works (Cloudflare R2, Backblaze B2, AWS S3...).
+  offsite:
+    image: rclone/rclone:1.75.2
+    host: <%= server %>
+    cmd: /backup/offsite.sh
+    options:
+      entrypoint: sh
+    env:
+      clear:
+        BACKUP_DESTINATION: <%= ENV.fetch("BACKUP_S3_BUCKET") { raise "Set BACKUP_S3_BUCKET" } %>/purple
+        BACKUP_KEEP_DAYS: 30
+        RCLONE_CONFIG_OFFSITE_TYPE: s3
+        RCLONE_CONFIG_OFFSITE_PROVIDER: Other
+        RCLONE_CONFIG_OFFSITE_ENDPOINT: <%= ENV.fetch("BACKUP_S3_ENDPOINT") { raise "Set BACKUP_S3_ENDPOINT" } %>
+        RCLONE_CONFIG_OFFSITE_REGION: <%= ENV.fetch("BACKUP_S3_REGION", "auto") %>
+        RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: true
+      secret:
+        - RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID:BACKUP_S3_ACCESS_KEY_ID
+        - RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY:BACKUP_S3_SECRET_ACCESS_KEY
+    files:
+      - config/backup/offsite.sh:/backup/offsite.sh:ro
+    volumes:
+      - /var/lib/purple-backups:/backups:ro
