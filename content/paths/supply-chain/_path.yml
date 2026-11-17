@@ -1,0 +1,7 @@
+title: Supply Chain
+description: >
+  Attacks on the software and services you depend on: borrowed package names, patient maintainers and
+  buckets left open.
+position: 5
+opens:
+  after_missions: 3

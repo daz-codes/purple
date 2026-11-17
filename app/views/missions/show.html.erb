@@ -1,7 +1,7 @@
 <% content_for :title, @mission.title %>
 
 <nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
-  <%= link_to "Missions", tracks_path, class: "hover:text-ink" %> / <%= link_to @mission.track.title, @mission.track, class: "hover:text-ink" %>
+  <%= link_to "Paths", paths_path, class: "hover:text-ink" %> / <%= link_to @mission.track.path.title, paths_path(anchor: @mission.track.path.slug), class: "hover:text-ink" %> / <%= link_to @mission.track.title, @mission.track, class: "hover:text-ink" %>
 </nav>
 
 <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start">

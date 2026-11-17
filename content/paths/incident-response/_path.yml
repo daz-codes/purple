@@ -1,0 +1,7 @@
+title: Incident Response
+description: >
+  Contain an attack that's already happening. Triage what's leaking, decide what to cut off first, and
+  keep the lights (and the water) on.
+position: 6
+opens:
+  after_first_track_of: forensics

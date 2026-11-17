@@ -8,7 +8,7 @@ class PagesController < ApplicationController
     @user = Current.user
     @open_attempt = @user.mission_attempts.open.includes(:mission).order(:started_at).last
     @draft_campaign = @user.red_campaigns.draft.includes(:target).order(:created_at).last
-    @next_mission = Mission.published.joins(:track).merge(Track.published).order("tracks.position, missions.position")
+    @next_mission = Mission.in_play_order
       .where.not(id: @user.mission_attempts.finished.select(:mission_id)).first
     @next_target = Target.published.in_order.where.not(id: @user.red_campaigns.launched.select(:target_id)).first
     @badges = Badge.ordered

@@ -1,6 +1,6 @@
 module Content
   # A hash from a YAML file plus where it came from, so every error can name its exact location,
-  # e.g. "content/tracks/basics/month-end.yml: messages[1] (fake_invoice) → links[0]: …".
+  # e.g. "content/paths/phishing/basics/month-end.yml: messages[1] (fake_invoice) → links[0]: …".
   class Node
     BOOLEAN = :boolean
 
@@ -53,6 +53,10 @@ module Content
 
         yield Node.new(item, file:, path: path + [ label ]), index
       end
+    end
+
+    def mapping?(key)
+      @data[key.to_s].is_a?(Hash)
     end
 
     # A nested mapping, as a Node labelled with its key.

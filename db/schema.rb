@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_17_100000) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -185,6 +185,26 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100000) do
     t.check_constraint "par_minutes > 0", name: "missions_par_minutes_positive"
   end
 
+  create_table "paths", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "title", null: false
+    t.text "description", null: false
+    t.integer "position", default: 0, null: false
+    t.boolean "published", default: false, null: false
+    t.string "opens", default: "always", null: false
+    t.integer "opens_after_missions"
+    t.bigint "opens_after_path_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["opens_after_path_id"], name: "index_paths_on_opens_after_path_id"
+    t.index ["slug"], name: "index_paths_on_slug", unique: true
+    t.check_constraint "(opens::text = 'after_first_track'::text) = (opens_after_path_id IS NOT NULL)", name: "paths_opens_after_path"
+    t.check_constraint "(opens::text = 'after_missions'::text) = (opens_after_missions IS NOT NULL)", name: "paths_opens_after_missions"
+    t.check_constraint "opens::text = ANY (ARRAY['always'::character varying, 'after_missions'::character varying, 'after_first_track'::character varying]::text[])", name: "paths_opens"
+    t.check_constraint "opens_after_missions IS NULL OR opens_after_missions > 0", name: "paths_opens_after_missions_positive"
+    t.check_constraint "opens_after_path_id IS NULL OR opens_after_path_id <> id", name: "paths_opens_after_another_path"
+  end
+
   create_table "red_campaigns", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "target_id", null: false
@@ -311,8 +331,12 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100000) do
     t.boolean "published", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "path_id", null: false
+    t.integer "unlock_after", default: 0, null: false
+    t.index ["path_id"], name: "index_tracks_on_path_id"
     t.index ["slug"], name: "index_tracks_on_slug", unique: true
     t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying::text, 'intermediate'::character varying::text, 'advanced'::character varying::text])", name: "tracks_difficulty"
+    t.check_constraint "unlock_after >= 0", name: "tracks_unlock_after_non_negative"
   end
 
   create_table "user_badges", force: :cascade do |t|
@@ -383,6 +407,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100000) do
   add_foreign_key "mission_attempts", "missions"
   add_foreign_key "mission_attempts", "users"
   add_foreign_key "missions", "tracks"
+  add_foreign_key "paths", "paths", column: "opens_after_path_id"
   add_foreign_key "red_campaigns", "targets"
   add_foreign_key "red_campaigns", "users"
   add_foreign_key "red_flags", "messages"
@@ -390,6 +415,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100000) do
   add_foreign_key "target_options", "targets"
   add_foreign_key "target_options", "techniques"
   add_foreign_key "targets", "missions"
+  add_foreign_key "tracks", "paths"
   add_foreign_key "user_badges", "badges"
   add_foreign_key "user_badges", "users"
   add_foreign_key "xp_events", "users"

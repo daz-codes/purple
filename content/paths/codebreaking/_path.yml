@@ -1,0 +1,6 @@
+title: Codebreaking
+description: >
+  Encodings and ciphers, and how they break. Crack intercepted traffic, from base64 to a reused
+  one-time pad.
+position: 2
+opens: always

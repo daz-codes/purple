@@ -2,5 +2,6 @@ title: Business Email Compromise
 description: >
   Fake bosses, hijacked suppliers and changed bank details. Red goes after the money, and
   the emails look more convincing than ever.
-position: 2
+position: 3
 difficulty: intermediate
+unlock_after: 3

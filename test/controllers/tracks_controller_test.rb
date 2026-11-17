@@ -1,11 +1,7 @@
 require "test_helper"
 
 class TracksControllerTest < ActionDispatch::IntegrationTest
-  test "anyone can browse tracks and read a briefing" do
-    get tracks_path
-    assert_response :success
-    assert_select "h2", text: "Basics"
-
+  test "anyone can browse a track and read a briefing" do
     get track_path(tracks(:basics))
     assert_response :success
     assert_select "h2", text: "Month-end"
@@ -68,6 +64,12 @@ class TracksControllerTest < ActionDispatch::IntegrationTest
 
     get track_path(tracks(:basics))
     assert_select "[data-testid=mission-progress]", count: 0
+  end
+
+  test "a track on an unpublished path isn't found" do
+    paths(:phishing).update!(published: false)
+    get track_path(tracks(:basics))
+    assert_response :not_found
   end
 
   test "unpublished missions aren't found" do

@@ -1,0 +1,53 @@
+<% content_for :title, "Paths" %>
+
+<header class="mb-8">
+  <p class="text-sm font-semibold uppercase tracking-widest text-blue-team">Blue team</p>
+  <h1 class="mt-2 text-3xl sm:text-4xl font-extrabold tracking-tight">Pick a path</h1>
+  <p class="mt-3 max-w-2xl text-ink-muted">
+    Each path is a skill, from spotting phishing to breaking codes. Its tracks are runs of missions,
+    played in order. Every mission earns XP on the same ladder.
+  </p>
+</header>
+
+<div class="space-y-6">
+  <% @paths.each do |path| %>
+    <% tracks = path.playable_tracks %>
+    <section id="<%= path.slug %>" class="card" aria-labelledby="<%= path.slug %>-heading" data-testid="path">
+      <div class="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="<%= path.slug %>-heading" class="text-2xl font-bold"><%= path.title %></h2>
+        <% if tracks.none? %>
+          <span class="rounded-full border border-line px-2 py-0.5 text-sm font-semibold text-ink-muted">Coming soon</span>
+        <% elsif authenticated? %>
+          <% missions = tracks.flat_map { |track| track.missions.select(&:published?) } %>
+          <p class="text-sm text-ink-muted" data-testid="path-progress">
+            <%= missions.count { |mission| @finished_mission_ids.include?(mission.id) } %> of <%= pluralize(missions.size, "mission") %> finished
+          </p>
+        <% end %>
+      </div>
+      <p class="mt-2 max-w-2xl text-ink-muted"><%= path.description %></p>
+
+      <% if tracks.any? %>
+        <ol class="mt-5 grid gap-4 md:grid-cols-2">
+          <% tracks.each do |track| %>
+            <% missions = track.missions.select(&:published?) %>
+            <li>
+              <%= link_to track, class: "card-link group flex h-full flex-col" do %>
+                <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted"><%= track.difficulty.humanize %></p>
+                <h3 class="mt-1 text-xl font-bold group-hover:text-blue-team"><%= track.title %></h3>
+                <p class="mt-2 flex-1 text-sm text-ink-muted"><%= track.description %></p>
+                <p class="mt-3 text-sm text-ink-muted">
+                  <% if authenticated? %>
+                    <%= missions.count { |mission| @finished_mission_ids.include?(mission.id) } %> of <%= pluralize(missions.size, "mission") %> finished
+                  <% else %>
+                    <%= pluralize(missions.size, "mission") %>
+                  <% end %>
+                  <span aria-hidden="true">→</span>
+                </p>
+              <% end %>
+            </li>
+          <% end %>
+        </ol>
+      <% end %>
+    </section>
+  <% end %>
+</div>

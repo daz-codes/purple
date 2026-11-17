@@ -1,6 +1,9 @@
 # Phase 1 MVP Plan — Red vs Blue Cyber Training Game
 
 > Hand this file to Claude Code. Work through the milestones **in order**. Finish each one (code + tests + green CI) before starting the next. Ask before deviating from the stack or the conventions below.
+>
+> Phase 2 renamed shifts to **missions** and "Clock off early" to **Stand down**, and grouped tracks into
+> paths (`docs/PLAN-phase-2.md`, P0). This file uses the new words throughout.
 
 ## 1. Product summary
 
@@ -226,7 +229,7 @@ Implement as concerns on `MissionAttempt` (each move is a method that checks it'
 
 ### M2 — Content model & importer
 - Migrations and models from section 5. Seed Techniques (≈12) and Badges.
-- YAML format in `content/tracks/<track>/<mission>.yml` (see section 8).
+- YAML format in `content/paths/<path>/<track>/<mission>.yml` (see section 8).
 - `bin/rails content:import` does the following:
   - idempotent upsert by slug
   - sanitizes HTML
@@ -288,7 +291,7 @@ meters and the wait button.
 - A mission is a fixed set of messages, and it **ends when every one has been dealt with**. The player
   goes straight to the debrief.
 - There's no task list, no wait button and no "End mission" button. A **Stand down** button ends the
-  mission early (status `stood_down`, move `stand_down`), and anything left counts as ignored. Clocking off
+  mission early (status `stood_down`, move `stand_down`), and anything left counts as ignored. Standing down
   never earns the speed bonus.
 - The inbox shows only what's in it, never a total, so the player can't tell whether more is coming.
 
@@ -635,7 +638,7 @@ sensitivity level. It needs a new bot outcome (`leaked`) and its own balance tes
 > reference once M6b lands.
 
 ```yaml
-# content/tracks/phishing-basics/month-end-at-larkhill.yml
+# content/paths/phishing/phishing-basics/month-end-at-larkhill.yml
 slug: month-end-at-larkhill
 title: "Month-end at Larkhill Finance"
 kind: inbox

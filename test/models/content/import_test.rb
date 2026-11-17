@@ -8,6 +8,7 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     assert_operator summary.techniques, :>=, 12
     assert_equal 9, summary.badges
+    assert_equal 6, summary.paths
     assert_equal 3, summary.tracks
     assert_operator summary.missions, :>=, 4
   end
@@ -275,8 +276,8 @@ class Content::ImportTest < ActiveSupport::TestCase
 
   test "unpublishes missions whose file has gone, keeping the record" do
     import!
-    FileUtils.rm(@root.join("tracks/basics/month-end.yml"))
-    write_yaml("tracks/basics/other.yml", valid_mission.merge("slug" => "other"))
+    FileUtils.rm(@root.join("paths/phishing/basics/month-end.yml"))
+    write_yaml("paths/phishing/basics/other.yml", valid_mission.merge("slug" => "other"))
     Content::Import.new(@root).run
 
     assert_not Mission.find_by!(slug: "month-end").published?
@@ -296,7 +297,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     @mission["messages"].last["links"].first["outcome"] = "portal"
 
     error = assert_raises(Content::ImportError) { import! }
-    assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[2\] \(fake_invoice\) → links\[0\]: }, error.message
+    assert_match %r{\Acontent[\w-]*/paths/phishing/basics/month-end\.yml: messages\[2\] \(fake_invoice\) → links\[0\]: }, error.message
   end
 
   test "rejects bad content" do
@@ -481,7 +482,7 @@ class Content::ImportTest < ActiveSupport::TestCase
 
   test "checks track, technique and badge text is fictional" do
     write_content
-    write_yaml("tracks/basics/_track.yml", valid_track.merge("description" => "Phishing at realbank.com"))
+    write_yaml("paths/phishing/basics/_track.yml", valid_track.merge("description" => "Phishing at realbank.com"))
     assert_raises(Content::ImportError, match: %r{_track\.yml: description mentions names}) { Content::Import.new(@root).run }
 
     write_content
@@ -493,11 +494,90 @@ class Content::ImportTest < ActiveSupport::TestCase
     end
   end
 
-  test "a missing tracks folder is a friendly error" do
+  test "a missing paths folder is a friendly error" do
     write_content
-    FileUtils.rm_rf(@root.join("tracks"))
+    FileUtils.rm_rf(@root.join("paths"))
 
-    assert_raises(Content::ImportError, match: /no tracks folder found/) { Content::Import.new(@root).run }
+    assert_raises(Content::ImportError, match: /no paths folder found/) { Content::Import.new(@root).run }
+  end
+
+  test "rejects a path folder without _path.yml" do
+    write_content
+    @root.join("paths/empty").mkpath
+
+    assert_raises(Content::ImportError, match: %r{paths/empty: is missing _path\.yml}) { Content::Import.new(@root).run }
+  end
+
+  test "imports paths and how they open, and a path with no tracks yet is allowed" do
+    write_content
+    write_yaml("paths/forensics/_path.yml", valid_path.merge("title" => "Forensics", "position" => 2))
+    write_yaml("paths/break-in/_path.yml", valid_path.merge("title" => "Break-in", "opens" => { "after_missions" => 3 }))
+    write_yaml("paths/response/_path.yml", valid_path.merge("title" => "Response", "opens" => { "after_first_track_of" => "forensics" }))
+    summary = Content::Import.new(@root).run
+
+    assert_equal 4, summary.paths
+    phishing, break_in, response = Path.find_by!(slug: "phishing"), Path.find_by!(slug: "break-in"), Path.find_by!(slug: "response")
+    assert_equal [ "always", nil, nil ], [ phishing.opens, phishing.opens_after_missions, phishing.opens_after_path ]
+    assert_equal [ "after_missions", 3 ], [ break_in.opens, break_in.opens_after_missions ]
+    assert_equal [ "after_first_track", "forensics" ], [ response.opens, response.opens_after_path.slug ]
+    assert_equal phishing, Track.find_by!(slug: "basics").path
+    assert Path.find_by!(slug: "forensics").coming_soon?
+    assert_not phishing.coming_soon?
+  end
+
+  test "a path's opening can change, and a removed path is unpublished" do
+    write_content
+    write_yaml("paths/response/_path.yml", valid_path.merge("opens" => { "after_first_track_of" => "phishing" }))
+    Content::Import.new(@root).run
+    write_yaml("paths/response/_path.yml", valid_path.merge("opens" => { "after_missions" => 2 }))
+    Content::Import.new(@root).run
+
+    assert_equal [ "after_missions", 2, nil ], Path.find_by!(slug: "response").then { |path| [ path.opens, path.opens_after_missions, path.opens_after_path ] }
+
+    FileUtils.rm_rf(@root.join("paths/response"))
+    Content::Import.new(@root).run
+    assert_not Path.find_by!(slug: "response").published?
+  end
+
+  test "rejects an opening that isn't always, after_missions or after_first_track_of" do
+    write_content
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => "sometimes"))
+    assert_raises(Content::ImportError, match: /_path\.yml: opens must be always, or a mapping/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => { "after_missions" => 3, "after_first_track_of" => "phishing" }))
+    assert_raises(Content::ImportError, match: /opens: give one of after_missions or after_first_track_of/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => { "after_missions" => 0 }))
+    assert_raises(Content::ImportError, match: /Opens after missions must be greater than 0/) { Content::Import.new(@root).run }
+  end
+
+  test "rejects a path that waits on a path that doesn't exist, on itself, or in a loop" do
+    write_content
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => { "after_first_track_of" => "nowhere" }))
+    assert_raises(Content::ImportError, match: /after_first_track_of names no path in the content: nowhere/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => { "after_first_track_of" => "phishing" }))
+    assert_raises(Content::ImportError, match: /must be another path/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/_path.yml", valid_path.merge("opens" => { "after_first_track_of" => "other" }))
+    write_yaml("paths/other/_path.yml", valid_path.merge("opens" => { "after_first_track_of" => "phishing" }))
+    assert_raises(Content::ImportError, match: /paths wait on each other in a loop: other → phishing → other/) { Content::Import.new(@root).run }
+  end
+
+  test "rejects the same track slug in two paths" do
+    write_content
+    write_yaml("paths/zzz/_path.yml", valid_path)
+    write_yaml("paths/zzz/basics/_track.yml", valid_track)
+
+    assert_raises(Content::ImportError, match: /a track called basics already exists in the phishing path/) { Content::Import.new(@root).run }
+  end
+
+  test "a track's unlock_after is stored, and defaults to nothing to finish first" do
+    write_content
+    write_yaml("paths/phishing/later/_track.yml", valid_track.merge("title" => "Later", "position" => 2, "unlock_after" => 3))
+    Content::Import.new(@root).run
+
+    assert_equal [ 0, 3 ], %w[ basics later ].map { |slug| Track.find_by!(slug:).unlock_after }
   end
 
   test "the summary counts messages across all missions" do
@@ -506,22 +586,22 @@ class Content::ImportTest < ActiveSupport::TestCase
 
   test "rejects invalid YAML with the file name" do
     write_content
-    @root.join("tracks/basics/month-end.yml").write("title: [unclosed")
+    @root.join("paths/phishing/basics/month-end.yml").write("title: [unclosed")
 
     assert_raises(Content::ImportError, match: %r{month-end\.yml: isn't valid YAML}) { Content::Import.new(@root).run }
   end
 
   test "rejects a track folder without _track.yml" do
     write_content
-    @root.join("tracks/empty").mkpath
+    @root.join("paths/phishing/empty").mkpath
 
-    assert_raises(Content::ImportError, match: /tracks\/empty: is missing _track\.yml/) { Content::Import.new(@root).run }
+    assert_raises(Content::ImportError, match: %r{paths/phishing/empty: is missing _track\.yml}) { Content::Import.new(@root).run }
   end
 
   test "rejects the same mission slug in two tracks" do
     write_content
-    write_yaml("tracks/zzz/_track.yml", valid_track)
-    write_yaml("tracks/zzz/month-end.yml", valid_mission)
+    write_yaml("paths/phishing/zzz/_track.yml", valid_track)
+    write_yaml("paths/phishing/zzz/month-end.yml", valid_mission)
 
     assert_raises(Content::ImportError, match: /a mission called month-end already exists in the basics track/) do
       Content::Import.new(@root).run
@@ -562,7 +642,7 @@ class Content::ImportTest < ActiveSupport::TestCase
 
   test "YAML aliases are refused" do
     write_content
-    @root.join("tracks/basics/_track.yml").write("base: &base\n  title: x\nother: *base\n")
+    @root.join("paths/phishing/basics/_track.yml").write("base: &base\n  title: x\nother: *base\n")
 
     assert_raises(Content::ImportError, match: /isn't valid YAML/) { Content::Import.new(@root).run }
   end
@@ -593,8 +673,9 @@ class Content::ImportTest < ActiveSupport::TestCase
       write_yaml("badges.yml", "badges" => [
         { "key" => "first_catch", "name" => "First Catch", "description" => "Report a phish.", "side" => "blue" }
       ])
-      write_yaml("tracks/basics/_track.yml", valid_track)
-      write_yaml("tracks/basics/month-end.yml", @mission)
+      write_yaml("paths/phishing/_path.yml", valid_path)
+      write_yaml("paths/phishing/basics/_track.yml", valid_track)
+      write_yaml("paths/phishing/basics/month-end.yml", @mission)
       write_yaml("bots.yml", "bots" => [
         { "key" => "busy_bob", "name" => "Busy Bob", "description" => "Always behind.", "vigilance" => 3,
           "detects" => { "lookalike_domain" => -1 } }
@@ -621,6 +702,10 @@ class Content::ImportTest < ActiveSupport::TestCase
       file = @root.join(path)
       file.dirname.mkpath
       file.write(data.to_yaml)
+    end
+
+    def valid_path
+      { "title" => "Phishing", "description" => "Spotting phishing.", "position" => 1, "opens" => "always" }
     end
 
     def valid_track
@@ -713,6 +798,6 @@ class Content::ImportTest < ActiveSupport::TestCase
     end
 
     def shipped_mission_slugs
-      Rails.root.glob("content/tracks/*/*.yml").map { |file| file.basename(".yml").to_s } - [ "_track" ]
+      Rails.root.glob("content/paths/*/*/*.yml").map { |file| file.basename(".yml").to_s } - [ "_track", "_path" ]
     end
 end

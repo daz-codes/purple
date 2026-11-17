@@ -35,8 +35,10 @@ Rails.application.routes.draw do
     end
   end
 
-  # Blue: tracks of missions, and the attempts that play them.
-  resources :tracks, only: %i[ index show ]
+  # Blue: paths of tracks of missions, and the attempts that play them.
+  resources :paths, only: :index
+  get "tracks", to: redirect("/paths")
+  resources :tracks, only: :show
   resources :missions, only: :show do
     resources :attempts, only: %i[ new create ], controller: "mission_attempts"
   end

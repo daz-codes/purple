@@ -3,7 +3,7 @@ require "application_system_test_case"
 # axe (WCAG 2.1 A and AA) on the key pages, signed out and signed in.
 class AccessibilityTest < ApplicationSystemTestCase
   test "public pages" do
-    { root_path => "Attack", new_session_path => "Sign in", new_registration_path => "Create", tracks_path => "Pick a track",
+    { root_path => "Attack", new_session_path => "Sign in", new_registration_path => "Create", paths_path => "Pick a path",
       track_path(tracks(:basics)) => "Month-end", mission_path(missions(:month_end)) => "Briefing", targets_path => "Red's Workshop",
       target_path(targets(:month_end_target)) => "Recon", leaderboard_path => "Leaderboard", profile_path("blue_one") => "blue_one",
       privacy_path => "What we store", terms_path => "Play fair" }.each do |path, text|

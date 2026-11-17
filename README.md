@@ -38,7 +38,7 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 
 ## Playing a mission
 
-Pick a track at `/tracks`, read a mission's briefing and start it. The play screen shows your inbox
+Pick a path and a track at `/paths`, read a mission's briefing and start it. The play screen shows your inbox
 (or, for a messages mission, a phone) and the open message. Every move (reading a message, showing full
 headers, calling the sender back, flagging, replying, archiving, reporting, standing down) is a POST to its
 own small controller, which calls a method on the `MissionAttempt` (`attempt.report(message)`). The
@@ -109,8 +109,9 @@ All game content is YAML in `content/`:
 content/
   techniques.yml               the technique vocabulary, mapped to MITRE ATT&CK
   badges.yml                   badges players can earn
-  tracks/<track>/_track.yml    a track's title, description, position and difficulty
-  tracks/<track>/<mission>.yml   one file per mission (the file name is the mission's slug)
+  paths/<path>/_path.yml       a path's title, description, position and how it opens
+  paths/<path>/<track>/_track.yml      a track's title, description, position, difficulty and unlock_after
+  paths/<path>/<track>/<mission>.yml   one file per mission (the file name is the mission's slug)
   bots.yml                     the Blue bots that judge Red's Workshop emails
   targets/<target>.yml         one file per Workshop target: its mission, budget, recon brief and cards
 ```
@@ -123,18 +124,28 @@ CONTENT_DIR=path/to/content bin/rails content:import
 ```
 
 The import runs in one transaction and is idempotent: records are upserted by key or slug, children
-removed from a file are deleted, and missions or tracks whose files have gone are unpublished (not
+removed from a file are deleted, and paths, tracks or missions whose files have gone are unpublished (not
 deleted, so players' history survives). If anything is wrong, nothing is changed and the error names
 the file and the exact place, for example:
 
 ```
-content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invoice) → links[0]:
+content/paths/phishing/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invoice) → links[0]:
   outcome must be one of bait_landing, malware, harmless for phishing messages (got portal)
 ```
 
+### Paths and tracks
+
+A **path** is a skill area (Phishing, Codebreaking, Forensics, Break-in, Supply Chain, Incident
+Response), and every path is listed from the start: one with no published missions yet shows as
+"Coming soon". `_path.yml` says how the path opens: `opens: always` (the default),
+`opens: { after_missions: 3 }` (missions finished on any path), or
+`opens: { after_first_track_of: forensics }`. A track's `unlock_after` is how many missions on the
+track before must be finished first (0 for a path's first track). The importer checks the rules; the
+game enforces them from phase 2's P1, and until then everything published is open.
+
 ### Writing a mission
 
-`content/tracks/phishing-basics/month-end-at-larkhill.yml` is a complete example. Each message has a
+`content/paths/phishing/phishing-basics/month-end-at-larkhill.yml` is a complete example. Each message has a
 `body_html`, a list of `links` rules (`match` is a substring of the href), and:
 
 - **When it arrives:** `arrives: start` (the default), `arrives: { after_handled: 2 }` (once any two

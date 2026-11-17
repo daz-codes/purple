@@ -1,6 +1,6 @@
 <% content_for :title, @track.title %>
 
-<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4"><%= link_to "Missions", tracks_path, class: "hover:text-ink" %> / <%= @track.title %></nav>
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4"><%= link_to "Paths", paths_path, class: "hover:text-ink" %> / <%= link_to @track.path.title, paths_path(anchor: @track.path.slug), class: "hover:text-ink" %> / <%= @track.title %></nav>
 
 <header class="mb-8">
   <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight"><%= @track.title %></h1>

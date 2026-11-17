@@ -22,7 +22,7 @@ class HomeTest < ApplicationSystemTestCase
   test "the whole Blue card is a link to the tracks, and each track card is a link to its missions" do
     visit root_path
     find("a", text: "Work a mission").click
-    assert_selector "h1", text: "Pick a track"
+    assert_selector "h1", text: "Pick a path"
 
     track = Track.published.ordered.first
     find("a", text: track.title).click

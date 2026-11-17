@@ -1,0 +1,7 @@
+title: Break-in
+description: >
+  How web apps and accounts get broken into, and how to fix them. Attack a simulated app as Red, then
+  patch it as Blue.
+position: 4
+opens:
+  after_missions: 3

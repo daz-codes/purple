@@ -46,7 +46,7 @@
         <% elsif (suggestion = blue ? @next_mission : @next_target) %>
           <%= link_to "Next up: “#{suggestion.title}”", suggestion, class: blue ? "btn-blue" : "btn-red", data: { testid: "#{side}-suggestion" } %>
         <% else %>
-          <%= link_to blue ? "Pick a mission" : "Pick a target", blue ? tracks_path : targets_path, class: blue ? "btn-blue" : "btn-red" %>
+          <%= link_to blue ? "Pick a mission" : "Pick a target", blue ? paths_path : targets_path, class: blue ? "btn-blue" : "btn-red" %>
         <% end %>
       </div>
     </section>

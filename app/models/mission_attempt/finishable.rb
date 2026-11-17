@@ -1,5 +1,5 @@
 # The end of a mission. It ends by itself once every message has been dealt with (the inbox is empty and
-# nothing more is coming), when the player clocks off early, or when it's left open too long. Anything not
+# nothing more is coming), when the player stands down early, or when it's left open too long. Anything not
 # dealt with by then counts as ignored. Finishing scores the attempt from its log.
 module MissionAttempt::Finishable
   extend ActiveSupport::Concern

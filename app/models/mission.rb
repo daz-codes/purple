@@ -13,6 +13,11 @@ class Mission < ApplicationRecord
   has_many :mission_attempts, dependent: :restrict_with_exception
 
   scope :published, -> { where(published: true) }
+  # Published missions on published tracks and paths, in the order the paths page lists them.
+  scope :in_play_order, -> {
+    published.joins(track: :path).merge(Track.published).merge(Path.published)
+      .reorder("paths.position", "tracks.position", "missions.position")
+  }
 
   validates :slug, presence: true, uniqueness: true
   validates :title, :briefing, :learning_summary, presence: true
