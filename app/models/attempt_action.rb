@@ -1,4 +1,4 @@
-# One thing a player did during a shift. The log is append-only: it drives arrivals and the scoring,
+# One thing a player did during a mission. The log is append-only: it drives arrivals and the scoring,
 # and it's replayed in the Purple debrief.
 #
 # at_seconds is the attempt's elapsed time when the move was made (real time plus earlier penalties);
@@ -8,7 +8,7 @@
 class AttemptAction < ApplicationRecord
   KINDS = %w[
     open_message expand_headers verify_sender click_link close_landing submit_credentials open_attachment
-    run_download use_portal report_message archive_message flag_element send_reply use_hint clock_off
+    run_download use_portal report_message archive_message flag_element send_reply use_hint stand_down
     save_note share_details ask_why
   ].freeze
 
@@ -17,7 +17,7 @@ class AttemptAction < ApplicationRecord
 
   enum :kind, KINDS.index_by(&:itself), validate: true
 
-  belongs_to :shift_attempt
+  belongs_to :mission_attempt
 
   validates :at_seconds, :penalty_seconds, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 

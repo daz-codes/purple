@@ -67,7 +67,7 @@ class LeaderboardTest < ActiveSupport::TestCase
 
   private
     def xp(user, side, amount, at: "2026-11-12 09:00", relaxed: false)
-      user.xp_events.create!(side:, amount:, reason: :shift_completed, occurred_at: Time.zone.parse(at), relaxed:)
+      user.xp_events.create!(side:, amount:, reason: :mission_completed, occurred_at: Time.zone.parse(at), relaxed:)
     end
 
     def board(side: "blue", period: "week", relaxed: false)

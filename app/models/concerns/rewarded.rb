@@ -1,4 +1,4 @@
-# Something a player finishes that counts towards their progress: a shift attempt or a Workshop
+# Something a player finishes that counts towards their progress: a mission attempt or a Workshop
 # campaign. When it finishes, the player's XP (if it's their scored attempt), streak and badges are
 # brought up to date. Only confirmed players earn anything.
 #

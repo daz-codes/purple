@@ -8,7 +8,7 @@ class User < ApplicationRecord
   has_many :sessions, dependent: :destroy
   has_many :user_badges, dependent: :destroy
   has_many :badges, through: :user_badges
-  has_many :shift_attempts, dependent: :destroy
+  has_many :mission_attempts, dependent: :destroy
   has_many :red_campaigns, dependent: :destroy
 
   include Progression, Streaks, Badged

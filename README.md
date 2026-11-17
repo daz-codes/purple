@@ -2,7 +2,7 @@
 
 A Red v Blue social-engineering training game.
 
-- **Blue** works a *shift*: an inbox (or a phone) full of messages to deal with. Reply to the ones that
+- **Blue** works a *mission*: an inbox (or a phone) full of messages to deal with. Reply to the ones that
   need a reply, do what the genuine ones ask, archive what needs nothing, and report Red's phishing.
 - **Red** builds a phishing email from technique cards in *Red's Workshop* and launches it at a panel
   of simulated Blue bots.
@@ -36,35 +36,35 @@ bin/ci                   # rubocop, bundler-audit, importmap audit, brakeman and
 
 GitHub Actions runs the same checks on every push and pull request (`.github/workflows/ci.yml`).
 
-## Playing a shift
+## Playing a mission
 
-Pick a track at `/tracks`, read a shift's briefing and start it. The play screen shows your inbox
-(or, for a messages shift, a phone) and the open message. Every move (reading a message, showing full
-headers, calling the sender back, flagging, replying, archiving, reporting, clocking off early) is a POST to its
-own small controller, which calls a method on the `ShiftAttempt` (`attempt.report(message)`). The
+Pick a track at `/tracks`, read a mission's briefing and start it. The play screen shows your inbox
+(or, for a messages mission, a phone) and the open message. Every move (reading a message, showing full
+headers, calling the sender back, flagging, replying, archiving, reporting, standing down) is a POST to its
+own small controller, which calls a method on the `MissionAttempt` (`attempt.report(message)`). The
 attempt logs the move as an `AttemptAction` with the time it was made, and the panes update by Turbo
 Stream.
 
 There's no task list, clock or score on screen. More messages arrive as you deal with others
-(`ShiftAttempt::Arrivals`), and the shift ends when every message has been reported or archived, or
-when you clock off early. Time is real time, kept on the server (a call-back adds 30 seconds). Clearing
-the inbox earns a speed bonus against the shift's target time, scaled by how many messages you handled
-as expected, unless you've turned on relaxed mode on your account page. `ShiftAttempt::Scorecard`
+(`MissionAttempt::Arrivals`), and the mission ends when every message has been reported or archived, or
+when you stand down. Time is real time, kept on the server (a call-back adds 30 seconds). Clearing
+the inbox earns a speed bonus against the mission's target time, scaled by how many messages you handled
+as expected, unless you've turned on relaxed mode on your account page. `MissionAttempt::Scorecard`
 scores the log, and everything is revealed in the Purple debrief.
 
-Links and attachments open in an in-game browser (`ShiftAttempt::Browsing`). It shows the link's real
+Links and attachments open in an in-game browser (`MissionAttempt::Browsing`). It shows the link's real
 address, and the server picks the page: a portal where you do what a genuine message asks, a harmless
 article, a lookalike sign-in page or a download prompt. Signing in on a lookalike page or running a
-download compromises you (`ShiftAttempt::Compromisable`), but nothing says so until the debrief: a
+download compromises you (`MissionAttempt::Compromisable`), but nothing says so until the debrief: a
 submitted sign-in page shows the same plain confirmation a real portal does. The lookalike page's
 fields have no names, so nothing typed is ever sent.
 
-Each attempt gives you a persona (`ShiftAttempt::Identified`): a staff number, extension, memorable word
+Each attempt gives you a persona (`MissionAttempt::Identified`): a staff number, extension, memorable word
 and security answer generated for that attempt, plus a staff directory and an authenticator that shows
 an MFA code once a sign-in page asks for one. Some genuine jobs need these details and some phishes want
 them. You hand them over by picking chips, never by typing: in a message's "Send details" box, or in the
-fields of a portal or lookalike page (`ShiftAttempt::Sharing`). You can save words from a message as a
-note to share later (`ShiftAttempt::Notable`), and ask "Why do you need this?" before deciding. The
+fields of a portal or lookalike page (`MissionAttempt::Sharing`). You can save words from a message as a
+note to share later (`MissionAttempt::Notable`), and ask "Why do you need this?" before deciding. The
 debrief scores what you shared by its sensitivity and ends with "What Red now knows".
 
 ## Red's Workshop
@@ -83,13 +83,13 @@ miss and +1 per unit of budget left. The balance rules are tests on the shipped 
 
 ## Progression
 
-Each side has its own XP and level. Finishing your first scored attempt at a shift earns its score as
-Blue XP; launching your first scored campaign at a target earns Red XP. The first shift or campaign
+Each side has its own XP and level. Finishing your first scored attempt at a mission earns its score as
+Blue XP; launching your first scored campaign at a target earns Red XP. The first mission or campaign
 each day (London time) adds a 10 XP bonus and extends your streak. Every XP gain is an `XpEvent` in
 an append-only ledger, written together with the side's total and level (`User::Progression`); level
 n needs `100 * (n - 1)^1.5` XP.
 
-When a player finishes a shift or launches a campaign (`Rewarded`), `AwardBadgesJob` checks
+When a player finishes a mission or launches a campaign (`Rewarded`), `AwardBadgesJob` checks
 `Badge::Rulebook` and awards any new badges (each worth 25 XP), with a toast sent by Turbo Stream.
 Only confirmed players earn XP and badges. Signed-in players see a dashboard with both levels, their
 streak, a side switcher, what to play next and their badges.
@@ -110,9 +110,9 @@ content/
   techniques.yml               the technique vocabulary, mapped to MITRE ATT&CK
   badges.yml                   badges players can earn
   tracks/<track>/_track.yml    a track's title, description, position and difficulty
-  tracks/<track>/<shift>.yml   one file per shift (the file name is the shift's slug)
+  tracks/<track>/<mission>.yml   one file per mission (the file name is the mission's slug)
   bots.yml                     the Blue bots that judge Red's Workshop emails
-  targets/<target>.yml         one file per Workshop target: its shift, budget, recon brief and cards
+  targets/<target>.yml         one file per Workshop target: its mission, budget, recon brief and cards
 ```
 
 Load it with:
@@ -123,7 +123,7 @@ CONTENT_DIR=path/to/content bin/rails content:import
 ```
 
 The import runs in one transaction and is idempotent: records are upserted by key or slug, children
-removed from a file are deleted, and shifts or tracks whose files have gone are unpublished (not
+removed from a file are deleted, and missions or tracks whose files have gone are unpublished (not
 deleted, so players' history survives). If anything is wrong, nothing is changed and the error names
 the file and the exact place, for example:
 
@@ -132,7 +132,7 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
   outcome must be one of bait_landing, malware, harmless for phishing messages (got portal)
 ```
 
-### Writing a shift
+### Writing a mission
 
 `content/tracks/phishing-basics/month-end-at-larkhill.yml` is a complete example. Each message has a
 `body_html`, a list of `links` rules (`match` is a substring of the href), and:
@@ -149,7 +149,7 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
 - Optional `replies:` (2 to 4, each `text`, `outcome`: `safe`, `poor` (genuine only), `compromise`
   (phishing only), `verify` or `ask_why` ("Why do you need this?", which needs a `response`), and an
   optional `response`).
-- **Who the player is** (per shift): `persona: { name, role, staff_prefix: LH, security_question }` (the
+- **Who the player is** (per mission): `persona: { name, role, staff_prefix: LH, security_question }` (the
   question is answered with a name) and a `directory:` of `{ name, team, contact }`, where contact is an
   extension or a portal, never an email address.
 - **Private details:** a genuine message can say what it `needs: [staff_number]` and a phish what it
@@ -169,7 +169,7 @@ content/tracks/phishing-basics/month-end-at-larkhill.yml: messages[1] (fake_invo
   - The quote must appear exactly once in the other message, and that message must always be in the
     inbox first (at the start, or the dependent message arrives `after:` it). `contradicts` must name a
     genuine message. `answer_in` may name a phish only if the question arrives last
-    (`after_handled:` every other message). The debrief shows both; neither reaches the page mid-shift.
+    (`after_handled:` every other message). The debrief shows both; neither reaches the page mid-mission.
 
 The importer enforces these rules:
 
@@ -190,7 +190,7 @@ The importer enforces these rules:
   sees it, with whitespace runs counted as one space. The importer also splits each paragraph into sentences
   (`p1s1`, `p1s2`…) so players can flag a sentence or highlight just the words. Texts and chats only
   have `from` as a header, since that's all the phone shows.
-- **Channels match the shift:** an `inbox` shift holds only emails, a `messages` shift only `sms` and `chat`.
+- **Channels match the mission:** an `inbox` mission holds only emails, a `messages` mission only `sms` and `chat`.
 - **Links never navigate.** Each `<a>` becomes a `<span>` carrying its key and URLs; the outcome
   (`portal`, `harmless`, `bait_landing`, `malware`) stays on the server. Every link must match exactly
   one rule, and every rule at least one link.
@@ -204,11 +204,11 @@ The importer enforces these rules:
   inbox before anything asks for it; secrets and the MFA code are only ever needed on a portal page
   (`expects: act`), never by reply; a message that asks for details by reply offers exactly one `ask_why`
   reply; and every `internal` detail a phish wants is needed by a genuine message, and the other way round.
-- **Lazy play never pays:** reporting everything, archiving everything, clocking off at once, and
+- **Lazy play never pays:** reporting everything, archiving everything, standing down at once, and
   flagging every sentence then reporting everything must each score below one star
-  (`Shift::LazyPlay`). In a shift that asks for details, so must sharing everything with everyone and
+  (`Mission::LazyPlay`). In a mission that asks for details, so must sharing everything with everyone and
   sharing whatever's asked, and sharing nothing must earn fewer stars than careful play.
-- Every shift has at least one phishing message.
+- Every mission has at least one phishing message.
 
 ## Deployment
 
@@ -273,10 +273,10 @@ Purple runs at **https://purple.daz.codes** on the same ARM VPS as the other daz
 
 ### Checking it works
 
-- **The site:** open https://purple.daz.codes, sign up, and confirm the email arrives. Then play a shift.
+- **The site:** open https://purple.daz.codes, sign up, and confirm the email arrives. Then play a mission.
 - **Backups:** `bin/kamal backup-logs` should show `wrote purple_production-….dump`, and
   `bin/kamal offsite-logs` should show `copied to …`. Check the file is in the bucket. Every finished
-  attempt keeps a full copy of its shift's content (see `docs/CODE_STRUCTURE.md`), so dumps grow
+  attempt keeps a full copy of its mission's content (see `docs/CODE_STRUCTURE.md`), so dumps grow
   with play. The log line shows each dump's size, so keep an eye on it and on the bucket's 30-day
   total.
 - **Errors:** production errors are emailed to `ERROR_ALERTS_TO`, at most once an hour for each

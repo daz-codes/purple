@@ -4,17 +4,17 @@ module Content
   #   content/techniques.yml            the technique vocabulary (ATT&CK-mapped)
   #   content/badges.yml                badges players can earn
   #   content/tracks/<track>/_track.yml a track's details
-  #   content/tracks/<track>/<shift>.yml one file per shift
+  #   content/tracks/<track>/<mission>.yml one file per mission
   #   content/bots.yml                  the Blue bots that judge Red's Workshop emails
   #   content/targets/<target>.yml      one file per Red's Workshop target
   #
   # Everything is upserted by key or slug in a single transaction, so running it twice changes
-  # nothing and any error leaves the database as it was. Tracks and shifts whose files have gone
+  # nothing and any error leaves the database as it was. Tracks and missions whose files have gone
   # are unpublished rather than deleted, so players' past attempts keep their history.
   class Import
-    Summary = Data.define(:techniques, :badges, :tracks, :shifts, :messages, :bots, :targets) do
+    Summary = Data.define(:techniques, :badges, :tracks, :missions, :messages, :bots, :targets) do
       def to_s
-        "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{shifts} shifts, #{messages} messages, " \
+        "Imported #{techniques} techniques, #{badges} badges, #{tracks} tracks, #{missions} missions, #{messages} messages, " \
           "#{bots} bots and #{targets} targets."
       end
     end
@@ -34,12 +34,12 @@ module Content
       ActiveRecord::Base.transaction do
         techniques = import_techniques
         badges = import_badges
-        tracks, shifts = import_tracks(techniques)
+        tracks, missions = import_tracks(techniques)
         bots = import_bots(techniques)
-        targets = import_targets(shifts, techniques)
+        targets = import_targets(missions, techniques)
 
-        Summary.new(techniques: techniques.size, badges: badges.size, tracks: tracks.size, shifts: shifts.size,
-                    messages: Message.where(shift: shifts).count, bots: bots.size, targets: targets.size)
+        Summary.new(techniques: techniques.size, badges: badges.size, tracks: tracks.size, missions: missions.size,
+                    messages: Message.where(mission: missions).count, bots: bots.size, targets: targets.size)
       end
     end
 
@@ -86,23 +86,23 @@ module Content
         raise ImportError.new("no track folders found in #{relative(tracks_dir)}") if track_dirs.empty?
 
         tracks = []
-        shifts = []
+        missions = []
         track_dirs.each do |dir|
           track = import_track(dir)
           tracks << track
 
           dir.glob("*.yml").reject { |file| file.basename.to_s == TRACK_FILE }.sort.each do |file|
-            if (clash = shifts.find { |shift| shift.slug == file.basename(".yml").to_s })
-              raise ImportError.new("a shift called #{clash.slug} already exists in the #{clash.track.slug} track",
+            if (clash = missions.find { |mission| mission.slug == file.basename(".yml").to_s })
+              raise ImportError.new("a mission called #{clash.slug} already exists in the #{clash.track.slug} track",
                                     file: relative(file))
             end
-            shifts << ShiftImport.new(load(file), track:, techniques:).run
+            missions << MissionImport.new(load(file), track:, techniques:).run
           end
         end
 
         Track.where.not(id: tracks.map(&:id)).update_all(published: false)
-        Shift.where.not(id: shifts.map(&:id)).update_all(published: false)
-        [ tracks, shifts ]
+        Mission.where.not(id: missions.map(&:id)).update_all(published: false)
+        [ tracks, missions ]
       end
 
       def import_track(dir)
@@ -143,11 +143,11 @@ module Content
         bots
       end
 
-      def import_targets(shifts, techniques)
+      def import_targets(missions, techniques)
         dir = @root.join("targets")
         return [] unless dir.directory?
 
-        targets = dir.glob("*.yml").sort.map { |file| TargetImport.new(load(file), shifts:, techniques:).run }
+        targets = dir.glob("*.yml").sort.map { |file| TargetImport.new(load(file), missions:, techniques:).run }
         Target.where.not(id: targets.map(&:id)).update_all(published: false)
         targets
       end

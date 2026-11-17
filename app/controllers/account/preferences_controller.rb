@@ -1,5 +1,5 @@
 module Account
-  # The player's settings, shown on the account page: relaxed mode (shifts without timing) and whether
+  # The player's settings, shown on the account page: relaxed mode (missions without timing) and whether
   # they appear on the leaderboards.
   class PreferencesController < ApplicationController
     def update

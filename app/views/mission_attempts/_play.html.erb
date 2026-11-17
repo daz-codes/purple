@@ -1,0 +1,23 @@
+<%# SECRET-FREE ZONE: this screen is rendered mid-mission. Only show what the player can already see.
+    Never render a message's key, legit flag, what it expects, its points or arrival trigger, links'
+    outcomes, red flags, techniques, or attachment or reply outcomes here (test/system/mission_play_test.rb checks the HTML). %>
+<% phone = attempt.mission.kind_messages? %>
+<div class="flex flex-col gap-4">
+  <%= render "mission_attempts/status_bar", attempt: %>
+  <div id="mission_notice" aria-live="polite"></div>
+  <div class="grid gap-4 <%= phone ? "lg:grid-cols-[16rem_minmax(0,1fr)]" : "lg:grid-cols-[16rem_22rem_minmax(0,1fr)]" %> items-start">
+    <div class="flex flex-col gap-4">
+      <%= render "mission_attempts/job", attempt: %>
+      <%= render "mission_attempts/persona", attempt: %>
+      <%= render "mission_attempts/hints", attempt: %>
+    </div>
+    <% if phone %>
+      <%# The phone holds both panes, and shows one at a time. %>
+      <%= render "mission_attempts/phone", attempt: %>
+    <% else %>
+      <%= render pane_partial(attempt, :inbox), attempt: %>
+      <%= render pane_partial(attempt, :reader), attempt: %>
+    <% end %>
+  </div>
+  <%= render "mission_attempts/browser", attempt: %>
+</div>

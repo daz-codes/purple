@@ -1,7 +1,7 @@
 class Track < ApplicationRecord
   enum :difficulty, { beginner: "beginner", intermediate: "intermediate", advanced: "advanced" }, validate: true
 
-  has_many :shifts, -> { order(:position) }, dependent: :destroy
+  has_many :missions, -> { order(:position) }, dependent: :destroy
 
   scope :published, -> { where(published: true) }
   scope :ordered, -> { order(:position) }

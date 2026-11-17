@@ -8,7 +8,7 @@ class Badge::Rulebook
     # Blue
     "first_catch" => :reported_a_phish?,
     "eagle_eye" => :found_every_red_flag_without_hints?,
-    "clean_shift" => :three_star_shift?,
+    "clean_mission" => :three_star_mission?,
     "productive_paranoid" => :handled_everything_right?,
     "near_miss_ninja" => :three_near_misses?,
     "seven_day_streak" => :seven_day_streak?,
@@ -32,7 +32,7 @@ class Badge::Rulebook
   end
 
   private
-    def attempt = (@source if @source.is_a?(ShiftAttempt))
+    def attempt = (@source if @source.is_a?(MissionAttempt))
     def campaign = (@source if @source.is_a?(RedCampaign))
 
     def card
@@ -48,7 +48,7 @@ class Badge::Rulebook
       card.present? && card.phishes.any? && card.phishes.all? { |result| result.missed_flags.empty? } && card.hints.none?
     end
 
-    def three_star_shift?
+    def three_star_mission?
       card.present? && card.stars == 3
     end
 
@@ -57,14 +57,14 @@ class Badge::Rulebook
       card.present? && card.genuine.all?(&:done?) && card.phishes.all?(&:reported?)
     end
 
-    # Three bait pages or downloads closed before entering anything, across all the player's shifts.
+    # Three bait pages or downloads closed before entering anything, across all the player's missions.
     # Only attempts where a link or attachment was opened can have one, and counting stops at three.
     def three_near_misses?
       return false unless attempt
 
-      opened = AttemptAction.where(kind: ShiftAttempt::Browsing::TAB_OPENERS).select(:shift_attempt_id)
+      opened = AttemptAction.where(kind: MissionAttempt::Browsing::TAB_OPENERS).select(:mission_attempt_id)
       count = 0
-      @user.shift_attempts.finished.where(id: opened).includes(:shift, :attempt_actions).find_each do |finished|
+      @user.mission_attempts.finished.where(id: opened).includes(:mission, :attempt_actions).find_each do |finished|
         count += finished.scorecard.messages.sum { |result| result.near_misses.size }
         return true if count >= NEAR_MISSES_FOR_NINJA
       end
@@ -84,12 +84,12 @@ class Badge::Rulebook
       campaign.present? && campaign.stars == 3 && campaign.budget_left * 2 >= campaign.total_budget
     end
 
-    # Three stars on a shift and on the Workshop target that attacks the same company.
+    # Three stars on a mission and on the Workshop target that attacks the same company.
     def three_stars_on_both_sides?
-      shift = attempt&.shift || campaign&.target&.shift or return false
+      mission = attempt&.mission || campaign&.target&.mission or return false
 
-      three_star_attempt = @user.shift_attempts.finished.where(shift:).includes(:attempt_actions).any? { |finished| finished.scorecard.stars == 3 }
-      three_star_campaign = @user.red_campaigns.launched.joins(:target).where(targets: { shift_id: shift.id }).any? { |launched| launched.stars == 3 }
+      three_star_attempt = @user.mission_attempts.finished.where(mission:).includes(:attempt_actions).any? { |finished| finished.scorecard.stars == 3 }
+      three_star_campaign = @user.red_campaigns.launched.joins(:target).where(targets: { mission_id: mission.id }).any? { |launched| launched.stars == 3 }
       three_star_attempt && three_star_campaign
     end
 end

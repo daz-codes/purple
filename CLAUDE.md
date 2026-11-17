@@ -33,17 +33,17 @@ Rails connects over the default socket, so that doesn't matter for the app.
 - **37signals-style Rails. No service objects**: no `app/services`, no `*Service`/`*Engine`/`*Calculator`
   doers, and no `.call` or `#perform` entry points.
   - **Behaviour lives on the models, in concerns.** A model is a slim class that includes concerns named
-    for what they add, in `app/models/<model>/` (`ShiftAttempt::Timed`, `::Inbox`, `::Reportable`,
+    for what they add, in `app/models/<model>/` (`MissionAttempt::Timed`, `::Inbox`, `::Reportable`,
     `::Archivable`, `::Finishable`). Moves are methods on the record:
-    `attempt.report(message)`, `attempt.archive(message)`, `attempt.clock_off`.
+    `attempt.report(message)`, `attempt.archive(message)`, `attempt.stand_down`.
   - **Plain objects are nouns** that answer questions, under the model they serve: e.g.
-    `ShiftAttempt::Scorecard` (`attempt.scorecard.total`), `Content::MessageBody.new(html).html`,
+    `MissionAttempt::Scorecard` (`attempt.scorecard.total`), `Content::MessageBody.new(html).html`,
     `Content::Import.new(root).run`. Later: `RedCampaign::Simulation` rather than `Workshop::Simulator`.
 - **Thin RESTful controllers.** Every move is its own resource with a `create` action of one line or
-  so (`ShiftAttempts::Messages::ReportsController` → `@attempt.report(@message)`). Shared behaviour
-  goes in controller concerns: `ShiftAttemptScoped`, `ShiftAttemptMessageScoped`, and `ShiftPlay`
+  so (`MissionAttempts::Messages::ReportsController` → `@attempt.report(@message)`). Shared behaviour
+  goes in controller concerns: `MissionAttemptScoped`, `MissionAttemptMessageScoped`, and `MissionPlay`
   (the Turbo Stream response, rejections and rate limit). No dispatching on a `kind` param.
-- Tests mirror the structure: one model test per concern (`test/models/shift_attempt/*_test.rb`) and
+- Tests mirror the structure: one model test per concern (`test/models/mission_attempt/*_test.rb`) and
   one controller test per controller.
 - Every feature ships with model/unit tests **and** at least one system test for the happy path.
 - DB constraints (NOT NULL, foreign keys, unique indexes) **as well as** model validations.
@@ -58,7 +58,7 @@ Rails connects over the default socket, so that doesn't matter for the app.
 
 - **The server is the single source of truth.** Every game action (open message, expand headers,
   verify, click link, use a portal, submit credentials, reply, ask why, flag, save a note, share details,
-  report, archive, use hint, clock off) is a POST that the server records as an `AttemptAction`, stamped with the attempt's elapsed time
+  report, archive, use hint, stand down) is a POST that the server records as an `AttemptAction`, stamped with the attempt's elapsed time
   (real time plus penalties, measured only on the server). The client never computes the score, the
   time, what arrives next or the outcome.
 - **Never send hidden answers to the browser** before the debrief: no `legit` flags, what a message
@@ -68,12 +68,12 @@ Rails connects over the default socket, so that doesn't matter for the app.
   or technique tags in HTML, data attributes, JSON or Turbo Streams. System tests assert this. (A page
   the player opened shows a field for each detail it asks for, the same way on genuine and lookalike
   pages.)
-- The browser refers to messages only by `ShiftAttempt#message_ref`, an opaque HMAC of the attempt
+- The browser refers to messages only by `MissionAttempt#message_ref`, an opaque HMAC of the attempt
   token and message key that's stable across content re-imports and different in every attempt, never
   by their authored `key` (`fake_invoice` would give the answer away). Nothing on the play screen says
   how the player is doing: no meters, no clock, no compromise alerts. It all waits for the debrief.
 - Anti-cheat: attempts are created server-side with a random token; actions must reference an open
-  attempt owned by the current user; XP only for the first scored attempt per shift/target; actions on
+  attempt owned by the current user; XP only for the first scored attempt per mission/target; actions on
   a finished or expired attempt are rejected.
 
 ## Security (this is a security product — be exemplary)

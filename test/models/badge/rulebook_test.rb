@@ -5,8 +5,8 @@ class Badge::RulebookTest < ActiveSupport::TestCase
     @user = users(:one)
   end
 
-  test "a perfect shift earns First Catch, Eagle Eye, Clean Shift and Productive Paranoid" do
-    assert_equal %w[ first_catch eagle_eye clean_shift productive_paranoid ], earned(perfect_shift)
+  test "a perfect mission earns First Catch, Eagle Eye, Clean Mission and Productive Paranoid" do
+    assert_equal %w[ first_catch eagle_eye clean_mission productive_paranoid ], earned(perfect_mission)
   end
 
   test "reporting a phish but missing a red flag earns First Catch only" do
@@ -16,7 +16,7 @@ class Badge::RulebookTest < ActiveSupport::TestCase
   end
 
   test "Eagle Eye needs no hints" do
-    attempt = perfect_shift { |a| a.use_hint }
+    attempt = perfect_mission { |a| a.use_hint }
 
     assert_not_includes earned(attempt), "eagle_eye"
     assert_includes earned(attempt), "productive_paranoid"
@@ -33,7 +33,7 @@ class Badge::RulebookTest < ActiveSupport::TestCase
     assert_not_includes earned(attempt), "productive_paranoid"
   end
 
-  test "Near Miss Ninja is three bait pages closed without signing in, across shifts" do
+  test "Near Miss Ninja is three bait pages closed without signing in, across missions" do
     near_miss = ->(a) { a.archive(messages(:newsletter)); a.visit(links(:fake_invoice_link)); a.close_tab }
 
     second = 2.times.map { play(&near_miss) }.last
@@ -44,7 +44,7 @@ class Badge::RulebookTest < ActiveSupport::TestCase
   test "Seven-Day Streak" do
     @user.update!(current_streak: 7, longest_streak: 7)
 
-    assert_includes earned(play(&:clock_off)), "seven_day_streak"
+    assert_includes earned(play(&:stand_down)), "seven_day_streak"
   end
 
   test "Fooled Carol, and Budget Hacker for three stars with half the budget left" do
@@ -58,8 +58,8 @@ class Badge::RulebookTest < ActiveSupport::TestCase
     assert_empty earned(spendthrift)
   end
 
-  test "Purple Belt is three stars on a shift and on the Workshop target that attacks the same company" do
-    attempt = perfect_shift
+  test "Purple Belt is three stars on a mission and on the Workshop target that attacks the same company" do
+    attempt = perfect_mission
     assert_not_includes earned(attempt), "purple_belt"
 
     campaign = launched_campaign(results: [ { "bot" => "careful_carol", "outcome" => "fooled" }, { "bot" => "busy_bob", "outcome" => "fooled" } ],
@@ -74,13 +74,13 @@ class Badge::RulebookTest < ActiveSupport::TestCase
     end
 
     def play
-      attempt = ShiftAttempt.start(user: @user, shift: shifts(:month_end))
+      attempt = MissionAttempt.start(user: @user, mission: missions(:month_end))
       yield attempt
-      attempt.clock_off if attempt.reload.open?
+      attempt.stand_down if attempt.reload.open?
       attempt.reload
     end
 
-    def perfect_shift
+    def perfect_mission
       play do |a|
         yield a if block_given?
         a.visit(links(:real_invoice_link))

@@ -1,6 +1,6 @@
 <% content_for :title, @track.title %>
 
-<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4"><%= link_to "Shifts", tracks_path, class: "hover:text-ink" %> / <%= @track.title %></nav>
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4"><%= link_to "Missions", tracks_path, class: "hover:text-ink" %> / <%= @track.title %></nav>
 
 <header class="mb-8">
   <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight"><%= @track.title %></h1>
@@ -8,16 +8,16 @@
 </header>
 
 <ol class="space-y-4">
-  <% @shifts.each_with_index do |shift, index| %>
+  <% @missions.each_with_index do |mission, index| %>
     <li class="card flex flex-wrap items-center justify-between gap-4">
       <div>
         <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">
-          Shift <%= index + 1 %> · <%= shift.kind_inbox? ? "Inbox" : "Messages" %> · about <%= shift.par_minutes %> minutes
+          Mission <%= index + 1 %> · <%= mission.kind_inbox? ? "Inbox" : "Messages" %> · about <%= mission.par_minutes %> minutes
         </p>
-        <h2 class="mt-1 text-xl font-bold"><%= shift.title %></h2>
-        <% if (best = @best_attempts[shift.id]) %>
+        <h2 class="mt-1 text-xl font-bold"><%= mission.title %></h2>
+        <% if (best = @best_attempts[mission.id]) %>
           <% scorecard = best.scorecard %>
-          <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="shift-progress">
+          <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="mission-progress">
             <span class="rounded-full border px-2 py-0.5 font-semibold <%= debrief_tone_classes(best.completed? ? :good : :warn) %>"><%= debrief_status(best) %></span>
             <span class="text-lg"><%= debrief_stars(scorecard.stars) %></span>
             <span>Best score <strong><%= scorecard.total %></strong> <span class="text-ink-muted">out of <%= scorecard.best_possible %></span></span>
@@ -25,7 +25,7 @@
           </p>
         <% end %>
       </div>
-      <%= link_to best ? "Play again" : "Read the briefing", shift, class: best ? "btn-ghost" : "btn-blue" %>
+      <%= link_to best ? "Play again" : "Read the briefing", mission, class: best ? "btn-ghost" : "btn-blue" %>
     </li>
   <% end %>
 </ol>

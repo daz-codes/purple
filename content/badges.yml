@@ -9,17 +9,17 @@ badges:
 
   - key: eagle_eye
     name: Eagle Eye
-    description: Flag every red flag in a shift without using a hint.
+    description: Flag every red flag in a mission without using a hint.
     side: blue
 
-  - key: clean_shift
-    name: Clean Shift
-    description: Finish a shift with three stars.
+  - key: clean_mission
+    name: Clean Mission
+    description: Finish a mission with three stars.
     side: blue
 
   - key: productive_paranoid
     name: Productive Paranoid
-    description: Handle every genuine message as it needed and report every phish in a single shift.
+    description: Handle every genuine message as it needed and report every phish in a single mission.
     side: blue
 
   - key: near_miss_ninja
@@ -44,5 +44,5 @@ badges:
 
   - key: purple_belt
     name: Purple Belt
-    description: Earn three stars on a shift and on its matching Workshop target.
+    description: Earn three stars on a mission and on its matching Workshop target.
     side: purple

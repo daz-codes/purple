@@ -1,4 +1,4 @@
-<% { first_catch: "blue", eagle_eye: "blue", clean_shift: "blue", productive_paranoid: "blue", near_miss_ninja: "blue",
+<% { first_catch: "blue", eagle_eye: "blue", clean_mission: "blue", productive_paranoid: "blue", near_miss_ninja: "blue",
      seven_day_streak: "any", fooled_carol: "red", budget_hacker: "red", purple_belt: "purple" }.each_with_index do |(key, side), index| %>
 <%= key %>:
   key: <%= key %>

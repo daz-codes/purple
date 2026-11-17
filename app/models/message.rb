@@ -1,17 +1,17 @@
-# An email, SMS or chat message in a shift.
+# An email, SMS or chat message in a mission.
 #
-# Each message arrives at the start of the shift, once a number of messages have been dealt with
+# Each message arrives at the start of the mission, once a number of messages have been dealt with
 # (arrives_after_handled), or once one particular message has (arrives_after: its key). A genuine
 # message expects something: a reply, an action on its portal page, or just archiving, and is worth
 # its points when handled that way. urgent_within_minutes, if set, is how soon after it arrives it
 # must be handled for full points.
 #
 # A message that asks a question can say where its answer was: answer_in_key names an earlier message
-# in the shift, and answer_in_quote the words in it that answer the question.
+# in the mission, and answer_in_quote the words in it that answer the question.
 #
 # A genuine message can need private details (needs: detail keys) and a phish can want them (wants:);
 # a message can also hold details the player learns from it (details:, quoted in its text). See
-# Shift::Detail.
+# Mission::Detail.
 #
 # SECRET: needs, wants, the details a message holds, legit, expects, points, urgency, links' outcomes, red flags, techniques, attachment outcomes,
 # reply outcomes and where an answer was are answers. They must never reach the browser before the
@@ -20,13 +20,13 @@ class Message < ApplicationRecord
   enum :channel, { email: "email", sms: "sms", chat: "chat" }, validate: true
   enum :expects, { reply: "reply", act: "act", archive: "archive" }, prefix: true, validate: { allow_nil: true }
 
-  belongs_to :shift
+  belongs_to :mission
   has_many :links, -> { order(:id) }, dependent: :destroy
   has_many :red_flags, -> { order(:id) }, dependent: :destroy
   has_many :message_techniques, dependent: :destroy
   has_many :techniques, through: :message_techniques
 
-  validates :key, presence: true, uniqueness: { scope: :shift_id }
+  validates :key, presence: true, uniqueness: { scope: :mission_id }
   validates :from_name, :from_address, :body_html, presence: true
   validates :legit, inclusion: { in: [ true, false ] }
   validates :position, numericality: { only_integer: true }
@@ -40,7 +40,7 @@ class Message < ApplicationRecord
 
   # The earlier message that held the answer to the question this one asks. Debrief only.
   def answer_source
-    shift.messages.find { |message| message.key == answer_in_key } if answer_in_key
+    mission.messages.find { |message| message.key == answer_in_key } if answer_in_key
   end
 
   def arrives_at_start?
@@ -98,7 +98,7 @@ class Message < ApplicationRecord
 
   # The private details quoted in this message's text, for the player to save as notes.
   def learned_details
-    details.map { |stored| Shift::Detail.learned(key, stored) }
+    details.map { |stored| Mission::Detail.learned(key, stored) }
   end
 
   # The reply that asks why the sender needs the details (outcome ask_why), if it offers one.

@@ -41,7 +41,7 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
 
   test "players get their dashboard: both sides' levels, their streak, a side switcher and their badges" do
     user = users(:one)
-    user.award_xp(side: "blue", amount: 150, reason: :shift_completed)
+    user.award_xp(side: "blue", amount: 150, reason: :mission_completed)
     user.update!(preferred_side: "blue", current_streak: 3, longest_streak: 5, last_played_on: User::Streaks.day_of(Time.current))
     user.user_badges.create!(badge: badges(:first_catch), awarded_at: Time.current)
     sign_in_as user
@@ -57,8 +57,8 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=badges] li", count: Badge.count
   end
 
-  test "the dashboard suggests the next shift and target the player hasn't finished" do
-    ShiftAttempt.start(user: users(:one), shift: shifts(:month_end)).clock_off
+  test "the dashboard suggests the next mission and target the player hasn't finished" do
+    MissionAttempt.start(user: users(:one), mission: missions(:month_end)).stand_down
     sign_in_as users(:one)
 
     get root_path
@@ -66,11 +66,11 @@ class PagesControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=red-suggestion]", text: /Month-end at Larkhill/
   end
 
-  test "the dashboard offers to resume a shift in progress" do
-    attempt = ShiftAttempt.start(user: users(:one), shift: shifts(:month_end))
+  test "the dashboard offers to resume a mission in progress" do
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:month_end))
     sign_in_as users(:one)
 
     get root_path
-    assert_select "a[href=?]", shift_attempt_path(attempt), text: /Resume/
+    assert_select "a[href=?]", mission_attempt_path(attempt), text: /Resume/
   end
 end

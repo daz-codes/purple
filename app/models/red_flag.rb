@@ -21,7 +21,7 @@ class RedFlag < ApplicationRecord
 
   # The genuine message whose words this red flag contradicts. Debrief only.
   def contradicted_message
-    message.shift.messages.find { |candidate| candidate.key == contradicts_key } if contradicts_key
+    message.mission.messages.find { |candidate| candidate.key == contradicts_key } if contradicts_key
   end
 
   # A quoted red flag is found by a highlight that covers enough of it (Message::Paragraph#finds_quote?).

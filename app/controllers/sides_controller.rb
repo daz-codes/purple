@@ -10,6 +10,6 @@ class SidesController < ApplicationController
 
     Current.user.choose_side(side)
     redirect_to params[:return_to] == "dashboard" ? root_path : (side == "blue" ? tracks_path : targets_path),
-      status: :see_other, notice: side == "blue" ? "You're on the Blue team. Pick a track to start a shift." : "You're on the Red team. Pick a target."
+      status: :see_other, notice: side == "blue" ? "You're on the Blue team. Pick a track to start a mission." : "You're on the Red team. Pick a target."
   end
 end

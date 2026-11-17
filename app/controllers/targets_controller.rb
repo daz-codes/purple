@@ -3,7 +3,7 @@ class TargetsController < ApplicationController
   allow_unauthenticated_access
 
   def index
-    @targets = Target.published.in_order.includes(:shift)
+    @targets = Target.published.in_order.includes(:mission)
   end
 
   def show

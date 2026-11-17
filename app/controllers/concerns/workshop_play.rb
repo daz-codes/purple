@@ -22,7 +22,7 @@ module WorkshopPlay
     def refuse(message)
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update("campaign_notice", partial: "shift_attempts/notice", locals: { message:, alert: true }),
+          render turbo_stream: turbo_stream.update("campaign_notice", partial: "mission_attempts/notice", locals: { message:, alert: true }),
             status: :unprocessable_content
         end
         format.html { redirect_to @campaign, alert: message }

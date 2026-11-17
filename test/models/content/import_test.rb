@@ -9,7 +9,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_operator summary.techniques, :>=, 12
     assert_equal 9, summary.badges
     assert_equal 3, summary.tracks
-    assert_operator summary.shifts, :>=, 4
+    assert_operator summary.missions, :>=, 4
   end
 
   test "importing twice changes nothing" do
@@ -21,46 +21,46 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_equal before, snapshot
   end
 
-  test "every shipped shift meets the starter content rules" do
+  test "every shipped mission meets the starter content rules" do
     Content::Import.new.run
 
-    Shift.where(slug: shipped_shift_slugs).each do |shift|
-      messages = shift.messages.includes(:red_flags)
-      assert_includes 5..12, messages.size, "#{shift.slug} should have 5-12 messages"
-      assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{shift.slug} needs a genuine message to reply to or act on"
-      assert messages.any?(&:arrives_after), "#{shift.slug} needs a follow-up"
-      assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{shift.slug} needs a quoted red flag"
-      assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{shift.slug} needs a red flag that contradicts an earlier message"
-      assert messages.any?(&:answer_in_key), "#{shift.slug} needs a question answered by an earlier message"
-      assert shift.persona.present?, "#{shift.slug} needs a persona"
-      assert messages.any? { |message| message.legit? && message.needs.any? }, "#{shift.slug} needs a genuine message that needs a detail"
-      assert messages.any? { |message| message.phish? && message.wants.any? }, "#{shift.slug} needs a phish that wants a detail"
-      assert shift.directory.any?, "#{shift.slug} needs a staff directory"
+    Mission.where(slug: shipped_mission_slugs).each do |mission|
+      messages = mission.messages.includes(:red_flags)
+      assert_includes 5..12, messages.size, "#{mission.slug} should have 5-12 messages"
+      assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{mission.slug} needs a genuine message to reply to or act on"
+      assert messages.any?(&:arrives_after), "#{mission.slug} needs a follow-up"
+      assert messages.any? { |message| message.red_flags.any?(&:quote?) }, "#{mission.slug} needs a quoted red flag"
+      assert messages.any? { |message| message.red_flags.any?(&:contradicts_key) }, "#{mission.slug} needs a red flag that contradicts an earlier message"
+      assert messages.any?(&:answer_in_key), "#{mission.slug} needs a question answered by an earlier message"
+      assert mission.persona.present?, "#{mission.slug} needs a persona"
+      assert messages.any? { |message| message.legit? && message.needs.any? }, "#{mission.slug} needs a genuine message that needs a detail"
+      assert messages.any? { |message| message.phish? && message.wants.any? }, "#{mission.slug} needs a phish that wants a detail"
+      assert mission.directory.any?, "#{mission.slug} needs a staff directory"
     end
-    assert_equal 10, Shift.where(slug: shipped_shift_slugs).kind_inbox.count
-    assert_equal 5, Shift.where(slug: shipped_shift_slugs).kind_messages.count
-    shipped = Message.joins(:shift).where(shifts: { slug: shipped_shift_slugs })
-    assert shipped.any? { |message| message.details.any? }, "a shift needs a detail learned from a message"
-    assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a shift needs an MFA-fatigue run"
+    assert_equal 10, Mission.where(slug: shipped_mission_slugs).kind_inbox.count
+    assert_equal 5, Mission.where(slug: shipped_mission_slugs).kind_messages.count
+    shipped = Message.joins(:mission).where(missions: { slug: shipped_mission_slugs })
+    assert shipped.any? { |message| message.details.any? }, "a mission needs a detail learned from a message"
+    assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a mission needs an MFA-fatigue run"
   end
 
   # --- A minimal content folder, mutated one rule at a time ------------------------------
 
   setup do
     @root = Pathname(Dir.mktmpdir("content"))
-    @shift = valid_shift
+    @mission = valid_mission
   end
 
   teardown { FileUtils.remove_entry(@root) }
 
-  test "imports a valid shift with neutral ids and hidden answers stored server-side" do
+  test "imports a valid mission with neutral ids and hidden answers stored server-side" do
     import!
-    shift = Shift.find_by!(slug: "month-end")
-    real = shift.messages.find_by!(key: "real_invoice")
-    fake = shift.messages.find_by!(key: "fake_invoice")
+    mission = Mission.find_by!(slug: "month-end")
+    real = mission.messages.find_by!(key: "real_invoice")
+    fake = mission.messages.find_by!(key: "fake_invoice")
 
-    assert shift.published?
-    assert_equal 10, shift.par_minutes
+    assert mission.published?
+    assert_equal 10, mission.par_minutes
     assert_equal [ "act", 40, 10, true ], [ real.expects, real.points, real.urgent_within_minutes, real.arrives_at_start? ]
     assert_equal [ "portal", "portal", "Approve invoice" ], real.links.sole.then { |link| [ link.outcome, link.landing_template, link.portal_action ] }
     assert_equal [ nil, 0, 1 ], [ fake.expects, fake.points, fake.arrives_after_handled ]
@@ -72,69 +72,69 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_not_includes fake.body_html, "href"
   end
 
-  test "a persona and staff directory are stored on the shift" do
-    @shift["persona"] = { "name" => "Robin Ashby", "role" => "Accounts clerk", "staff_prefix" => "LH",
+  test "a persona and staff directory are stored on the mission" do
+    @mission["persona"] = { "name" => "Robin Ashby", "role" => "Accounts clerk", "staff_prefix" => "LH",
                           "security_question" => "Name of the office dog?" }
-    @shift["directory"] = [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ]
+    @mission["directory"] = [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ]
     import!
-    shift = Shift.find_by!(slug: "month-end")
+    mission = Mission.find_by!(slug: "month-end")
 
-    assert_equal "LH", shift.persona["staff_prefix"]
+    assert_equal "LH", mission.persona["staff_prefix"]
     assert_equal [ { "name" => "IT service desk", "team" => "IT", "contact" => "Ext 4400" }, { "name" => "Reception", "contact" => "Ext 4000" } ],
-      shift.directory
+      mission.directory
   end
 
-  test "a shift without a persona or directory imports with neither" do
+  test "a mission without a persona or directory imports with neither" do
     import!
 
-    assert_equal [ {}, [] ], Shift.find_by!(slug: "month-end").then { |shift| [ shift.persona, shift.directory ] }
+    assert_equal [ {}, [] ], Mission.find_by!(slug: "month-end").then { |mission| [ mission.persona, mission.directory ] }
   end
 
   test "persona rules: a short capital prefix, a real question, fiction only" do
     persona = { "name" => "Robin Ashby", "role" => "Clerk", "staff_prefix" => "LH", "security_question" => "Name of the office dog?" }
 
-    @shift["persona"] = persona.merge("staff_prefix" => "lh-1")
+    @mission["persona"] = persona.merge("staff_prefix" => "lh-1")
     assert_import_error "staff_prefix must be 2-3 capital letters"
 
-    @shift["persona"] = persona.merge("security_question" => "The office dog")
+    @mission["persona"] = persona.merge("security_question" => "The office dog")
     assert_import_error "must be a question"
 
     [ "Name of your first pet?", "Name of your primary school?", "Town where you were born?", "Street you grew up on?",
       "Your mother's maiden name?", "Make of your first car?" ].each do |question|
-      @shift["persona"] = persona.merge("security_question" => question)
+      @mission["persona"] = persona.merge("security_question" => question)
       assert_import_error "never the kind real accounts use"
     end
 
-    @shift["persona"] = persona.merge("role" => "Clerk at https://bank.com")
+    @mission["persona"] = persona.merge("role" => "Clerk at https://bank.com")
     assert_import_error "role mentions names outside the reserved fictional set"
 
-    @shift["persona"] = persona.merge("password" => "hunter2")
+    @mission["persona"] = persona.merge("password" => "hunter2")
     assert_import_error "unknown key password"
   end
 
   test "the directory says how to reach someone, never an email address" do
-    @shift["directory"] = [ { "name" => "IT", "contact" => "servicedesk@larkhill.example" } ]
+    @mission["directory"] = [ { "name" => "IT", "contact" => "servicedesk@larkhill.example" } ]
 
     assert_import_error "not an email address"
   end
 
   test "private details: needs, wants and learned details are stored with the message" do
-    real, canteen, fake = @shift["messages"]
+    real, canteen, fake = @mission["messages"]
     real["needs"] = %w[ staff_number soup ]
     canteen["details"] = [ { "key" => "soup", "label" => "Soup of the day", "quote" => "Soup of the day", "sensitivity" => "internal",
                              "red_use" => "sound like an insider" } ]
     fake["wants"] = %w[ staff_number soup ]
     import!
 
-    shift = Shift.find_by!(slug: "month-end")
-    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "real_invoice").needs
-    assert_equal %w[ staff_number soup ], shift.messages.find_by!(key: "fake_invoice").wants
-    soup = shift.detail("soup")
+    mission = Mission.find_by!(slug: "month-end")
+    assert_equal %w[ staff_number soup ], mission.messages.find_by!(key: "real_invoice").needs
+    assert_equal %w[ staff_number soup ], mission.messages.find_by!(key: "fake_invoice").wants
+    soup = mission.detail("soup")
     assert_equal [ "internal", "p1", 0, 15, "canteen_news" ], [ soup.sensitivity, soup.anchor, soup.quote_start, soup.quote_end, soup.message_key ]
   end
 
   test "private details rules" do
-    real, canteen, fake = @shift["messages"]
+    real, canteen, fake = @mission["messages"]
     reply_options = [ { "text" => "OK", "outcome" => "safe" }, { "text" => "Why?", "outcome" => "ask_why", "response" => "Because." } ]
     cases = [
       [ "needs on a phish", -> { fake["needs"] = %w[ staff_number ] }, /needs isn't allowed here/ ],
@@ -158,8 +158,8 @@ class Content::ImportTest < ActiveSupport::TestCase
     ]
 
     cases.each do |description, mutate, expected|
-      @shift = valid_shift
-      real, canteen, fake = @shift["messages"]
+      @mission = valid_mission
+      real, canteen, fake = @mission["messages"]
       instance_exec(&mutate)
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match expected, error.message, "wrong error for #{description}"
@@ -167,8 +167,8 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "arrivals: after a count, or after another message, with phishes following up too" do
-    @shift["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
-    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    @mission["messages"] << newsletter.merge("arrives" => { "after" => "real_invoice" })
+    @mission["messages"] << @mission["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
     import!
 
     assert_equal "real_invoice", Message.find_by!(key: "newsletter").arrives_after
@@ -176,16 +176,16 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "a fake may imitate a message it arrives with" do
-    @shift["messages"].last.merge!("imitates" => "real_invoice", "arrives" => "start")
+    @mission["messages"].last.merge!("imitates" => "real_invoice", "arrives" => "start")
     assert_nothing_raised { import! }
 
-    @shift["messages"].first["arrives"] = { "after_handled" => 1 }
-    @shift["messages"].last["arrives"] = { "after_handled" => 1 }
+    @mission["messages"].first["arrives"] = { "after_handled" => 1 }
+    @mission["messages"].last["arrives"] = { "after_handled" => 1 }
     assert_nothing_raised { import! }
   end
 
   test "a red flag can contradict an earlier genuine message, and a question can say where its answer was" do
-    with_story(@shift)
+    with_story(@mission)
     import!
 
     flag = Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today")
@@ -199,16 +199,16 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "a question can follow its answer through a chain of after: triggers, or be answered by a phish if it comes last" do
-    with_story(@shift)
-    @shift["messages"][1]["arrives"] = { "after" => "real_invoice" }
-    @shift["messages"].last["arrives"] = { "after" => "canteen_news" }
-    @shift["messages"][2]["red_flags"].last.delete("contradicts")
-    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
-    @shift["messages"] << @shift["messages"][2].deep_dup.merge("key" => "fake_chaser_two", "arrives" => { "after" => "fake_chaser" })
+    with_story(@mission)
+    @mission["messages"][1]["arrives"] = { "after" => "real_invoice" }
+    @mission["messages"].last["arrives"] = { "after" => "canteen_news" }
+    @mission["messages"][2]["red_flags"].last.delete("contradicts")
+    @mission["messages"] << @mission["messages"][2].deep_dup.merge("key" => "fake_chaser", "arrives" => { "after" => "fake_invoice" })
+    @mission["messages"] << @mission["messages"][2].deep_dup.merge("key" => "fake_chaser_two", "arrives" => { "after" => "fake_chaser" })
     assert_nothing_raised { import! }
 
-    with_story(@shift = valid_shift)
-    @shift["messages"].last.merge!("answer_in" => { "message" => "fake_invoice", "quote" => "Our bank details have changed" },
+    with_story(@mission = valid_mission)
+    @mission["messages"].last.merge!("answer_in" => { "message" => "fake_invoice", "quote" => "Our bank details have changed" },
                                    "arrives" => { "after_handled" => 3 })
     assert_nothing_raised { import! }
   end
@@ -216,7 +216,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   test "rejects broken story links" do
     {
       "an answer in a message that isn't there" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "nope" },
-                                                     /answer_in: message "nope" isn't another message in this shift/ ],
+                                                     /answer_in: message "nope" isn't another message in this mission/ ],
       "an answer in the question itself" => [ ->(s) { s["messages"].last["answer_in"]["message"] = "lunch_question" },
                                               /message "lunch_question" isn't another message/ ],
       "a quote the source doesn't have" => [ ->(s) { s["messages"].last["answer_in"]["quote"] = "Room 9Z" },
@@ -228,7 +228,7 @@ class Content::ImportTest < ActiveSupport::TestCase
       "a contradiction that could come first" => [
         ->(s) { s["messages"][1]["arrives"] = { "after_handled" => 1 }; s["messages"][2]["arrives"] = "start" },
         /fake_invoice could arrive before canteen_news/ ],
-      "an answer in a phish, asked mid-shift" => [ ->(s) { s["messages"].last["answer_in"] = { "message" => "fake_invoice", "quote" => "Please pay today" } },
+      "an answer in a phish, asked mid-mission" => [ ->(s) { s["messages"].last["answer_in"] = { "message" => "fake_invoice", "quote" => "Please pay today" } },
                                                     /the answer is in a phish, so lunch_question must arrive last \(arrives: \{ after_handled: 3 \}\)/ ],
       "contradicting a phish" => [
         ->(s) { s["messages"] << s["messages"][2].deep_dup.merge("key" => "fake_two", "arrives" => "start")
@@ -242,8 +242,8 @@ class Content::ImportTest < ActiveSupport::TestCase
                                             /answer_in must be \{ message: other_key, quote: "the words" \}/ ],
       "an unknown story link key" => [ ->(s) { s["messages"].last["answer_in"]["line"] = 2 }, /unknown key line/ ]
     }.each do |description, (mutate, message)|
-      @shift = with_story(valid_shift)
-      mutate.call(@shift)
+      @mission = with_story(valid_mission)
+      mutate.call(@mission)
 
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match message, error.message, "wrong error for #{description}"
@@ -251,8 +251,8 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "quotes are matched on the text as the player sees it: whitespace runs count as one space" do
-    @shift["messages"].last["body_html"] = @shift["messages"].last["body_html"].sub("Please pay today.", "Please   pay\n  today.")
-    @shift["messages"].last["red_flags"].last["quote"] = "Please pay today"
+    @mission["messages"].last["body_html"] = @mission["messages"].last["body_html"].sub("Please pay today.", "Please   pay\n  today.")
+    @mission["messages"].last["red_flags"].last["quote"] = "Please pay today"
     import!
 
     assert_equal [ 0, 16 ], Message.find_by!(key: "fake_invoice").red_flags.find_by!(key: "pay_today").then { |flag| [ flag.quote_start, flag.quote_end ] }
@@ -262,38 +262,38 @@ class Content::ImportTest < ActiveSupport::TestCase
     import!
     message_id = Message.find_by!(key: "fake_invoice").id
 
-    @shift["messages"].last["subject"] = "Changed subject"
-    @shift["messages"].last["red_flags"].pop
-    @shift["hints"] = []
+    @mission["messages"].last["subject"] = "Changed subject"
+    @mission["messages"].last["red_flags"].pop
+    @mission["hints"] = []
     import!
 
     message = Message.find(message_id)
     assert_equal "Changed subject", message.subject
     assert_equal %w[ lookalike link_mismatch ], message.red_flags.pluck(:key)
-    assert_empty Shift.find_by!(slug: "month-end").hints
+    assert_empty Mission.find_by!(slug: "month-end").hints
   end
 
-  test "unpublishes shifts whose file has gone, keeping the record" do
+  test "unpublishes missions whose file has gone, keeping the record" do
     import!
     FileUtils.rm(@root.join("tracks/basics/month-end.yml"))
-    write_yaml("tracks/basics/other.yml", valid_shift.merge("slug" => "other"))
+    write_yaml("tracks/basics/other.yml", valid_mission.merge("slug" => "other"))
     Content::Import.new(@root).run
 
-    assert_not Shift.find_by!(slug: "month-end").published?
-    assert Shift.find_by!(slug: "other").published?
+    assert_not Mission.find_by!(slug: "month-end").published?
+    assert Mission.find_by!(slug: "other").published?
   end
 
   test "a failed import changes nothing" do
     import!
-    @shift["title"] = "A new title"
-    @shift["messages"].last["techniques"] = [ "made_up" ]
+    @mission["title"] = "A new title"
+    @mission["messages"].last["techniques"] = [ "made_up" ]
 
     assert_raises(Content::ImportError) { import! }
-    assert_equal "Month-end", Shift.find_by!(slug: "month-end").title
+    assert_equal "Month-end", Mission.find_by!(slug: "month-end").title
   end
 
   test "errors name the file and the location" do
-    @shift["messages"].last["links"].first["outcome"] = "portal"
+    @mission["messages"].last["links"].first["outcome"] = "portal"
 
     error = assert_raises(Content::ImportError) { import! }
     assert_match %r{\Acontent[\w-]*/tracks/basics/month-end\.yml: messages\[2\] \(fake_invoice\) → links\[0\]: }, error.message
@@ -358,7 +358,7 @@ class Content::ImportTest < ActiveSupport::TestCase
                                                /"fake_invoice" arrives after "nope", which isn't another message/ ],
       "arriving after itself" => [ ->(s) { s["messages"].last["arrives"] = { "after" => "fake_invoice" } },
                                    /"fake_invoice" arrives after "fake_invoice", which isn't another message/ ],
-      "a count the shift never reaches" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 3 } },
+      "a count the mission never reaches" => [ ->(s) { s["messages"].last["arrives"] = { "after_handled" => 3 } },
                                              /fake_invoice can never arrive/ ],
       "nothing at the start" => [ ->(s) { s["messages"].first(2).each { |m| m["arrives"] = { "after" => "fake_invoice" } } },
                                   /at least one message must arrive at the start/ ],
@@ -368,7 +368,7 @@ class Content::ImportTest < ActiveSupport::TestCase
         ->(s) { s["messages"].last["imitates"] = "real_invoice" },
         /imitates "real_invoice" but could arrive after it: a fake must arrive at the start, or on exactly the same arrives: trigger/ ],
       "a fake imitating a message that isn't there" => [ ->(s) { s["messages"].last.merge!("imitates" => "nope", "arrives" => "start") },
-                                                          /imitates "nope", which isn't a genuine message in this shift/ ],
+                                                          /imitates "nope", which isn't a genuine message in this mission/ ],
       "a fake imitating another fake" => [ ->(s) { s["messages"].last.merge!("imitates" => "fake_invoice", "arrives" => "start") },
                                            /imitates "fake_invoice", which isn't a genuine message/ ],
       "a genuine message imitating something" => [ ->(s) { s["messages"].first["imitates"] = "canteen_news" },
@@ -405,7 +405,7 @@ class Content::ImportTest < ActiveSupport::TestCase
       "duplicate message keys" => [ ->(s) { s["messages"].last["key"] = "real_invoice" }, /message keys must be unique/ ],
       "a real domain on an uncommon TLD" => [ ->(s) { s["briefing"] = "Log in at realbank.co.za" },
                                               /briefing mentions names outside the reserved fictional set: realbank\.co\.za/ ],
-      "a real domain in the shift title" => [ ->(s) { s["title"] = "Month-end at realbank.com" }, /title mentions names/ ],
+      "a real domain in the mission title" => [ ->(s) { s["title"] = "Month-end at realbank.com" }, /title mentions names/ ],
       "a real brand in a red flag label" => [ ->(s) { s["messages"].last["red_flags"].first["label"] = "Not really PayPal" },
                                               /label mentions names outside the reserved fictional set: PayPal/ ],
       "a real brand on a portal button" => [ ->(s) { s["messages"].first["links"].first["action"] = "Pay with PayPal" },
@@ -428,18 +428,18 @@ class Content::ImportTest < ActiveSupport::TestCase
                                       /outcome must be one of safe, compromise, verify/ ],
       "a repeated reply" => [ ->(s) { phone(s)["messages"].last["replies"] = [ chat_replies.first, chat_replies.first ] },
                               /each reply needs different text/ ],
-      "a chat in an inbox shift" => [ ->(s) { s["messages"].last["channel"] = "chat" },
-                                      /channel must be one of email for inbox shifts \(got chat\)/ ],
-      "an email in a messages shift" => [ ->(s) { phone(s)["messages"].last.merge!("channel" => "email", "subject" => "Hi", "to_address" => "you@larkhill.example") },
-                                          /channel must be one of sms, chat for messages shifts \(got email\)/ ],
+      "a chat in an inbox mission" => [ ->(s) { s["messages"].last["channel"] = "chat" },
+                                      /channel must be one of email for inbox missions \(got chat\)/ ],
+      "an email in a messages mission" => [ ->(s) { phone(s)["messages"].last.merge!("channel" => "email", "subject" => "Hi", "to_address" => "you@larkhill.example") },
+                                          /channel must be one of sms, chat for messages missions \(got email\)/ ],
       "a red flag on a text's reply_to, which the phone never shows" => [
         ->(s) { phone(s)["messages"].last.merge!("reply_to" => "x@freemail.test")["red_flags"].first["anchor"] = "reply_to" },
         /anchor "reply_to" doesn't exist/ ],
       "a real brand in a reply" => [ ->(s) { phone(s)["messages"].last["replies"] = chat_replies.each { |r| r["response"] = "Sent from PayPal" } },
                                      /response mentions names outside the reserved fictional set: PayPal/ ]
     }.each do |description, (mutate, message)|
-      @shift = valid_shift
-      mutate.call(@shift)
+      @mission = valid_mission
+      mutate.call(@mission)
 
       error = assert_raises(Content::ImportError, "expected an error for #{description}") { import! }
       assert_match message, error.message, "wrong error for #{description}"
@@ -447,7 +447,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "a text or chat can offer canned replies, with neutral ids and outcomes kept on the server" do
-    phone(@shift)["messages"].last["replies"] = chat_replies
+    phone(@mission)["messages"].last["replies"] = chat_replies
     import!
 
     fake = Message.find_by!(key: "fake_invoice")
@@ -457,7 +457,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   end
 
   test "a legitimate message may list an empty red_flags" do
-    @shift["messages"].first["red_flags"] = []
+    @mission["messages"].first["red_flags"] = []
     assert_nothing_raised { import! }
   end
 
@@ -500,7 +500,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_raises(Content::ImportError, match: /no tracks folder found/) { Content::Import.new(@root).run }
   end
 
-  test "the summary counts messages across all shifts" do
+  test "the summary counts messages across all missions" do
     assert_equal 3, import!.messages
   end
 
@@ -518,22 +518,22 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_raises(Content::ImportError, match: /tracks\/empty: is missing _track\.yml/) { Content::Import.new(@root).run }
   end
 
-  test "rejects the same shift slug in two tracks" do
+  test "rejects the same mission slug in two tracks" do
     write_content
     write_yaml("tracks/zzz/_track.yml", valid_track)
-    write_yaml("tracks/zzz/month-end.yml", valid_shift)
+    write_yaml("tracks/zzz/month-end.yml", valid_mission)
 
-    assert_raises(Content::ImportError, match: /a shift called month-end already exists in the basics track/) do
+    assert_raises(Content::ImportError, match: /a mission called month-end already exists in the basics track/) do
       Content::Import.new(@root).run
     end
   end
 
-  test "Workshop targets import with their cards, linked to a Blue shift" do
+  test "Workshop targets import with their cards, linked to a Blue mission" do
     @target = workshop_target
     import!
 
     target = Target.find_by!(slug: "month-end-run")
-    assert_equal [ "month-end", 20 ], [ target.shift.slug, target.budget ]
+    assert_equal [ "month-end", 20 ], [ target.mission.slug, target.budget ]
     assert_equal %w[ pretext pretext sender sender lure lure payload payload timing timing ], target.options.map(&:category)
     assert_equal "New bank details", target.options.first.subject
     assert_equal "Busy Bob", BotPersona.sole.name
@@ -542,7 +542,7 @@ class Content::ImportTest < ActiveSupport::TestCase
   test "rejects bad Workshop content" do
     {
       "a card in the wrong slot" => [ ->(t) { t["cards"]["sender"].first["technique"] = "pay_tech" }, /pay_tech is a pretext technique, so it can't go in the sender slot/ ],
-      "an unknown shift" => [ ->(t) { t["shift"] = "nope" }, /shift "nope" isn't one of the imported shifts/ ],
+      "an unknown mission" => [ ->(t) { t["mission"] = "nope" }, /mission "nope" isn't one of the imported missions/ ],
       "a pretext with no subject" => [ ->(t) { t["cards"]["pretext"].first.delete("subject") }, /subject is required for pretexts/ ],
       "a subject on a lure" => [ ->(t) { t["cards"]["lure"].first["subject"] = "Hi" }, /subject is only for pretexts/ ],
       "a slot with one card" => [ ->(t) { t["cards"]["timing"].pop }, /timing needs at least 2 cards/ ],
@@ -594,7 +594,7 @@ class Content::ImportTest < ActiveSupport::TestCase
         { "key" => "first_catch", "name" => "First Catch", "description" => "Report a phish.", "side" => "blue" }
       ])
       write_yaml("tracks/basics/_track.yml", valid_track)
-      write_yaml("tracks/basics/month-end.yml", @shift)
+      write_yaml("tracks/basics/month-end.yml", @mission)
       write_yaml("bots.yml", "bots" => [
         { "key" => "busy_bob", "name" => "Busy Bob", "description" => "Always behind.", "vigilance" => 3,
           "detects" => { "lookalike_domain" => -1 } }
@@ -605,7 +605,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     def valid_target
       card = ->(key, technique, extra = {}) { { "key" => key, "technique" => technique, "label" => key.humanize, "text" => "Text for #{key}." }.merge(extra) }
       {
-        "slug" => "month-end-run", "title" => "Month-end", "shift" => "month-end", "budget" => 20,
+        "slug" => "month-end-run", "title" => "Month-end", "mission" => "month-end", "budget" => 20,
         "recon_brief" => "Tidemark's invoice is due.",
         "cards" => {
           "pretext" => [ card.("bank", "lookalike_domain", "subject" => "New bank details"), card.("overdue", "lookalike_domain", "subject" => "Overdue") ],
@@ -627,7 +627,7 @@ class Content::ImportTest < ActiveSupport::TestCase
       { "title" => "Basics", "description" => "The basics.", "position" => 1, "difficulty" => "beginner" }
     end
 
-    def valid_shift
+    def valid_mission
       {
         "slug" => "month-end", "title" => "Month-end", "kind" => "inbox", "difficulty" => "beginner",
         "par_minutes" => 10, "briefing" => "It's month-end.", "learning_summary" => "Check links.",
@@ -663,15 +663,15 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     # The canteen news sets up two facts: a later phish contradicts one, and a colleague's question is
     # answered by the other.
-    def with_story(shift)
-      shift["messages"][1]["body_html"] = "<p>Soup of the day is back, in Room 4B. Tidemark invoices only ever come through the portal.</p>"
-      shift["messages"][2]["red_flags"].last["contradicts"] = { "message" => "canteen_news", "quote" => "Tidemark invoices only ever come through the portal" }
-      shift["messages"] << newsletter.merge(
+    def with_story(mission)
+      mission["messages"][1]["body_html"] = "<p>Soup of the day is back, in Room 4B. Tidemark invoices only ever come through the portal.</p>"
+      mission["messages"][2]["red_flags"].last["contradicts"] = { "message" => "canteen_news", "quote" => "Tidemark invoices only ever come through the portal" }
+      mission["messages"] << newsletter.merge(
         "key" => "lunch_question", "expects" => "reply", "from_name" => "Alex Morgan", "from_address" => "alex.morgan@larkhill.example",
         "subject" => "Lunch?", "body_html" => "<p>Which room is the soup in today?</p>", "arrives" => { "after_handled" => 1 },
         "replies" => [ { "text" => "Room 4B", "outcome" => "safe" }, { "text" => "Room 2A", "outcome" => "poor" } ],
         "answer_in" => { "message" => "canteen_news", "quote" => "Room 4B" })
-      shift
+      mission
     end
 
     def newsletter
@@ -680,11 +680,11 @@ class Content::ImportTest < ActiveSupport::TestCase
         "subject" => "This week", "body_html" => "<p>The canteen has a new menu.</p>" }
     end
 
-    # Turns the valid shift into a messages shift, played on a phone, with chats instead of emails.
-    def phone(shift)
-      shift["kind"] = "messages"
-      shift["messages"].each { |message| message.merge!("channel" => "chat").except!("to_address", "subject") }
-      shift
+    # Turns the valid mission into a messages mission, played on a phone, with chats instead of emails.
+    def phone(mission)
+      mission["kind"] = "messages"
+      mission["messages"].each { |message| message.merge!("channel" => "chat").except!("to_address", "subject") }
+      mission
     end
 
     def chat_replies
@@ -707,12 +707,12 @@ class Content::ImportTest < ActiveSupport::TestCase
     end
 
     def snapshot
-      [ Technique, Badge, Track, Shift, Message, Link, RedFlag, MessageTechnique, Hint ].to_h do |model|
+      [ Technique, Badge, Track, Mission, Message, Link, RedFlag, MessageTechnique, Hint ].to_h do |model|
         [ model.name, model.order(:id).map { |record| record.attributes.except("updated_at") } ]
       end
     end
 
-    def shipped_shift_slugs
+    def shipped_mission_slugs
       Rails.root.glob("content/tracks/*/*.yml").map { |file| file.basename(".yml").to_s } - [ "_track" ]
     end
 end

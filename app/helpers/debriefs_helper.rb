@@ -1,5 +1,5 @@
 # The words of the Purple debrief: what each message was, what it needed, what the player did, and
-# what to do next time. Everything here is judged by ShiftAttempt::Scorecard, so the explanation
+# what to do next time. Everything here is judged by MissionAttempt::Scorecard, so the explanation
 # always matches the score. Only ever rendered for a finished attempt: it names the answers.
 module DebriefsHelper
   TONE_CLASSES = {
@@ -62,35 +62,35 @@ module DebriefsHelper
     minutes.zero? ? "#{seconds} s" : format("%d min %02d s", minutes, seconds)
   end
 
-  # "4:05" into the shift.
+  # "4:05" into the mission.
   def debrief_clock(seconds)
     format("%d:%02d", *seconds.divmod(60))
   end
 
   # A finished attempt's status, for the track page.
   def debrief_status(attempt)
-    { "completed" => "Completed", "clocked_off" => "Clocked off early", "timed_out" => "Left unfinished" }.fetch(attempt.status, "In progress")
+    { "completed" => "Completed", "stood_down" => "Stood down", "timed_out" => "Left unfinished" }.fetch(attempt.status, "In progress")
   end
 
-  # How the shift ended, and how long it took.
+  # How the mission ended, and how long it took.
   def debrief_ending(attempt, scorecard)
     case attempt.status
     when "completed"
-      time = "You cleared your #{scorecard.shift.kind_inbox? ? "inbox" : "phone"} in #{debrief_duration(scorecard.elapsed_seconds)}"
+      time = "You cleared your #{scorecard.mission.kind_inbox? ? "inbox" : "phone"} in #{debrief_duration(scorecard.elapsed_seconds)}"
       if scorecard.relaxed?
         "#{time}, in relaxed mode."
       else
-        "#{time}. The target was #{scorecard.shift.par_minutes} minutes."
+        "#{time}. The target was #{scorecard.mission.par_minutes} minutes."
       end
-    when "clocked_off"
-      "You clocked off after #{debrief_duration(scorecard.elapsed_seconds)}. Anything you hadn't dealt with counts as ignored."
+    when "stood_down"
+      "You stood down after #{debrief_duration(scorecard.elapsed_seconds)}. Anything you hadn't dealt with counts as ignored."
     else
-      "This shift was left open too long and closed. Anything you hadn't dealt with counts as ignored."
+      "This mission was left open too long and closed. Anything you hadn't dealt with counts as ignored."
     end
   end
 
   def debrief_headline(scorecard)
-    return "A perfect shift: every message handled right, every red flag spotted, with no wrong flags and no hints." if scorecard.perfect?
+    return "A perfect mission: every message handled right, every red flag spotted, with no wrong flags and no hints." if scorecard.perfect?
 
     phishes = scorecard.phishes
     genuine = scorecard.genuine
@@ -104,7 +104,7 @@ module DebriefsHelper
     wrong_flags = scorecard.messages.sum { |result| result.false_flags.size }
     parts << "flagged #{pluralize(wrong_flags, "thing")} that #{wrong_flags == 1 ? "wasn't a red flag" : "weren't red flags"}" if wrong_flags.positive?
     parts << "took #{pluralize(scorecard.hints.size, "hint")}" if scorecard.hints.any?
-    parts.any? ? "You #{parts.to_sentence}." : "Shift over."
+    parts.any? ? "You #{parts.to_sentence}." : "Mission over."
   end
 
   # What a genuine message needed, as the end of a sentence: "needed a reply".
@@ -138,27 +138,27 @@ module DebriefsHelper
           "It needed your #{detail_labels(message, message.needs)}, and never got #{message.needs.size == 1 ? "it" : "them"} where it could use them.")
       end
       result.overshares.each do |share|
-        detail = message.shift.detail(share["detail"])
+        detail = message.mission.detail(share["detail"])
         sentences << if share["sensitivity"] == "secret" && share["via"] == "reply"
           "You sent your #{share["label"].downcase} in a message. Secrets like that only go into the company's own system, never in an " \
-            "email or chat, even to someone genuine (#{debrief_points(Shift::Detail::OVERSHARE_POINTS["secret"])})."
+            "email or chat, even to someone genuine (#{debrief_points(Mission::Detail::OVERSHARE_POINTS["secret"])})."
         else
           "You also sent your #{(detail&.label || share["label"]).downcase}, which it didn't need " \
-            "(#{debrief_points(Shift::Detail::OVERSHARE_POINTS.fetch(share["sensitivity"]))}). Only give what's asked for and needed."
+            "(#{debrief_points(Mission::Detail::OVERSHARE_POINTS.fetch(share["sensitivity"]))}). Only give what's asked for and needed."
         end
       end
       if result.mfa_misuses.any?
         sentences << "You gave your MFA code to something other than the sign-in page that asked for it. Nobody else ever needs it " \
-          "(#{debrief_points(ShiftAttempt::Scorecard::COMPROMISED)})."
+          "(#{debrief_points(MissionAttempt::Scorecard::COMPROMISED)})."
       end
     end
     sentences
   end
 
   # "What Red now knows": each detail given to a phish, with what Red could do with it.
-  def debrief_red_knows(scorecard, shift)
+  def debrief_red_knows(scorecard, mission)
     scorecard.leaked_details.map do |share|
-      detail = shift.detail(share["detail"])
+      detail = mission.detail(share["detail"])
       use = detail&.red_use || "use it to make the next attack more convincing"
       "Your #{(detail&.label || share["label"]).downcase} (#{share["value"]}): Red could #{use}."
     end
@@ -188,7 +188,7 @@ module DebriefsHelper
         end
       else
         story << "#{result.archived? ? "You archived it without reporting it" : "You didn't report it"}. Reporting a phish lets the " \
-          "security team warn your colleagues before it catches one of them (#{debrief_points(ShiftAttempt::Scorecard::REPORTED_PHISH)} you could have had)."
+          "security team warn your colleagues before it catches one of them (#{debrief_points(MissionAttempt::Scorecard::REPORTED_PHISH)} you could have had)."
       end
     else
       story.concat(genuine_story(result))
@@ -230,19 +230,19 @@ module DebriefsHelper
     end
   end
 
-  # [seconds into the shift, description, tone] for each action in the shift's log, in order.
+  # [seconds into the mission, description, tone] for each action in the mission's log, in order.
   def debrief_timeline(actions, scorecard)
-    actions.zip(ShiftAttempt::Flaggable.toggles(actions)).map do |action, on|
+    actions.zip(MissionAttempt::Flaggable.toggles(actions)).map do |action, on|
       debrief_timeline_entry(action, scorecard, unflag: on == false)
     end
   end
 
-  # [seconds into the shift, description, tone] for one action in the shift's log. unflag: the
+  # [seconds into the mission, description, tone] for one action in the mission's log. unflag: the
   # flag_element took a flag off rather than putting one on.
   def debrief_timeline_entry(action, scorecard, unflag: false)
     result = scorecard.message_result_for(action.target_key)
     subject = result ? "“#{result.message.subject.presence || result.message.from_name}”" : "a message"
-    tab = ShiftAttempt::Tab.new(message: result.message, source: action.result) if result
+    tab = MissionAttempt::Tab.new(message: result.message, source: action.result) if result
 
     description, tone =
       case action.kind
@@ -256,7 +256,7 @@ module DebriefsHelper
       when "run_download" then [ "Ran #{tab_label(tab)}: compromised", :bad ]
       when "use_portal" then [ "Pressed “#{tab&.portal_action || "the button"}” on #{tab_label(tab)}", :good ]
       when "flag_element"
-        part = result ? flag_label(result.message, ShiftAttempt::Flag.from_result(action.result)) : "part of it"
+        part = result ? flag_label(result.message, MissionAttempt::Flag.from_result(action.result)) : "part of it"
         [ "#{unflag ? "Took the flag off" : "Flagged"} #{part} in #{subject}", :neutral ]
       when "send_reply"
         reply = action.result
@@ -265,14 +265,14 @@ module DebriefsHelper
       when "save_note" then [ "Saved “#{action.result["text"]}” from #{subject} to your notes", :neutral ]
       when "share_details"
         labels = action.result["shared"].map { |shared| shared["label"] }.to_sentence
-        where = action.result["via"] == "page" ? "on #{tab_label(result && ShiftAttempt::Tab.new(message: result.message, source: action.result["page"]))}" : "to #{subject}"
+        where = action.result["via"] == "page" ? "on #{tab_label(result && MissionAttempt::Tab.new(message: result.message, source: action.result["page"]))}" : "to #{subject}"
         leaked = result&.phish? && action.result["shared"].any? { |shared| shared["sensitivity"].in?(%w[ internal secret never ]) }
         [ "Sent #{labels} #{where}", leaked ? :bad : :neutral ]
       when "ask_why" then [ "Asked #{subject} why they needed it", :good ]
       when "use_hint" then [ "Took a hint", :warn ]
       when "report_message" then [ "Reported #{subject}", result.nil? ? :neutral : (result.phish? ? :good : :bad) ]
       when "archive_message" then [ "Archived #{subject}", result.nil? || result.phish? || result.done? ? :neutral : :warn ]
-      when "clock_off" then [ "Clocked off early", :neutral ]
+      when "stand_down" then [ "Stood down", :neutral ]
       else [ action.kind.humanize, :neutral ]
       end
 
@@ -308,7 +308,7 @@ module DebriefsHelper
     return if result.false_flags.empty?
 
     parts = result.false_flags.map { |flag| flag_label(result.message, flag) }.to_sentence
-    cost = debrief_points(result.false_flags.size * ShiftAttempt::Scorecard::FALSE_FLAG)
+    cost = debrief_points(result.false_flags.size * MissionAttempt::Scorecard::FALSE_FLAG)
     if result.phish?
       "You also flagged #{parts}, which #{result.false_flags.one? ? "wasn't a giveaway" : "weren't giveaways"} (#{cost})."
     else
@@ -341,7 +341,7 @@ module DebriefsHelper
 
   # What to call a message in a sentence: an email, a text or a chat message.
   def message_noun(message)
-    ShiftAttemptsHelper::CHANNEL_NAMES.fetch(message.channel).fetch(:noun)
+    MissionAttemptsHelper::CHANNEL_NAMES.fetch(message.channel).fetch(:noun)
   end
 
   private
@@ -378,7 +378,7 @@ module DebriefsHelper
     end
 
     def detail_labels(message, keys)
-      keys.filter_map { |key| message.shift.detail(key)&.label&.downcase }.to_sentence.presence
+      keys.filter_map { |key| message.mission.detail(key)&.label&.downcase }.to_sentence.presence
     end
 
     def shared_labels(shares)
@@ -415,7 +415,7 @@ module DebriefsHelper
       text = result.reply["text"]
       if result.gave_in?
         "You replied “#{text}”, handing over exactly what they asked for. In a real attack Red is now signed in as you " \
-          "(#{debrief_points(ShiftAttempt::Scorecard::COMPROMISED)})."
+          "(#{debrief_points(MissionAttempt::Scorecard::COMPROMISED)})."
       else
         "You replied “#{text}”, and gave them nothing they could use. Good."
       end
@@ -423,7 +423,7 @@ module DebriefsHelper
 
     def compromise_sentence(tab)
       if !tab.showable?
-        "You were compromised by a link or file in this message that has since been changed in the shift's content."
+        "You were compromised by a link or file in this message that has since been changed in the mission's content."
       elsif tab.landing == "credential_harvest"
         "You entered a password on the fake sign-in page at #{tab.host}. It just said “submitted”, but in a real attack Red now " \
           "has your password: they could read your email and send phish to your colleagues from your account."

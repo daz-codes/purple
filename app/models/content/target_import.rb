@@ -2,19 +2,19 @@ module Content
   # Validates one Red's Workshop target YAML file and upserts it with its cards, by key, deleting cards
   # no longer in the file. Runs inside the importer's transaction.
   #
-  #   slug, title, shift (the Blue shift whose company it targets), budget, position, published,
+  #   slug, title, mission (the Blue mission whose company it targets), budget, position, published,
   #   recon_brief, and cards: one list per slot (pretext, sender, lure, payload, timing), each card
   #   { key, technique, label, text, relevance (0-3), extra_cost }, and pretexts also a subject.
   #
   # Every card's text is fictional, and each card's technique must belong to its slot.
   class TargetImport
-    TARGET_KEYS = %i[ slug title shift budget position published recon_brief cards ].freeze
+    TARGET_KEYS = %i[ slug title mission budget position published recon_brief cards ].freeze
     CARD_KEYS = %i[ key technique label subject text relevance extra_cost ].freeze
     MIN_CARDS_PER_SLOT = 2
 
-    def initialize(node, shifts:, techniques:)
+    def initialize(node, missions:, techniques:)
       @node = node
-      @shifts = shifts
+      @missions = missions
       @techniques = techniques
     end
 
@@ -33,14 +33,14 @@ module Content
 
     private
       def target_attributes
-        shift_slug = @node.required(:shift)
-        shift = @shifts.find { |candidate| candidate.slug == shift_slug } or
-          @node.error!("shift \"#{shift_slug}\" isn't one of the imported shifts (#{@shifts.map(&:slug).sort.join(", ")})")
+        mission_slug = @node.required(:mission)
+        mission = @missions.find { |candidate| candidate.slug == mission_slug } or
+          @node.error!("mission \"#{mission_slug}\" isn't one of the imported missions (#{@missions.map(&:slug).sort.join(", ")})")
         budget = @node.required(:budget, Integer)
         @node.error!("budget must be greater than 0") unless budget.positive?
 
         {
-          shift:, budget:,
+          mission:, budget:,
           title: @node.check_fictional!(:title, @node.required(:title)),
           recon_brief: @node.check_fictional!(:recon_brief, @node.required(:recon_brief)),
           position: @node.optional(:position, Integer, default: 0),

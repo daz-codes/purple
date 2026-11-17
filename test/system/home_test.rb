@@ -5,7 +5,7 @@ class HomeTest < ApplicationSystemTestCase
     visit root_path
 
     assert_selector "h1", text: "Attack. Defend. Debrief."
-    assert_text "Work a shift"
+    assert_text "Work a mission"
     assert_text "Red's Workshop"
     assert_text "See both sides of every move"
   end
@@ -19,9 +19,9 @@ class HomeTest < ApplicationSystemTestCase
     assert_selector "h1", text: "Terms of use"
   end
 
-  test "the whole Blue card is a link to the tracks, and each track card is a link to its shifts" do
+  test "the whole Blue card is a link to the tracks, and each track card is a link to its missions" do
     visit root_path
-    find("a", text: "Work a shift").click
+    find("a", text: "Work a mission").click
     assert_selector "h1", text: "Pick a track"
 
     track = Track.published.ordered.first

@@ -6,7 +6,7 @@ class MessageTest < ActiveSupport::TestCase
     assert_not messages(:real_invoice).phish?
   end
 
-  test "keys are unique within a shift" do
+  test "keys are unique within a mission" do
     duplicate = messages(:real_invoice).dup
     assert_not duplicate.valid?
   end

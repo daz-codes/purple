@@ -10,8 +10,8 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   Capybara.default_max_wait_time = 5
 
   # Things only the server may know until the debrief: answer words, the fixtures' descriptive keys,
-  # technique tags and red-flag labels. None may appear anywhere in a mid-shift page.
-  SHIFT_SECRETS = %w[
+  # technique tags and red-flag labels. None may appear anywhere in a mid-mission page.
+  MISSION_SECRETS = %w[
     legit outcome expects arrives_after bait_landing credential_harvest malware harmless file_preview
     real_invoice fake_invoice newsletter supplier_thanks sam_text it_chat lookalike_domain T1583 lookalike
     pay_today code_request compromise sensitivity ask_why canteen_menu
@@ -37,6 +37,6 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
 
     def assert_no_answers
       html = page.html
-      SHIFT_SECRETS.each { |secret| assert_not_includes html, secret, "the page leaks #{secret.inspect}" }
+      MISSION_SECRETS.each { |secret| assert_not_includes html, secret, "the page leaks #{secret.inspect}" }
     end
 end

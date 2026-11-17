@@ -1,4 +1,4 @@
-# Daily streaks: consecutive calendar days (Europe/London) with at least one finished shift or
+# Daily streaks: consecutive calendar days (Europe/London) with at least one finished mission or
 # launched campaign. The first one each day also earns a small bonus on the side played.
 module User::Streaks
   extend ActiveSupport::Concern

@@ -1,5 +1,5 @@
 namespace :content do
-  desc "Import techniques, badges, tracks and shifts from content/ (CONTENT_DIR to override)"
+  desc "Import techniques, badges, tracks and missions from content/ (CONTENT_DIR to override)"
   task import: :environment do
     root = ENV.fetch("CONTENT_DIR", Rails.root.join("content"))
     puts Content::Import.new(root).run

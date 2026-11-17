@@ -1,4 +1,4 @@
-# Checks what a player's just-finished shift or campaign has earned them, and tells them about any new
+# Checks what a player's just-finished mission or campaign has earned them, and tells them about any new
 # badge with a toast.
 class AwardBadgesJob < ApplicationJob
   queue_as :default

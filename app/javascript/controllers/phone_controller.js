@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-// The phone in a message shift shows one screen at a time: the conversation list or one
+// The phone in a message mission shows one screen at a time: the conversation list or one
 // conversation. Opening a conversation is a move the server records (like reading an email); going
 // back to the list is only a change of view, so it happens here.
 export default class extends Controller {

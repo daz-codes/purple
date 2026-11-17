@@ -119,7 +119,7 @@
 }
 
 /*
-  Gauges: the shift clock (<progress>) and the two meters (<meter>). Native elements, so they're
+  Gauges: the mission clock (<progress>) and the two meters (<meter>). Native elements, so they're
   accessible and need no inline styles (the CSP forbids those). Each sets its colour in --gauge.
 */
 @layer components {
@@ -182,7 +182,7 @@
   }
 }
 
-/* The in-game browser opens as a modal <dialog>; dim the shift behind it. */
+/* The in-game browser opens as a modal <dialog>; dim the mission behind it. */
 @layer components {
   .browser::backdrop {
     background: rgb(10 11 23 / 0.75);
