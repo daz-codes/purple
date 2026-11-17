@@ -60,6 +60,14 @@ aliases:
   backup-logs: accessory logs backup -f
   offsite-logs: accessory logs offsite -f
 
+# Rotate the app's logs (they hold IP addresses) so old ones are overwritten, as the privacy page
+# says, rather than kept for ever by Docker's default json-file driver.
+logging:
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: 5
+
 volumes:
   - "purple_storage:/rails/storage"
 
