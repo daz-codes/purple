@@ -1,5 +1,21 @@
 require "test_helper"
 require "axe/matchers/be_axe_clean"
+require "capybara/rails"
+require "capybara/selenium/driver"
+
+# Capybara 3.40 resets the browser between tests with Storage.clearDataForOrigin(origin: "*"), which
+# Chrome 158+ rejects as "* is not a valid URL". Clear cookies browser-wide and the app's own origin
+# instead. Drop this once a Capybara release fixes it.
+module ChromeStorageReset
+  def execute_cdp(command, **params)
+    return super unless command == "Storage.clearDataForOrigin" && params[:origin] == "*"
+
+    super("Network.clearBrowserCookies")
+    server = Capybara.current_session.server
+    super(command, **params, origin: server.base_url) if server
+  end
+end
+Capybara::Selenium::Driver::ChromeDriver.prepend(ChromeStorageReset)
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
   driven_by :selenium, using: :headless_chrome, screen_size: [ 1400, 1000 ]
