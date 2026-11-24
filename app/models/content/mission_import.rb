@@ -5,7 +5,9 @@ module Content
     include PrivateDetails, StoryLinks
 
     MISSION_KEYS = %i[ slug title kind difficulty par_minutes position published briefing
-                     learning_summary persona directory messages hints ].freeze
+                     learning_summary persona directory messages intercepts hints ].freeze
+    # A signals mission is a queue of intercepts (Content::InterceptImport): no messages, persona or directory.
+    MESSAGE_MISSION_ONLY = %i[ persona directory messages ].freeze
     PERSONA_KEYS = %i[ name role staff_prefix security_question ].freeze
     DIRECTORY_KEYS = %i[ name team contact ].freeze
     MESSAGE_KEYS = %i[ key channel arrives legit imitates expects points urgent_within_minutes techniques from_name
@@ -37,10 +39,12 @@ module Content
     PHISH_LINK_OUTCOMES = %w[ bait_landing malware harmless ].freeze
     ATTACHMENT_OUTCOMES = %w[ harmless malware ].freeze
 
-    def initialize(node, track:, techniques:)
+    # dir: the folder the mission's file is in, where a signals mission's files/ folder is.
+    def initialize(node, track:, techniques:, dir: nil)
       @node = node
       @track = track
       @techniques = techniques
+      @dir = dir
     end
 
     # Validates and saves the mission, returning it.
@@ -53,19 +57,34 @@ module Content
       @mission = Mission.find_or_initialize_by(slug:)
       @node.saving { @mission.update!(mission_attributes) }
 
-      import_messages
-      check_every_message_can_arrive
-      check_story_links
-      check_imitations_arrive_with_their_genuine_message
-      check_phishes_have_follow_ups_too
-      check_private_details
+      @mission.kind_signals? ? import_signals : import_message_mission
       import_hints
-      check_lazy_play_doesnt_pay
 
       @mission
     end
 
     private
+      def import_signals
+        if (misplaced = MESSAGE_MISSION_ONLY.select { |key| @node.key?(key) }).any?
+          @node.error!("a signals mission has intercepts, not #{misplaced.join(" or ")}")
+        end
+        @mission.messages.destroy_all
+        InterceptImport.new(@node, @mission, dir: @dir).run
+      end
+
+      def import_message_mission
+        @node.error!("only a signals mission has intercepts") if @node.key?(:intercepts)
+        @mission.intercepts.destroy_all
+
+        import_messages
+        check_every_message_can_arrive
+        check_story_links
+        check_imitations_arrive_with_their_genuine_message
+        check_phishes_have_follow_ups_too
+        check_private_details
+        check_lazy_play_doesnt_pay
+      end
+
       def mission_attributes
         {
           track: @track,

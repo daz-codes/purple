@@ -1,0 +1,115 @@
+<%# The debrief for a signals mission. The mission is over, so this names every answer. %>
+<% scorecard = attempt.scorecard %>
+<% mission = scorecard.mission %>
+
+<nav aria-label="Breadcrumb" class="text-sm text-ink-muted mb-4">
+  <%= link_to "Paths", paths_path, class: "hover:text-ink" %> / <%= link_to mission.track.path.title, paths_path(anchor: mission.track.path.slug), class: "hover:text-ink" %> / <%= link_to mission.track.title, mission.track, class: "hover:text-ink" %>
+</nav>
+
+<div class="space-y-6">
+  <section class="card border-purple-team/50" aria-labelledby="results-heading">
+    <p class="text-sm font-semibold uppercase tracking-widest text-purple-team">Debrief</p>
+    <h1 id="results-heading" class="mt-2 text-3xl font-extrabold tracking-tight"><%= mission.title %></h1>
+    <p class="mt-2 text-ink-muted" data-testid="debrief-ending"><%= intercept_debrief_ending(attempt, scorecard) %></p>
+
+    <div class="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span class="text-3xl"><%= debrief_stars(scorecard.stars) %></span>
+      <p class="font-semibold" data-testid="debrief-headline"><%= intercept_debrief_headline(scorecard) %></p>
+    </div>
+    <%= render "shared/xp_earned", source: attempt %>
+
+    <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+      <div class="rounded-xl border border-purple-team/60 bg-purple-team-soft p-4">
+        <dt class="text-sm text-ink-muted">Score</dt>
+        <dd><span class="text-4xl font-extrabold" data-testid="score"><%= scorecard.total %></span>
+          <span class="text-ink-muted">out of <%= scorecard.best_possible %></span></dd>
+      </div>
+      <div class="rounded-xl border border-line p-4">
+        <dt class="text-sm text-ink-muted">Flags found</dt>
+        <dd><span class="text-3xl font-bold" data-testid="flags-found"><%= scorecard.flags_found %></span>
+          <span class="text-ink-muted">of <%= scorecard.intercepts.size %></span></dd>
+        <dd class="mt-1 text-xs text-ink-muted">
+          Each flag is worth its intercept's points, less <%= MissionAttempt::InterceptScorecard::WRONG_ANSWER.abs %> for each wrong
+          answer first, but never less than half. No speed bonus: puzzles reward care.
+        </dd>
+      </div>
+    </dl>
+
+    <% if scorecard.hints.any? %>
+      <div class="mt-4 rounded-xl border border-warn/60 bg-warn-soft p-4" data-testid="debrief-hints">
+        <p class="font-semibold text-warn">Hints: <%= debrief_points(-scorecard.hint_penalty) %></p>
+        <ul class="mt-1 space-y-1 text-sm">
+          <% scorecard.hints.each do |used| %>
+            <li>💡 <%= used.hint.body %> <span class="text-ink-muted">(<%= debrief_points(-used.penalty) %>)</span></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </section>
+
+  <section aria-labelledby="intercepts-heading">
+    <h2 id="intercepts-heading" class="text-xl font-bold">Intercept by intercept</h2>
+    <ol class="mt-4 space-y-4">
+      <% scorecard.intercepts.each_with_index do |result, index| %>
+        <% intercept = result.intercept %>
+        <li class="card <%= result.solved? ? "border-safe/60" : "border-warn/60" %>" data-testid="debrief-intercept">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 class="text-lg font-bold"><%= index + 1 %>. <%= intercept.title %></h3>
+            <p class="font-semibold"><%= debrief_points(result.points) %> <span class="text-sm text-ink-muted">of <%= result.best_points %></span></p>
+          </div>
+          <p class="mt-1 text-sm text-ink-muted"><%= intercept.source %> · <%= intercept.question %></p>
+
+          <p class="mt-3 text-sm">
+            <% if result.solved? %>
+              ✓ Found<%= " after #{pluralize(result.wrong_answers, "wrong answer")}" if result.wrong_answers.positive? %>.
+            <% elsif result.submissions.any? %>
+              Not found.
+            <% else %>
+              You didn't submit anything for this one.
+            <% end %>
+          </p>
+          <% if result.submissions.any? %>
+            <p class="mt-1 text-sm text-ink-muted">You submitted:
+              <%= safe_join(result.submissions.map { |action| tag.span("“#{action.result["answer"]}”", class: "font-mono #{action.result["correct"] ? "text-safe" : ""}") }, ", ") %>
+            </p>
+          <% end %>
+
+          <div class="mt-4 rounded-lg border border-line bg-surface-sunken p-3">
+            <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">What it said</p>
+            <p class="mt-1 whitespace-pre-wrap font-mono text-sm" data-testid="debrief-solution"><%= intercept.solution %></p>
+          </div>
+          <% if (steps = intercept_steps(intercept)).present? %>
+            <p class="mt-3 text-sm"><span class="font-semibold">In the Workbench:</span> <%= steps %>.</p>
+          <% end %>
+          <p class="mt-3 text-sm"><%= intercept.explanation %></p>
+        </li>
+      <% end %>
+    </ol>
+  </section>
+
+  <section class="card" aria-labelledby="timeline-heading">
+    <details>
+      <summary class="cursor-pointer">
+        <h2 id="timeline-heading" class="inline text-xl font-bold">Your mission, move by move</h2>
+      </summary>
+      <ol class="mt-4 space-y-1 text-sm" data-testid="debrief-timeline">
+        <% intercept_timeline(attempt.actions, scorecard).each do |seconds, description, tone| %>
+          <li class="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2">
+            <span class="text-ink-muted tabular-nums"><%= debrief_clock(seconds) %></span>
+            <span class="<%= debrief_text_class(tone) %>"><%= description %></span>
+          </li>
+        <% end %>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card border-purple-team/50" aria-labelledby="takeaway-heading">
+    <h2 id="takeaway-heading" class="text-xl font-bold">Take this with you</h2>
+    <p class="mt-2"><%= mission.learning_summary %></p>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      <%= button_to "Play again", mission_attempts_path(mission), class: "btn-blue" %>
+      <%= link_to "Back to #{mission.track.title}", mission.track, class: "btn-ghost" %>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,54 @@
+slug: holiday-snaps
+title: "Holiday snaps"
+kind: signals
+difficulty: beginner
+par_minutes: 15
+position: 1
+briefing: >
+  A TEAPOT operative posted a pretty picture of a harbour at dawn. It's just a nice photo, they said. Phones
+  and cameras write a lot into a photo, though, and nobody at TEAPOT has thought to strip it out.
+learning_summary: >
+  Photos carry EXIF metadata: the camera, the time and often the exact GPS position, plus any comment
+  someone typed in. Strip it before sharing a photo publicly, and check what a file gives away before
+  sending it anywhere.
+hints:
+  - body: "Load the photo into the Workbench and add the File metadata step."
+    penalty_percent: 10
+  - body: "Compare the photo's GPS position with the coordinates on the site list."
+    penalty_percent: 10
+intercepts:
+  - key: photographer
+    title: "Harbour at dawn"
+    source: "Public post, 0640Z"
+    question: "Who took the photo?"
+    solution: "Artist: Lt. Ottilie Brack, Grizzlemark Signals. Camera: Grizzle Optics GX-9. Taken 2 November at 06:14:09."
+    file: harbour-photo.png
+    flag: "Ottilie Brack"
+    explanation: >
+      The EXIF Artist field. Cameras fill it in from their settings, so it names the owner on every picture
+      they take.
+  - key: photo_site
+    title: "Site list"
+    source: "Puffin Point security office"
+    question: "At which Puffin Point site was the photo taken?"
+    solution: "The photo's GPS position, 61.48213° N 23.17459° W, is the fuel depot."
+    body: |
+      PUFFIN POINT SITES (restricted)
+      Pier 3            61.47702 N  23.18115 W
+      Fuel depot        61.48213 N  23.17459 W
+      Radar, Gull Rock  61.49530 N  23.20044 W
+      Old Lighthouse    61.47180 N  23.16290 W
+      Bandstand         61.47911 N  23.17702 W
+    flag: "Fuel depot"
+    explanation: >
+      The photo's EXIF GPS latitude and longitude match the fuel depot exactly. A "harmless" picture just told
+      an adversary where their operative was standing, and when.
+  - key: photo_recipient
+    title: "Harbour at dawn, again"
+    source: "Public post, 0640Z"
+    question: "Who was the photo meant for?"
+    solution: "Comment: Send to Major Fitch by Tuesday."
+    file: harbour-photo.png
+    flag: "Major Fitch"
+    explanation: >
+      A text comment saved in the picture file. It never shows on screen, but it travels with every copy.

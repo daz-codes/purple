@@ -19,7 +19,8 @@ module MissionPlay
       yield
       return redirect_to(@attempt, status: :see_other) if @attempt.finished?
 
-      @notice = new_mail_notice(@attempt.arrived_messages.size - arrived_before)
+      # A move can set its own notice (a flag's verdict); new mail is announced over it.
+      @notice = new_mail_notice(@attempt.arrived_messages.size - arrived_before) || @notice
       respond_to do |format|
         format.turbo_stream { render "mission_attempts/play" }
         format.html { redirect_to @attempt, notice: @notice }

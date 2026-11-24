@@ -1,0 +1,48 @@
+slug: tea-for-two
+title: "Tea for two"
+kind: signals
+difficulty: intermediate
+par_minutes: 15
+position: 1
+briefing: >
+  TEAPOT changes its key word every day, and someone has helpfully sent today's out first, merely encoded.
+  Read the key, then use it to open the two messages that follow.
+learning_summary: >
+  A cipher is only as safe as its key. Vigenère is stronger than a Caesar shift because the shift changes
+  with every letter, but sending the key over the same channel as the messages hands it to anyone listening.
+  Keys belong on a separate, trusted route.
+hints:
+  - body: "The first intercept is only Base64. It tells you the key."
+    penalty_percent: 10
+  - body: "Use Vigenère decode with the key word. For the last intercept, decode the Base64 first."
+    penalty_percent: 10
+intercepts:
+  - key: todays_key
+    title: "Key change"
+    source: "Chat relay, 0600Z"
+    question: "What is today's key word?"
+    solution: "From today the key word is KETTLE. Burn this after reading."
+    encode: [ to_base64 ]
+    flag: "Kettle"
+    explanation: >
+      Only Base64. The key travelled on the same channel as the messages it protects, which is TEAPOT's real
+      mistake today.
+  - key: boom_opening
+    title: "Harbour orders"
+    source: "HF radio, 0614Z"
+    question: "When does the harbour boom open?"
+    solution: "The harbour boom opens at high tide. Our boat will follow the supply ship in."
+    encode: [ { vigenere: KETTLE } ]
+    flag: "high tide"
+    explanation: >
+      Vigenère with the key KETTLE: the first letter shifts by K (10), the next by E (4), then T, T, L, E, and
+      round again. Spaces and punctuation don't use up a key letter.
+  - key: flash_count
+    title: "Lighthouse signal"
+    source: "Packet radio, 0631Z"
+    question: "How many flashes should the boat look for?"
+    solution: "Signal the boat with three short flashes from the lighthouse, then wait ten minutes."
+    encode: [ { vigenere: KETTLE }, to_base64 ]
+    flag: "three"
+    explanation: >
+      Vigenère with KETTLE, then Base64 on top. Peel the encoding off first (From Base64), then decrypt.

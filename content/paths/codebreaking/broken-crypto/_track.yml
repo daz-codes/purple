@@ -1,0 +1,7 @@
+title: Broken Crypto
+description: >
+  XOR is the heart of real ciphers, and it's only safe when the key is random, as long as the message, and
+  never used twice. TEAPOT gets all three wrong. Use what you know about their messages to break them.
+position: 3
+difficulty: advanced
+unlock_after: 2

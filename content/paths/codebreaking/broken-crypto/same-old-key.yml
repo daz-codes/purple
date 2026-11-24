@@ -1,0 +1,48 @@
+slug: same-old-key
+title: "Same old key"
+kind: signals
+difficulty: advanced
+par_minutes: 20
+position: 1
+briefing: >
+  TEAPOT has moved on to XOR with a short key, repeated over and over. Their own operator's manual, captured
+  last month, says how every message starts. That's all you need.
+learning_summary: >
+  XOR undoes itself: message XOR key gives the ciphertext, and ciphertext XOR key gives the message back.
+  So if you know (or can guess) part of a message, called a crib, XOR the ciphertext with it and the key
+  falls out. A short repeating key is broken as soon as one crib lines up.
+hints:
+  - body: "XOR the ciphertext with the word every message starts with. The first letters of the output are the key."
+    penalty_percent: 15
+  - body: "The key is six letters long and repeats. XOR the whole message with it."
+    penalty_percent: 15
+intercepts:
+  - key: crib_word
+    title: "Operator's manual"
+    source: "Captured document, translated"
+    question: "Which word starts every TEAPOT message?"
+    solution: "TEAPOT operators: every message must begin with the word TEAPOT, so the receiver knows the key worked."
+    body: "TEAPOT operators: every message must begin with the word TEAPOT, so the receiver knows the key worked."
+    flag: "TEAPOT"
+    explanation: >
+      Not encrypted at all, and the most useful intercept of the day: a known start to every message is a crib.
+  - key: radar_down
+    title: "Radar report"
+    source: "Packet radio, 0820Z"
+    question: "Which radar is down for repair?"
+    solution: "TEAPOT: the radar on Gull Rock is down for repair until Thursday."
+    encode: [ { xor: SCONES }, to_hex ]
+    flag: "Gull Rock"
+    explanation: >
+      From hex, then XOR with the crib TEAPOT gave SCONES followed by nonsense: the key. XOR with SCONES read
+      the whole message. A six-letter key repeated across a long message is no better than a lock with the
+      key taped to it.
+  - key: watchman
+    title: "Bribe"
+    source: "Chat relay, 0846Z"
+    question: "Who will look the other way?"
+    solution: "TEAPOT: buy the night watchman a large slice of cake. He will look the other way."
+    encode: [ { xor: SCONES }, to_base64 ]
+    flag: "night watchman"
+    explanation: >
+      The same key again, with Base64 outside. Reusing a key means breaking it once breaks everything.

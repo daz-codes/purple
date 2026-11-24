@@ -52,6 +52,15 @@ class MissionAttempt::TimedTest < ActiveSupport::TestCase
     assert relaxed.stale?
   end
 
+  test "a signals attempt can sit idle for a day while the player works in the Workbench" do
+    signals = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    travel 23.hours
+
+    assert_not signals.stale?
+    travel 1.hour + 1.second
+    assert signals.stale?
+  end
+
   test "an attempt that isn't stale is left alone without taking a lock" do
     assert_no_queries_match(/FOR UPDATE/) { @attempt.expire_if_stale }
   end

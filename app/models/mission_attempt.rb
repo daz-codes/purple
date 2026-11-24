@@ -1,10 +1,11 @@
 # A player's run through a mission. Created on the server with a random token. The player acts on it
 # through the methods its concerns add: read, expand_headers, verify_sender, flag, save_note, send_reply
 # (including asking why), share_details, visit, open_attachment, close_tab, use_portal,
-# submit_credentials, run_download, report, archive, use_hint and stand_down. Each one is logged as an AttemptAction with the time it was made.
+# submit_credentials, run_download, report, archive, use_hint and stand_down; in a signals mission,
+# submit_flag (MissionAttempt::Decoding). Each one is logged as an AttemptAction with the time it was made.
 #
-# The mission ends when every message has been dealt with (reported or archived), when the player clocks
-# off early, or when it's left open too long.
+# The mission ends when it's cleared (every message dealt with, or every intercept solved or closed),
+# when the player stands down early, or when it's left open too long.
 #
 # Each attempt has its own persona (MissionAttempt::Identified): the private details the player works with.
 #
@@ -16,7 +17,7 @@ class MissionAttempt < ApplicationRecord
   class Rejected < StandardError; end
 
   include Timed, Logged, Identified, Inbox, Reading, HeaderExpandable, Verifiable, Flaggable, Notable, Replyable,
-    Sharing, Hintable, Browsing, Portals, Compromisable, Reportable, Archivable, Finishable
+    Sharing, Hintable, Browsing, Portals, Compromisable, Reportable, Archivable, Decoding, Finishable
 
   enum :status, { open: "open", completed: "completed", stood_down: "stood_down", timed_out: "timed_out" }, validate: true
 

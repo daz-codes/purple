@@ -1,0 +1,50 @@
+slug: recipe-for-trouble
+title: "Recipe for trouble"
+kind: signals
+difficulty: advanced
+par_minutes: 25
+position: 2
+briefing: >
+  TEAPOT has heard of the one-time pad, the cipher that can't be broken. Sadly for them, they made their pad
+  out of a page torn from a cookbook, and they used it twice: once on the public shipping forecast, and once
+  on a real order.
+learning_summary: >
+  A one-time pad is unbreakable only if the pad is truly random, at least as long as the message, and used
+  once. Use it twice and the two ciphertexts XORed together cancel the pad out. Know one of the messages (a
+  public forecast) and you can read the pad, and then the other message.
+hints:
+  - body: "XOR TEAPOT's copy of the forecast with the forecast as broadcast. What's left is the pad, and it's readable."
+    penalty_percent: 15
+  - body: "XOR the secret order with the pad text you recovered."
+    penalty_percent: 15
+intercepts:
+  - key: forecast_wind
+    title: "Shipping forecast"
+    source: "Public broadcast, 0600Z"
+    question: "Which way is the wind blowing in the forecast?"
+    solution: "PUFFIN POINT SHIPPING FORECAST. WIND NORTHWEST FOUR. SEA SLIGHT. VISIBILITY GOOD, OCCASIONALLY POOR."
+    body: "PUFFIN POINT SHIPPING FORECAST. WIND NORTHWEST FOUR. SEA SLIGHT. VISIBILITY GOOD, OCCASIONALLY POOR."
+    flag: "northwest"
+    explanation: >
+      Broadcast in clear for every ship at sea. Because TEAPOT encrypted the same words, this is the key to
+      everything else here.
+  - key: pad_ingredient
+    title: "Encrypted forecast"
+    source: "Packet radio, 0603Z"
+    question: "TEAPOT's 'one-time pad' isn't random. What's the first ingredient it lists?"
+    solution: "Take two cups of flour and a pinch of salt, add a spoonful of syrup, then bake until golden."
+    encode: [ { xor: "PUFFIN POINT SHIPPING FORECAST. WIND NORTHWEST FOUR. SEA SLIGHT. VISIBILITY GOOD, OCCASIONALLY POOR." }, to_hex ]
+    flag: "flour"
+    explanation: >
+      This intercept is the forecast XOR the pad. XOR it with the forecast's own words and the forecast cancels
+      out, leaving the pad: a recipe. A pad that reads as English isn't random, and that's the first mistake.
+  - key: submarine_hideout
+    title: "The real order"
+    source: "Packet radio, 0611Z"
+    question: "Where is the midget submarine waiting?"
+    solution: "Midget sub waits under the old pier until the tide turns. Do not surface."
+    encode: [ { xor: "Take two cups of flour and a pinch of salt, add a spoonful of syrup, then bake until golden." }, to_hex ]
+    flag: "old pier"
+    explanation: >
+      The same pad again: the second mistake. XOR with the recipe you recovered reads the order. With a pad
+      used twice, one known message is enough to read the other.

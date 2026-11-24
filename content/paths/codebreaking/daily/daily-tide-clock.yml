@@ -1,0 +1,17 @@
+slug: daily-tide-clock
+title: "Tide clock"
+kind: signals
+difficulty: beginner
+par_minutes: 5
+position: 5
+briefing: "A numbers station is reading out something oddly specific about a clock."
+learning_summary: "Base32 uses only A–Z and 2–7, padded with =. It's common where case gets lost, like web addresses."
+intercepts:
+  - key: clock_error
+    title: "Numbers station"
+    source: "Shortwave, 2200Z"
+    question: "How fast is the tide clock in the mess?"
+    solution: "Reminder for all kettles: the tide clock in the mess is ten minutes fast."
+    encode: [ to_base32 ]
+    flag: "ten minutes"
+    explanation: "Base32. From Base32 reads it back."

@@ -449,4 +449,48 @@ module DebriefsHelper
       return "a page" unless tab
       tab.attachment ? tab.file_name : (tab.host || "a page")
     end
+
+  # --- Signals missions ---------------------------------------------------------------
+
+  def intercept_debrief_ending(attempt, scorecard)
+    time = debrief_duration(scorecard.elapsed_seconds)
+    case attempt.status
+    when "completed" then "Every intercept solved or closed, in #{time}."
+    when "stood_down" then "You stood down after #{time}. Any flag you hadn't found scores nothing."
+    else "This mission was left open too long and closed. Any flag you hadn't found scores nothing."
+    end
+  end
+
+  def intercept_debrief_headline(scorecard)
+    return "A perfect mission: every flag found first time, with no hints." if scorecard.perfect?
+
+    wrong = scorecard.intercepts.sum(&:wrong_answers)
+    parts = [ "found #{scorecard.flags_found} of #{pluralize(scorecard.intercepts.size, "flag")}" ]
+    parts << "made #{pluralize(wrong, "wrong guess")}" if wrong.positive?
+    parts << "took #{pluralize(scorecard.hints.size, "hint")}" if scorecard.hints.any?
+    "You #{parts.to_sentence}."
+  end
+
+  # [seconds into the mission, description, tone] for each move in a signals mission.
+  def intercept_timeline(actions, scorecard)
+    titles = scorecard.intercepts.to_h { |result| [ result.intercept.key, result.intercept.title ] }
+    actions.map do |action|
+      description, tone =
+        case action.kind
+        when "submit_flag"
+          correct = action.result["correct"]
+          [ "Submitted “#{action.result["answer"]}” for #{titles.fetch(action.target_key, "an intercept")}: #{correct ? "the flag" : "not it"}",
+            correct ? :good : :warn ]
+        when "use_hint" then [ "Took a hint", :warn ]
+        when "stand_down" then [ "Stood down", :neutral ]
+        else [ action.kind.humanize, :neutral ]
+        end
+      [ action.at_seconds, description, tone ]
+    end
+  end
+
+  # The Workbench steps that decode an intercept, as a sentence: "From Base64, then ROT (shift letters): 13".
+  def intercept_steps(intercept)
+    intercept.undo_steps.map { |name, argument| Intercept::Workbench.describe(name, argument) }.join(", then ")
+  end
 end

@@ -3,3 +3,9 @@ month_end_first:
   position: 1
   body: Compare the sender domains.
   penalty_percent: 20
+
+kettle_first:
+  mission: kettle
+  position: 1
+  body: Try From Base64.
+  penalty_percent: 10

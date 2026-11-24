@@ -1,8 +1,16 @@
 <%= turbo_stream.replace "mission_status", partial: "mission_attempts/status_bar", locals: { attempt: @attempt } %>
 <%= turbo_stream.replace "mission_hints", partial: "mission_attempts/hints", locals: { attempt: @attempt } %>
-<%= turbo_stream.replace "mission_inbox", partial: pane_partial(@attempt, :inbox), locals: { attempt: @attempt } %>
-<%= turbo_stream.replace "mission_browser", partial: "mission_attempts/browser", locals: { attempt: @attempt } %>
-<%= turbo_stream.replace "mission_reader", partial: pane_partial(@attempt, :reader), locals: { attempt: @attempt, flag_mode: @flag_mode, note_mode: @note_mode } %>
-<%= turbo_stream.replace "mission_persona", partial: "mission_attempts/persona", locals: { attempt: @attempt } %>
+<% if @attempt.mission.kind_signals? %>
+  <%# The Workbench is never replaced: the player's recipe stays as it was. %>
+  <% if @intercept %>
+    <%= turbo_stream.replace "mission_intercepts", partial: "mission_attempts/signals/queue", locals: { attempt: @attempt, current: @intercept } %>
+    <%= turbo_stream.replace "mission_intercept", partial: "mission_attempts/signals/intercept", locals: { attempt: @attempt, intercept: @intercept } %>
+  <% end %>
+<% else %>
+  <%= turbo_stream.replace "mission_inbox", partial: pane_partial(@attempt, :inbox), locals: { attempt: @attempt } %>
+  <%= turbo_stream.replace "mission_browser", partial: "mission_attempts/browser", locals: { attempt: @attempt } %>
+  <%= turbo_stream.replace "mission_reader", partial: pane_partial(@attempt, :reader), locals: { attempt: @attempt, flag_mode: @flag_mode, note_mode: @note_mode } %>
+  <%= turbo_stream.replace "mission_persona", partial: "mission_attempts/persona", locals: { attempt: @attempt } %>
+<% end %>
 <%= turbo_stream.update "mission_notice", partial: "mission_attempts/notice", locals: { message: @notice } %>
 <%= turbo_stream.update "browser_notice", partial: "mission_attempts/notice", locals: { message: @notice } %>

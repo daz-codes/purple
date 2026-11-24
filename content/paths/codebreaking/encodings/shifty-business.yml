@@ -1,0 +1,50 @@
+slug: shifty-business
+title: "Shifty business"
+kind: signals
+difficulty: beginner
+par_minutes: 15
+position: 3
+briefing: >
+  Some of TEAPOT's operators are old-fashioned. They shift every letter along the alphabet by a fixed number
+  of places, as Julius Caesar is said to have done. One uses the famous shift of 13. The others haven't said
+  which shift they used, so you'll have to find it.
+learning_summary: >
+  A Caesar shift only has 25 possible keys, so trying every one breaks it in seconds. Digits and punctuation
+  don't move, which is a clue in itself. A shift of 13 (ROT13) undoes itself: shifting by 13 twice gets you
+  back where you started.
+hints:
+  - body: "Try every ROT shift lists all 25 shifts at once. Look for the line that reads as English."
+    penalty_percent: 10
+  - body: "The last intercept is Base64 first. Decode that, then shift."
+    penalty_percent: 10
+intercepts:
+  - key: courier_contact
+    title: "Old-school message"
+    source: "Dead letter drop, 0500Z"
+    question: "Who should the agent ask for at the fish market?"
+    solution: "Meet the courier at the fish market at noon. Ask for Captain Barnacle and say the tea is stewed."
+    encode: [ { rot: 13 } ]
+    flag: "Captain Barnacle"
+    explanation: >
+      ROT13 shifts each letter 13 places. It hides spoilers on forums, not secrets: a ROT step with a shift of
+      13 reads it straight back.
+  - key: gate_code
+    title: "Unknown shift"
+    source: "Packet radio, 0511Z"
+    question: "What is this week's fuel depot gate code?"
+    solution: "The fuel depot gate code is changed every Monday. This week it is 4421. Do not write it down."
+    encode: [ { rot: 7 } ]
+    flag: "4421"
+    explanation: >
+      A shift of 7, so ROT 19 undoes it (7 + 19 = 26). The digits gave it away: a Caesar shift only moves
+      letters, so 4421 was sitting there in plain sight all along.
+  - key: signature_word
+    title: "Shifted and wrapped"
+    source: "Chat relay, 0526Z"
+    question: "What word does TEAPOT sign its orders with?"
+    solution: "Every order from TEAPOT ends with the same word, CRUMPET, so you know it is genuine."
+    encode: [ { rot: 3 }, to_base64 ]
+    flag: "Crumpet"
+    explanation: >
+      Shifted by 3, then Base64. Decode the outer layer first (From Base64), then undo the shift (ROT 23).
+      Stacking weak layers doesn't make a strong one.

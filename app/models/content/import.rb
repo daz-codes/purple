@@ -25,7 +25,7 @@ module Content
     BOT_KEYS = %i[ key name description vigilance detects ].freeze
     PATH_KEYS = %i[ title description position opens published ].freeze
     PATH_FILE = "_path.yml".freeze
-    TRACK_KEYS = %i[ title description position difficulty unlock_after published ].freeze
+    TRACK_KEYS = %i[ title description position difficulty unlock_after daily published ].freeze
     TRACK_FILE = "_track.yml".freeze
 
     def initialize(root = Rails.root.join("content"))
@@ -109,7 +109,7 @@ module Content
                 raise ImportError.new("a mission called #{clash.slug} already exists in the #{clash.track.slug} track",
                                       file: relative(file))
               end
-              missions << MissionImport.new(load(file), track:, techniques:).run
+              missions << MissionImport.new(load(file), track:, techniques:, dir: file.dirname).run
             end
           end
         end
@@ -117,7 +117,40 @@ module Content
         Path.where.not(id: paths.map(&:id)).update_all(published: false)
         Track.where.not(id: tracks.map(&:id)).update_all(published: false)
         Mission.where.not(id: missions.map(&:id)).update_all(published: false)
+        check_tracks_can_open!(tracks)
+        check_daily_track!(tracks)
         [ paths, tracks, missions ]
+      end
+
+      # Each listed track's unlock_after must be reachable: no more than the missions on the track before
+      # it, and nothing at all for a path's first track.
+      def check_tracks_can_open!(tracks)
+        tracks.reject(&:daily?).select(&:published?).group_by(&:path).each_value do |path_tracks|
+          playable = path_tracks.select { |track| track.missions.published.exists? }.sort_by(&:position)
+          playable.each_cons(2) do |previous, track|
+            available = previous.missions.published.count
+            next if track.unlock_after <= available
+
+            raise ImportError.new("unlock_after is #{track.unlock_after}, but #{previous.slug} only has #{available} " \
+                                  "#{"mission".pluralize(available)}", file: "#{track.path.slug}/#{track.slug}/#{TRACK_FILE}")
+          end
+          first = playable.first
+          if first&.unlock_after&.positive?
+            raise ImportError.new("unlock_after must be 0 on a path's first track", file: "#{first.path.slug}/#{first.slug}/#{TRACK_FILE}")
+          end
+        end
+      end
+
+      # The Intercept of the day comes from one daily track of signals missions.
+      def check_daily_track!(tracks)
+        daily = tracks.select(&:daily?)
+        raise ImportError.new("only one track can be daily (#{daily.map(&:slug).join(", ")})") if daily.size > 1
+        return if daily.empty?
+
+        track = daily.first
+        file = "#{track.path.slug}/#{track.slug}/#{TRACK_FILE}"
+        raise ImportError.new("a daily track can't have unlock_after", file:) if track.unlock_after.positive?
+        raise ImportError.new("a daily track holds only signals missions", file:) unless track.missions.all?(&:kind_signals?)
       end
 
       # Saves a path's details and returns it with its node, so how it opens can be read once every
@@ -184,6 +217,7 @@ module Content
                         position: node.optional(:position, Integer, default: 0),
                         difficulty: node.required(:difficulty),
                         unlock_after: node.optional(:unlock_after, Integer, default: 0),
+                        daily: node.optional(:daily, Node::BOOLEAN, default: false),
                         published: node.optional(:published, Node::BOOLEAN, default: true))
         end
         track

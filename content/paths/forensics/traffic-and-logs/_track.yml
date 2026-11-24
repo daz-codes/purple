@@ -1,0 +1,7 @@
+title: Traffic and Logs
+description: >
+  Data leaving a network has to travel somehow. Sometimes it hides in the most ordinary traffic there is:
+  the lookups every computer makes to turn names into addresses.
+position: 3
+difficulty: intermediate
+unlock_after: 1

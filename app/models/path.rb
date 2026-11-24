@@ -23,8 +23,9 @@ class Path < ApplicationRecord
   end
 
   # The published tracks that have a published mission to play, from loaded associations where present.
+  # The daily track isn't one of them: the Intercept of the day is shown on its own.
   def playable_tracks
-    tracks.select { |track| track.published? && track.missions.any?(&:published?) }
+    tracks.select { |track| track.published? && !track.daily? && track.missions.any?(&:published?) }
   end
 
   def coming_soon?

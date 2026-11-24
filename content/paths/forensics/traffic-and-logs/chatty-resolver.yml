@@ -1,0 +1,38 @@
+slug: chatty-resolver
+title: "Chatty resolver"
+kind: signals
+difficulty: intermediate
+par_minutes: 20
+position: 1
+briefing: >
+  The Puffin Point resolver log looks normal: computers looking up the mail server, the weather and the
+  canteen menu. But one machine is looking up some very strange names, very regularly.
+learning_summary: >
+  DNS tunnelling smuggles data out inside the names a computer looks up: each lookup carries a few bytes to
+  a server the attacker controls. Watch for long, random-looking names, lots of them, all under one domain.
+hints:
+  - body: "Look for the lookups that aren't under puffinpoint.example."
+    penalty_percent: 15
+  - body: "Find all with the pattern ([0-9a-f]+)\\.\\d+\\.kettle joins the hex parts. Then From hex."
+    penalty_percent: 15
+intercepts:
+  - key: tunnel_domain
+    title: "Resolver log"
+    source: "Puffin Point DNS resolver, 0340Z to 0352Z"
+    question: "Which domain is receiving the smuggled data?"
+    solution: "The machine at 10.20.4.17 keeps looking up long hex names under kettle-weather.example."
+    file: resolver-log.txt
+    flag: "kettle-weather.example"
+    explanation: >
+      Every other lookup is for a Puffin Point service. One machine keeps asking for long hex names under a
+      domain nobody here uses: that's a tunnel.
+  - key: smuggled_text
+    title: "Resolver log, decoded"
+    source: "Puffin Point DNS resolver, 0340Z to 0352Z"
+    question: "Which nights have only two guards?"
+    solution: "Sunday nights have only two guards at the fuel depot."
+    file: resolver-log.txt
+    flag: "Sunday"
+    explanation: >
+      Each lookup carried 15 bytes as hex, numbered in order. Joined up and decoded, they're a note about the
+      guard rota. Find all (with a pattern that picks out the hex), then From hex.

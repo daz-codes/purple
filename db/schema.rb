@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
+ActiveRecord::Schema[8.2].define(version: 2026_11_17_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "citext"
   enable_extension "plpgsql"
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.integer "penalty_seconds", default: 0, null: false
     t.index ["mission_attempt_id", "id"], name: "index_attempt_actions_on_mission_attempt_id_and_id"
     t.check_constraint "at_seconds >= 0", name: "attempt_actions_at_seconds_non_negative"
-    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying::text, 'expand_headers'::character varying::text, 'verify_sender'::character varying::text, 'click_link'::character varying::text, 'close_landing'::character varying::text, 'submit_credentials'::character varying::text, 'open_attachment'::character varying::text, 'run_download'::character varying::text, 'use_portal'::character varying::text, 'report_message'::character varying::text, 'archive_message'::character varying::text, 'flag_element'::character varying::text, 'send_reply'::character varying::text, 'use_hint'::character varying::text, 'stand_down'::character varying::text, 'save_note'::character varying::text, 'share_details'::character varying::text, 'ask_why'::character varying::text])", name: "attempt_actions_kind"
+    t.check_constraint "kind::text = ANY (ARRAY['open_message'::character varying, 'expand_headers'::character varying, 'verify_sender'::character varying, 'click_link'::character varying, 'close_landing'::character varying, 'submit_credentials'::character varying, 'open_attachment'::character varying, 'run_download'::character varying, 'use_portal'::character varying, 'report_message'::character varying, 'archive_message'::character varying, 'flag_element'::character varying, 'send_reply'::character varying, 'use_hint'::character varying, 'stand_down'::character varying, 'save_note'::character varying, 'share_details'::character varying, 'ask_why'::character varying, 'submit_flag'::character varying]::text[])", name: "attempt_actions_kind"
     t.check_constraint "penalty_seconds >= 0", name: "attempt_actions_penalty_seconds_non_negative"
   end
 
@@ -38,7 +38,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_badges_on_key", unique: true
-    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text, 'purple'::character varying::text, 'any'::character varying::text])", name: "badges_side"
+    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying, 'purple'::character varying, 'any'::character varying]::text[])", name: "badges_side"
   end
 
   create_table "bot_personas", force: :cascade do |t|
@@ -65,6 +65,33 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.check_constraint "penalty_percent >= 0 AND penalty_percent <= 100", name: "hints_penalty_percent_range"
   end
 
+  create_table "intercepts", force: :cascade do |t|
+    t.bigint "mission_id", null: false
+    t.string "key", null: false
+    t.integer "position", null: false
+    t.string "title", null: false
+    t.string "source", null: false
+    t.text "question", null: false
+    t.text "body"
+    t.string "file_name"
+    t.string "file_type"
+    t.binary "file_data"
+    t.text "solution", null: false
+    t.text "explanation", null: false
+    t.jsonb "flag_digests", default: [], null: false
+    t.jsonb "recipe", default: [], null: false
+    t.integer "points", default: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["mission_id", "key"], name: "index_intercepts_on_mission_id_and_key", unique: true
+    t.index ["mission_id", "position"], name: "index_intercepts_on_mission_id_and_position", unique: true
+    t.check_constraint "(body IS NULL) <> (file_data IS NULL)", name: "intercepts_body_or_file"
+    t.check_constraint "(file_data IS NULL) = (file_name IS NULL) AND (file_data IS NULL) = (file_type IS NULL)", name: "intercepts_file_complete"
+    t.check_constraint "file_type IS NULL OR (file_type::text = ANY (ARRAY['image/png'::character varying, 'application/pdf'::character varying, 'text/plain'::character varying]::text[]))", name: "intercepts_file_type"
+    t.check_constraint "jsonb_typeof(flag_digests) = 'array'::text AND jsonb_array_length(flag_digests) > 0", name: "intercepts_flag_digests"
+    t.check_constraint "points > 0", name: "intercepts_points_positive"
+  end
+
   create_table "links", force: :cascade do |t|
     t.bigint "message_id", null: false
     t.string "key", null: false
@@ -78,8 +105,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.index ["message_id", "key"], name: "index_links_on_message_id_and_key", unique: true
     t.index ["message_id"], name: "index_links_on_message_id"
     t.check_constraint "(outcome::text = 'portal'::text) = (portal_action IS NOT NULL)", name: "links_portal_action_only_on_portals"
-    t.check_constraint "landing_template::text = ANY (ARRAY['portal'::character varying::text, 'harmless'::character varying::text, 'credential_harvest'::character varying::text, 'malware_download'::character varying::text])", name: "links_landing_template"
-    t.check_constraint "outcome::text = ANY (ARRAY['portal'::character varying::text, 'harmless'::character varying::text, 'bait_landing'::character varying::text, 'malware'::character varying::text])", name: "links_outcome"
+    t.check_constraint "landing_template::text = ANY (ARRAY['portal'::character varying, 'harmless'::character varying, 'credential_harvest'::character varying, 'malware_download'::character varying]::text[])", name: "links_landing_template"
+    t.check_constraint "outcome::text = ANY (ARRAY['portal'::character varying, 'harmless'::character varying, 'bait_landing'::character varying, 'malware'::character varying]::text[])", name: "links_outcome"
   end
 
   create_table "message_techniques", force: :cascade do |t|
@@ -126,8 +153,8 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.check_constraint "answer_in_key IS NULL OR legit AND expects::text = 'reply'::text", name: "messages_answer_in_only_when_asking"
     t.check_constraint "arrives_after_handled > 0", name: "messages_arrives_after_handled_positive"
     t.check_constraint "arrives_after_handled IS NULL OR arrives_after IS NULL", name: "messages_one_arrival_trigger"
-    t.check_constraint "channel::text = ANY (ARRAY['email'::character varying::text, 'sms'::character varying::text, 'chat'::character varying::text])", name: "messages_channel"
-    t.check_constraint "expects::text = ANY (ARRAY['reply'::character varying::text, 'act'::character varying::text, 'archive'::character varying::text])", name: "messages_expects"
+    t.check_constraint "channel::text = ANY (ARRAY['email'::character varying, 'sms'::character varying, 'chat'::character varying]::text[])", name: "messages_channel"
+    t.check_constraint "expects::text = ANY (ARRAY['reply'::character varying, 'act'::character varying, 'archive'::character varying]::text[])", name: "messages_expects"
     t.check_constraint "legit = (expects IS NOT NULL)", name: "messages_expects_only_when_genuine"
     t.check_constraint "urgent_within_minutes IS NULL OR legit AND urgent_within_minutes > 0", name: "messages_urgent_only_when_genuine"
   end
@@ -156,7 +183,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.check_constraint "(status::text = 'open'::text) = (score IS NULL)", name: "mission_attempts_score_when_finished"
     t.check_constraint "NOT scored OR status::text <> 'open'::text", name: "mission_attempts_scored_only_when_finished"
     t.check_constraint "penalty_seconds >= 0", name: "mission_attempts_penalty_seconds_non_negative"
-    t.check_constraint "status::text = ANY (ARRAY['open'::character varying::text, 'completed'::character varying::text, 'stood_down'::character varying::text, 'timed_out'::character varying::text])", name: "mission_attempts_status"
+    t.check_constraint "status::text = ANY (ARRAY['open'::character varying, 'completed'::character varying, 'stood_down'::character varying, 'timed_out'::character varying]::text[])", name: "mission_attempts_status"
   end
 
   create_table "missions", force: :cascade do |t|
@@ -179,9 +206,9 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.index ["slug"], name: "index_missions_on_slug", unique: true
     t.index ["track_id"], name: "index_missions_on_track_id"
     t.check_constraint "author_side::text = 'red'::text", name: "missions_author_side"
-    t.check_constraint "author_type::text = ANY (ARRAY['system'::character varying::text, 'player'::character varying::text])", name: "missions_author_type"
-    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying::text, 'intermediate'::character varying::text, 'advanced'::character varying::text])", name: "missions_difficulty"
-    t.check_constraint "kind::text = ANY (ARRAY['inbox'::character varying::text, 'messages'::character varying::text])", name: "missions_kind"
+    t.check_constraint "author_type::text = ANY (ARRAY['system'::character varying, 'player'::character varying]::text[])", name: "missions_author_type"
+    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying, 'intermediate'::character varying, 'advanced'::character varying]::text[])", name: "missions_difficulty"
+    t.check_constraint "kind::text = ANY (ARRAY['inbox'::character varying, 'messages'::character varying, 'signals'::character varying]::text[])", name: "missions_kind"
     t.check_constraint "par_minutes > 0", name: "missions_par_minutes_positive"
   end
 
@@ -234,7 +261,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.check_constraint "(status::text = 'launched'::text) = (score IS NOT NULL)", name: "red_campaigns_score_when_launched"
     t.check_constraint "NOT scored OR status::text = 'launched'::text", name: "red_campaigns_scored_only_when_launched"
     t.check_constraint "budget_spent >= 0", name: "red_campaigns_budget_spent_non_negative"
-    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying::text, 'launched'::character varying::text])", name: "red_campaigns_status"
+    t.check_constraint "status::text = ANY (ARRAY['draft'::character varying, 'launched'::character varying]::text[])", name: "red_campaigns_status"
   end
 
   create_table "red_flags", force: :cascade do |t|
@@ -284,7 +311,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.index ["target_id"], name: "index_target_options_on_target_id"
     t.index ["technique_id"], name: "index_target_options_on_technique_id"
     t.check_constraint "(category::text = 'pretext'::text) = (subject IS NOT NULL)", name: "target_options_subject_only_for_pretexts"
-    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying::text, 'sender'::character varying::text, 'lure'::character varying::text, 'payload'::character varying::text, 'timing'::character varying::text])", name: "target_options_category"
+    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying, 'sender'::character varying, 'lure'::character varying, 'payload'::character varying, 'timing'::character varying]::text[])", name: "target_options_category"
     t.check_constraint "extra_cost >= 0", name: "target_options_extra_cost_non_negative"
     t.check_constraint "relevance >= 0 AND relevance <= 3", name: "target_options_relevance_range"
   end
@@ -317,7 +344,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["key"], name: "index_techniques_on_key", unique: true
-    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying::text, 'sender'::character varying::text, 'lure'::character varying::text, 'payload'::character varying::text, 'timing'::character varying::text])", name: "techniques_category"
+    t.check_constraint "category::text = ANY (ARRAY['pretext'::character varying, 'sender'::character varying, 'lure'::character varying, 'payload'::character varying, 'timing'::character varying]::text[])", name: "techniques_category"
     t.check_constraint "red_cost >= 0", name: "techniques_red_cost_non_negative"
     t.check_constraint "stealth >= 1 AND stealth <= 10", name: "techniques_stealth_range"
   end
@@ -333,9 +360,10 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.datetime "updated_at", null: false
     t.bigint "path_id", null: false
     t.integer "unlock_after", default: 0, null: false
+    t.boolean "daily", default: false, null: false
     t.index ["path_id"], name: "index_tracks_on_path_id"
     t.index ["slug"], name: "index_tracks_on_slug", unique: true
-    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying::text, 'intermediate'::character varying::text, 'advanced'::character varying::text])", name: "tracks_difficulty"
+    t.check_constraint "difficulty::text = ANY (ARRAY['beginner'::character varying, 'intermediate'::character varying, 'advanced'::character varying]::text[])", name: "tracks_difficulty"
     t.check_constraint "unlock_after >= 0", name: "tracks_unlock_after_non_negative"
   end
 
@@ -373,7 +401,7 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.check_constraint "blue_level >= 1 AND red_level >= 1", name: "users_levels_positive"
     t.check_constraint "blue_xp >= 0 AND red_xp >= 0", name: "users_xp_non_negative"
     t.check_constraint "current_streak >= 0 AND longest_streak >= current_streak", name: "users_streaks"
-    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "users_preferred_side"
+    t.check_constraint "preferred_side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "users_preferred_side"
     t.check_constraint "xp_total = (blue_xp + red_xp)", name: "users_xp_total_is_the_sum"
   end
 
@@ -394,12 +422,13 @@ ActiveRecord::Schema[8.2].define(version: 2026_11_17_100100) do
     t.index ["user_id", "reason", "source_type", "source_id"], name: "index_xp_events_once_per_source", unique: true
     t.index ["user_id"], name: "index_xp_events_on_user_id"
     t.check_constraint "amount >= 0", name: "xp_events_amount_non_negative"
-    t.check_constraint "reason::text = ANY (ARRAY['mission_completed'::character varying::text, 'workshop_completed'::character varying::text, 'streak_bonus'::character varying::text, 'badge_awarded'::character varying::text])", name: "xp_events_reason"
-    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying::text, 'red'::character varying::text])", name: "xp_events_side"
+    t.check_constraint "reason::text = ANY (ARRAY['mission_completed'::character varying, 'workshop_completed'::character varying, 'streak_bonus'::character varying, 'badge_awarded'::character varying]::text[])", name: "xp_events_reason"
+    t.check_constraint "side::text = ANY (ARRAY['blue'::character varying, 'red'::character varying]::text[])", name: "xp_events_side"
   end
 
   add_foreign_key "attempt_actions", "mission_attempts"
   add_foreign_key "hints", "missions"
+  add_foreign_key "intercepts", "missions"
   add_foreign_key "links", "messages"
   add_foreign_key "message_techniques", "messages"
   add_foreign_key "message_techniques", "techniques"

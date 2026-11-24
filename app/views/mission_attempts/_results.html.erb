@@ -1,4 +1,7 @@
 <%# The Purple debrief. Only rendered once the mission is over: it names the answers. %>
+<% if attempt.mission.kind_signals? %>
+  <%= render "mission_attempts/signals/results", attempt: %>
+<% else %>
 <% scorecard = attempt.scorecard %>
 <% mission = scorecard.mission %>
 
@@ -125,3 +128,4 @@
     </div>
   </section>
 </div>
+<% end %>

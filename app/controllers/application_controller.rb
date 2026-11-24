@@ -5,4 +5,12 @@ class ApplicationController < ActionController::Base
 
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
+
+  helper_method :unlocks
+
+  private
+    # Which paths, tracks and missions the player (or a visitor) can play.
+    def unlocks
+      @unlocks ||= User::Unlocks.new(authenticated? ? Current.user : nil)
+    end
 end

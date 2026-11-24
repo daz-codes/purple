@@ -2,7 +2,7 @@
 
 <% if @attempt.open? %>
   <% content_for :main_width, "max-w-[96rem]" %>
-  <%= render "mission_attempts/play", attempt: @attempt %>
+  <%= render "mission_attempts/play", attempt: @attempt, intercept: @intercept %>
 <% else %>
   <%= render "mission_attempts/results", attempt: @attempt %>
 <% end %>

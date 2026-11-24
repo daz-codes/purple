@@ -1,0 +1,17 @@
+slug: daily-wellington
+title: "Lost property"
+kind: signals
+difficulty: beginner
+par_minutes: 5
+position: 3
+briefing: "Somebody at Puffin Point has lost a boot, and TEAPOT finds this fascinating."
+learning_summary: "Hex writes each byte as two characters from 0–9 and a–f. An even-length run of only those is a good sign of hex."
+intercepts:
+  - key: boot_size
+    title: "Notice board"
+    source: "Packet radio, 0915Z"
+    question: "What size is the lost boot?"
+    solution: "Lost property: one left wellington boot, size nine, slightly damp."
+    encode: [ to_hex ]
+    flag: "nine"
+    explanation: "Hex. From hex turns each pair of characters back into a letter."

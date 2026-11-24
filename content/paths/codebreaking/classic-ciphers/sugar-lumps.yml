@@ -1,0 +1,47 @@
+slug: sugar-lumps
+title: "Sugar lumps"
+kind: signals
+difficulty: intermediate
+par_minutes: 20
+position: 2
+briefing: >
+  A new key, a new hiding place for it, and a longer message. TEAPOT has hidden the key under a Caesar
+  shift this time. They think that's clever.
+learning_summary: >
+  Layered weak protection is still weak. A shifted key is found in 25 tries at most, and once you have the
+  key every message sent with it opens. Real systems use keys that are long and random, and never sent
+  alongside the traffic.
+hints:
+  - body: "The first intercept is a Caesar shift. Try every ROT shift."
+    penalty_percent: 10
+  - body: "The last intercept is hex outside, Vigenère inside."
+    penalty_percent: 10
+intercepts:
+  - key: new_key
+    title: "Biscuit clue"
+    source: "Dead letter drop, 0700Z"
+    question: "What is the new key word?"
+    solution: "Our new key is the biscuit with the currants in it: GARIBALDI. Learn it, then eat this note."
+    encode: [ { rot: 11 } ]
+    flag: "Garibaldi"
+    explanation: >
+      A shift of 11 (ROT 15 undoes it). Hiding a key under a cipher this weak is the same as sending it in clear.
+  - key: roster_pickup
+    title: "Collection point"
+    source: "HF radio, 0712Z"
+    question: "Where should the duty roster be collected from?"
+    solution: "Agent Puffin has the base duty roster. Collect it from under the bench by the bandstand at dusk."
+    encode: [ { vigenere: GARIBALDI } ]
+    flag: "bandstand"
+    explanation: >
+      Vigenère with the key GARIBALDI. A longer key spreads the shifts out further, but it's still one word an
+      analyst can find.
+  - key: ferry_cabin
+    title: "Night ferry"
+    source: "Packet radio, 0740Z"
+    question: "Which cabin will the agent use on the night ferry?"
+    solution: "Leave on the night ferry to Grizzlemark. Cabin number twelve. Wear the hat."
+    encode: [ { vigenere: GARIBALDI }, to_hex ]
+    flag: "twelve"
+    explanation: >
+      Vigenère with GARIBALDI, then hex. From hex first, then Vigenère decode.

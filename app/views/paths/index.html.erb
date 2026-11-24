@@ -9,6 +9,19 @@
   </p>
 </header>
 
+<% if (daily = @daily.mission) %>
+  <%= link_to daily, class: "card-link mb-6 flex flex-wrap items-center justify-between gap-4 border-blue-team/50", data: { testid: "daily-intercept" } do %>
+    <div>
+      <p class="text-sm font-semibold uppercase tracking-widest text-blue-team">📡 Intercept of the day</p>
+      <p class="mt-1 text-xl font-bold"><%= daily.title %></p>
+      <p class="mt-1 text-sm text-ink-muted">A new puzzle every day. Solve one each day to keep your streak going.</p>
+    </div>
+    <span class="text-sm font-semibold text-blue-team">
+      <%= @daily.done_by?(authenticated? ? Current.user : nil) ? "Done today ✓" : "Crack it" %> <span aria-hidden="true">→</span>
+    </span>
+  <% end %>
+<% end %>
+
 <div class="space-y-6">
   <% @paths.each do |path| %>
     <% tracks = path.playable_tracks %>
@@ -17,14 +30,19 @@
         <h2 id="<%= path.slug %>-heading" class="text-2xl font-bold"><%= path.title %></h2>
         <% if tracks.none? %>
           <span class="rounded-full border border-line px-2 py-0.5 text-sm font-semibold text-ink-muted">Coming soon</span>
+        <% elsif !unlocks.open?(path) %>
+          <span class="rounded-full border border-line px-2 py-0.5 text-sm font-semibold text-ink-muted">🔒 Locked</span>
         <% elsif authenticated? %>
           <% missions = tracks.flat_map { |track| track.missions.select(&:published?) } %>
           <p class="text-sm text-ink-muted" data-testid="path-progress">
-            <%= missions.count { |mission| @finished_mission_ids.include?(mission.id) } %> of <%= pluralize(missions.size, "mission") %> finished
+            <%= missions.count { |mission| unlocks.finished?(mission) } %> of <%= pluralize(missions.size, "mission") %> finished
           </p>
         <% end %>
       </div>
       <p class="mt-2 max-w-2xl text-ink-muted"><%= path.description %></p>
+      <% if tracks.any? && (locked = unlocks.opens_when(path)) %>
+        <p class="mt-2 text-sm" data-testid="locked"><%= locked %></p>
+      <% end %>
 
       <% if tracks.any? %>
         <ol class="mt-5 grid gap-4 md:grid-cols-2">
@@ -36,8 +54,10 @@
                 <h3 class="mt-1 text-xl font-bold group-hover:text-blue-team"><%= track.title %></h3>
                 <p class="mt-2 flex-1 text-sm text-ink-muted"><%= track.description %></p>
                 <p class="mt-3 text-sm text-ink-muted">
-                  <% if authenticated? %>
-                    <%= missions.count { |mission| @finished_mission_ids.include?(mission.id) } %> of <%= pluralize(missions.size, "mission") %> finished
+                  <% if unlocks.open?(path) && (locked = unlocks.opens_when(track)) %>
+                    🔒 <%= locked %>
+                  <% elsif authenticated? %>
+                    <%= missions.count { |mission| unlocks.finished?(mission) } %> of <%= pluralize(missions.size, "mission") %> finished
                   <% else %>
                     <%= pluralize(missions.size, "mission") %>
                   <% end %>

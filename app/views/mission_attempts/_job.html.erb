@@ -1,8 +1,15 @@
 <section class="card p-4" aria-labelledby="job-heading">
   <h2 id="job-heading" class="text-lg font-bold">Your job</h2>
   <p class="mt-2 text-sm"><%= attempt.mission.briefing %></p>
+  <% if attempt.mission.kind_signals? %>
+    <p class="mt-3 text-sm text-ink-muted">
+      Decode each intercept in the Workbench and submit the answer to its question. The mission ends when every
+      intercept is solved or closed.
+    </p>
+  <% else %>
   <p class="mt-3 text-sm text-ink-muted">
     Deal with every <%= attempt.mission.kind_inbox? ? "email" : "message" %>: reply, do what it asks, archive it when you're done,
     or report it if it's phishing. The mission ends when your <%= attempt.mission.kind_inbox? ? "inbox" : "phone" %> is clear.
   </p>
+  <% end %>
 </section>

@@ -7,7 +7,7 @@ class PathsTest < ApplicationSystemTestCase
     within("nav[aria-label=Main]") { click_on "Paths" }
 
     assert_selector "h1", text: "Pick a path"
-    within("section#codebreaking") { assert_text "Coming soon" }
+    within("section#break-in") { assert_text "Coming soon" }
     within("section#phishing") do
       assert_selector "[data-testid=path-progress]", text: "0 of 2 missions finished"
       click_on "Basics"

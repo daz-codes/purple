@@ -55,6 +55,11 @@ module Content
       end
     end
 
+    # The value as authored, for the few fields (lists of steps or flags) that check their own shape.
+    def raw(key)
+      @data[key.to_s]
+    end
+
     def mapping?(key)
       @data[key.to_s].is_a?(Hash)
     end
