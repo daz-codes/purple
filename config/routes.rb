@@ -39,6 +39,7 @@ Rails.application.routes.draw do
   resources :paths, only: :index
   get "tracks", to: redirect("/paths")
   resources :tracks, only: :show
+  resource :daily_intercept, path: "daily", only: :show
   get "shifts/:id", to: redirect("/missions/%{id}")
   resources :missions, only: :show do
     resources :attempts, only: %i[ new create ], controller: "mission_attempts"
@@ -71,6 +72,13 @@ Rails.application.routes.draw do
           resource :portal_submission, only: :create
           resource :sign_in, only: :create
           resource :download_run, only: :create
+        end
+      end
+      # A signals mission's intercepts, also addressed by an opaque per-attempt ref.
+      resources :intercepts, param: :ref, only: [] do
+        scope module: :intercepts do
+          resources :flags, only: :create
+          resource :file, only: :show
         end
       end
       resources :hints, only: :create

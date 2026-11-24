@@ -1,6 +1,7 @@
-# The end of a mission. It ends by itself once every message has been dealt with (the inbox is empty and
-# nothing more is coming), when the player stands down early, or when it's left open too long. Anything not
-# dealt with by then counts as ignored. Finishing scores the attempt from its log.
+# The end of a mission. It ends by itself once it's cleared: every message dealt with (the inbox is empty
+# and nothing more is coming), or in a signals mission every intercept solved or closed. It also ends when
+# the player stands down early, or when it's left open too long. Anything not dealt with by then counts as
+# ignored. Finishing scores the attempt from its log.
 module MissionAttempt::Finishable
   extend ActiveSupport::Concern
 
@@ -46,11 +47,16 @@ module MissionAttempt::Finishable
 
   private
     def build_scorecard(content)
-      MissionAttempt::Scorecard.new(mission: content, actions:, elapsed_seconds:, cleared: completed?, relaxed:)
+      card = content.kind_signals? ? MissionAttempt::InterceptScorecard : MissionAttempt::Scorecard
+      card.new(mission: content, actions:, elapsed_seconds:, cleared: completed?, relaxed:)
     end
 
     def finish_if_cleared
-      finish :completed if open? && inbox_messages.empty?
+      finish :completed if open? && cleared?
+    end
+
+    def cleared?
+      mission.kind_signals? ? intercepts_cleared? : inbox_messages.empty?
     end
 
     def finish(status)

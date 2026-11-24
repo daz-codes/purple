@@ -18,6 +18,41 @@ class MissionAttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, MissionAttempt.count
   end
 
+  test "a locked mission can't be started, however the request gets there" do
+    sign_in_as users(:one)
+
+    post mission_attempts_path(missions(:tea_for_two))
+
+    assert_redirected_to mission_path(missions(:tea_for_two))
+    assert_equal "Finish 1 more mission on Encodings to open this track.", flash[:alert]
+    assert_equal 0, MissionAttempt.count
+  end
+
+  test "a signals mission shows the intercept named in the URL, or the first still open" do
+    sign_in_as users(:one)
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    attempt.submit_flag(intercepts(:opening), "biscuit tin")
+
+    get mission_attempt_path(attempt)
+    assert_select "#mission_intercept h2", text: "Wrapped twice"
+    get mission_attempt_path(attempt, intercept: attempt.intercept_ref(intercepts(:opening)))
+    assert_select "#mission_intercept h2", text: "Opening call"
+    assert_select "[data-testid=flag-found]", text: /biscuit tin/
+  end
+
+  test "a signals mission's page holds no answers" do
+    sign_in_as users(:one)
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    get mission_attempt_path(attempt)
+
+    [ intercepts(:opening), intercepts(:wrapped) ].each do |intercept|
+      [ intercept.key, intercept.solution, intercept.explanation, intercept.recipe.to_json, *intercept.flag_digests ].each do |secret|
+        assert_not_includes response.body, secret
+      end
+    end
+    assert_no_match(/biscuit tin|old lighthouse/i, response.body)
+  end
+
   test "starting a mission twice resumes the same attempt" do
     sign_in_as users(:one)
 

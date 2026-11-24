@@ -9,7 +9,7 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_operator summary.techniques, :>=, 12
     assert_equal 9, summary.badges
     assert_equal 6, summary.paths
-    assert_equal 3, summary.tracks
+    assert_equal 10, summary.tracks
     assert_operator summary.missions, :>=, 4
   end
 
@@ -22,10 +22,10 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_equal before, snapshot
   end
 
-  test "every shipped mission meets the starter content rules" do
+  test "every shipped inbox and phone mission meets the starter content rules" do
     Content::Import.new.run
 
-    Mission.where(slug: shipped_mission_slugs).each do |mission|
+    Mission.where(slug: shipped_mission_slugs).where.not(kind: "signals").each do |mission|
       messages = mission.messages.includes(:red_flags)
       assert_includes 5..12, messages.size, "#{mission.slug} should have 5-12 messages"
       assert messages.any? { |message| message.expects_reply? || message.expects_act? }, "#{mission.slug} needs a genuine message to reply to or act on"
@@ -43,6 +43,27 @@ class Content::ImportTest < ActiveSupport::TestCase
     shipped = Message.joins(:mission).where(missions: { slug: shipped_mission_slugs })
     assert shipped.any? { |message| message.details.any? }, "a mission needs a detail learned from a message"
     assert shipped.joins(:techniques).exists?(techniques: { key: "mfa_fatigue" }), "a mission needs an MFA-fatigue run"
+  end
+
+  test "every shipped signals mission is a fair puzzle" do
+    Content::Import.new.run
+    signals = Mission.where(slug: shipped_mission_slugs).kind_signals.includes(:intercepts, :track)
+
+    assert_operator signals.size, :>=, 11
+    signals.each do |mission|
+      assert_includes 1..5, mission.intercepts.size, "#{mission.slug} should have 1-5 intercepts"
+      mission.intercepts.each do |intercept|
+        if intercept.recipe.present?
+          assert_equal intercept.solution, Intercept::Cipher.new(intercept.recipe).decode(intercept.body).force_encoding("UTF-8"),
+            "#{mission.slug}/#{intercept.key} must decode to its solution"
+        end
+        assert intercept.undo_steps.all? { |name, _| Intercept::Workbench.operation(name) }, "#{intercept.key}'s steps are all in the Workbench"
+      end
+      next if mission.track.daily?
+
+      assert mission.hints.any?, "#{mission.slug} needs a hint"
+    end
+    assert_equal 5, Track.find_by!(slug: "daily").missions.count
   end
 
   # --- A minimal content folder, mutated one rule at a time ------------------------------
@@ -580,6 +601,116 @@ class Content::ImportTest < ActiveSupport::TestCase
     assert_equal [ 0, 3 ], %w[ basics later ].map { |slug| Track.find_by!(slug:).unlock_after }
   end
 
+  # --- Signals missions -------------------------------------------------------------------
+
+  test "imports a signals mission: ciphertext built from the recipe, flags only as digests" do
+    write_content
+    write_yaml("paths/phishing/basics/kettle.yml", valid_signals_mission)
+    Content::Import.new(@root).run
+
+    mission = Mission.find_by!(slug: "kettle")
+    opening, photo = mission.intercepts
+    assert mission.kind_signals?
+    assert_equal [ "new_codename", 1, 100 ], [ opening.key, opening.position, opening.points ]
+    assert_equal [ "SGVsbG8sIHRoZSBiaXNjdWl0IHRpbi4=", [ "to_base64" ] ], [ opening.body, opening.recipe ]
+    assert opening.flag?("Biscuit tin")
+    assert_not_includes opening.flag_digests.join, "biscuit"
+    assert_equal [ "photo.png", "image/png", 40 ], [ photo.file_name, photo.file_type, photo.file_data.bytesize ]
+    assert_nil photo.body
+  end
+
+  test "re-importing a signals mission reorders and removes intercepts" do
+    write_content
+    mission = valid_signals_mission
+    write_yaml("paths/phishing/basics/kettle.yml", mission)
+    Content::Import.new(@root).run
+
+    mission["intercepts"] = mission["intercepts"].reverse.map { |intercept| intercept.merge("points" => 50) }.first(1)
+    write_yaml("paths/phishing/basics/kettle.yml", mission)
+    Content::Import.new(@root).run
+
+    assert_equal [ [ "photo", 1, 50 ] ], Mission.find_by!(slug: "kettle").intercepts.map { |intercept| [ intercept.key, intercept.position, intercept.points ] }
+  end
+
+  test "a flag must be in the solution, so it's always something the puzzle gives up" do
+    assert_signals_error(/flag "Fuel depot" must appear in the solution/) { |opening| opening["flag"] = "Fuel depot" }
+    assert_signals_error(/give flag or flags, not both/) { |opening| opening["flags"] = [ "biscuit tin" ] }
+    assert_signals_error(/flags must be a list of text/) { |opening| opening.delete("flag") && opening["flags"] = "biscuit tin" }
+  end
+
+  test "an intercept is exactly one of encode, body or file" do
+    assert_signals_error(/give exactly one of encode, body or file/) { |opening| opening["body"] = "Hello" }
+    assert_signals_error(/give exactly one of encode, body or file/) { |opening| opening.delete("encode") }
+  end
+
+  test "a recipe must be one the Workbench can undo, and end in something printable" do
+    assert_signals_error(/encode: unknown step "rot13"/) { |opening| opening["encode"] = [ "rot13" ] }
+    assert_signals_error(/encode: rot needs a shift/) { |opening| opening["encode"] = [ { "rot" => 30 } ] }
+    assert_signals_error(/raw bytes the page can't show/) { |opening| opening["encode"] = [ { "xor" => "KEY" } ] }
+  end
+
+  test "a file must be next to the mission, small, and really the type it says" do
+    assert_signals_error(%r{files/missing.png not found}, intercept: 1) { |photo| photo["file"] = "missing.png" }
+    assert_signals_error(/file must be one of .png, .pdf, .txt/, intercept: 1) { |photo| photo["file"] = "photo.gif" }
+    assert_signals_error(/file must be a plain file name/, intercept: 1) { |photo| photo["file"] = "../photo.png" }
+    assert_signals_error(/isn't really a png/, intercept: 1) do |photo|
+      @root.join("paths/phishing/basics/files/fake.png").write("GIF89a")
+      photo["file"] = "fake.png"
+    end
+  end
+
+  test "text in a file is checked for real names like everything else" do
+    assert_signals_error(/file mentions names outside the reserved fictional set: real-bank.com/, intercept: 1) do |photo|
+      @root.join("paths/phishing/basics/files/log.txt").write("lookup real-bank.com\n")
+      photo["file"] = "log.txt"
+    end
+  end
+
+  test "intercept keys are unique and descriptive ids are fine because they never reach the page" do
+    assert_signals_error(/intercept keys must be unique/) { |opening| opening["key"] = "photo" }
+    assert_signals_error(/key must be lower_snake_case/) { |opening| opening["key"] = "New Codename" }
+  end
+
+  test "a signals mission has no messages, and only a signals mission has intercepts" do
+    write_content
+    write_yaml("paths/phishing/basics/kettle.yml", valid_signals_mission.merge("messages" => @mission["messages"]))
+    assert_raises(Content::ImportError, match: /a signals mission has intercepts, not messages/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/basics/kettle.yml", valid_signals_mission)
+    write_yaml("paths/phishing/basics/month-end.yml", @mission.merge("intercepts" => valid_signals_mission["intercepts"]))
+    assert_raises(Content::ImportError, match: /only a signals mission has intercepts/) { Content::Import.new(@root).run }
+  end
+
+  test "a track can't ask for more missions than the track before it has" do
+    write_content
+    write_yaml("paths/phishing/later/_track.yml", valid_track.merge("title" => "Later", "position" => 2, "unlock_after" => 2))
+    write_yaml("paths/phishing/later/kettle.yml", valid_signals_mission(track: "later"))
+    assert_raises(Content::ImportError, match: /unlock_after is 2, but basics only has 1 mission/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/basics/_track.yml", valid_track.merge("unlock_after" => 1))
+    write_yaml("paths/phishing/later/_track.yml", valid_track.merge("title" => "Later", "position" => 2, "unlock_after" => 1))
+    assert_raises(Content::ImportError, match: /unlock_after must be 0 on a path's first track/) { Content::Import.new(@root).run }
+  end
+
+  test "one daily track, of signals missions, with nothing to unlock" do
+    write_content
+    write_yaml("paths/phishing/daily/_track.yml", valid_track.merge("title" => "Daily", "position" => 9, "daily" => true))
+    write_yaml("paths/phishing/daily/kettle.yml", valid_signals_mission(track: "daily"))
+    Content::Import.new(@root).run
+    assert Track.find_by!(slug: "daily").daily?
+
+    write_yaml("paths/phishing/daily/_track.yml", valid_track.merge("title" => "Daily", "daily" => true, "unlock_after" => 1))
+    assert_raises(Content::ImportError, match: /a daily track can't have unlock_after/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/daily/_track.yml", valid_track.merge("title" => "Daily", "daily" => true))
+    write_yaml("paths/phishing/basics/_track.yml", valid_track.merge("daily" => true))
+    assert_raises(Content::ImportError, match: /only one track can be daily/) { Content::Import.new(@root).run }
+
+    write_yaml("paths/phishing/basics/_track.yml", valid_track)
+    write_yaml("paths/phishing/daily/month.yml", @mission.merge("slug" => "month"))
+    assert_raises(Content::ImportError, match: /a daily track holds only signals missions/) { Content::Import.new(@root).run }
+  end
+
   test "the summary counts messages across all missions" do
     assert_equal 3, import!.messages
   end
@@ -706,6 +837,33 @@ class Content::ImportTest < ActiveSupport::TestCase
 
     def valid_path
       { "title" => "Phishing", "description" => "Spotting phishing.", "position" => 1, "opens" => "always" }
+    end
+
+    # A signals mission with one encoded intercept and one file, the file written into the track's folder.
+    def valid_signals_mission(track: "basics")
+      files = @root.join("paths/phishing/#{track}/files")
+      files.mkpath
+      files.join("photo.png").binwrite("\x89PNG\r\n\x1A\n".b + "\x00".b * 32)
+      {
+        "slug" => "kettle", "title" => "Kettle chatter", "kind" => "signals", "difficulty" => "beginner", "par_minutes" => 10,
+        "briefing" => "TEAPOT is chattering.", "learning_summary" => "Encoding isn't encryption.",
+        "hints" => [ { "body" => "Try From Base64." } ],
+        "intercepts" => [
+          { "key" => "new_codename", "title" => "Opening call", "source" => "HF radio", "question" => "What's the base called?",
+            "solution" => "Hello, the biscuit tin.", "encode" => [ "to_base64" ], "flag" => "biscuit tin", "explanation" => "Base64." },
+          { "key" => "photo", "title" => "Photo", "source" => "Public post", "question" => "Who took it?",
+            "solution" => "Artist: Ottilie Brack", "file" => "photo.png", "flag" => "Ottilie Brack", "explanation" => "EXIF." }
+        ]
+      }
+    end
+
+    # Writes valid content with one change to an intercept of the signals mission, and expects the import to fail.
+    def assert_signals_error(message, intercept: 0)
+      write_content
+      mission = valid_signals_mission
+      yield mission["intercepts"][intercept]
+      write_yaml("paths/phishing/basics/kettle.yml", mission)
+      assert_raises(Content::ImportError, match: message) { Content::Import.new(@root).run }
     end
 
     def valid_track

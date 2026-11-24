@@ -1,0 +1,49 @@
+slug: mixed-signals
+title: "Mixed signals"
+kind: signals
+difficulty: beginner
+par_minutes: 15
+position: 2
+briefing: >
+  TEAPOT has started mixing things up: a web form someone forgot to secure, a broadcast that sounds like
+  gibberish, and a numbers station reading out letters. Each one uses a different encoding. Work out which.
+learning_summary: >
+  Encodings leave fingerprints. URL encoding has % followed by two hex digits; Base32 uses capitals and the
+  digits 2 to 7 and pads with =; text that reads backwards has been reversed. Spot the fingerprint, pick the
+  matching step, and check the output reads as words before moving on.
+hints:
+  - body: "%20 is a space in URL encoding. Base32 only ever uses A–Z and 2–7."
+    penalty_percent: 10
+  - body: "If the decoded text reads backwards, add a Reverse step."
+    penalty_percent: 10
+intercepts:
+  - key: agent_callsign
+    title: "Leaky web form"
+    source: "Captured form submission, 0412Z"
+    question: "What callsign is the agent using?"
+    solution: "callsign=GRUMPY GULL&rendezvous=Pier 3&time=0340&bring=umbrella"
+    encode: [ url_encode ]
+    flag: "Grumpy Gull"
+    explanation: >
+      URL encoding (percent-encoding) replaces anything that isn't safe in a web address with % and its byte
+      in hex: a space is %20, & is %26. It's for addresses, not secrecy.
+  - key: guard_change
+    title: "Backwards broadcast"
+    source: "HF voice net, 0419Z"
+    question: "At what time does the gate guard change?"
+    solution: "THE GATE GUARD CHANGES AT 0600. THE SIDE DOOR IS LEFT ON THE LATCH."
+    encode: [ reverse, to_base64 ]
+    flag: "0600"
+    explanation: >
+      Base64, but the text inside was reversed first. Reversing is a favourite trick to stop text being
+      recognised at a glance, and it stops nobody who looks twice.
+  - key: locker_number
+    title: "Numbers station"
+    source: "Shortwave, 0430Z"
+    question: "Which locker holds the parcel?"
+    solution: "SEVEN SEVEN NINE. THE PARCEL IS IN LOCKER NINETEEN. COLLECT BEFORE NOON."
+    encode: [ to_base32 ]
+    flag: "nineteen"
+    explanation: >
+      Base32 uses only capital letters and the digits 2 to 7, which makes it easy to read aloud or squeeze into
+      places that ignore case, like web addresses. It pads to a multiple of 8 characters with =.

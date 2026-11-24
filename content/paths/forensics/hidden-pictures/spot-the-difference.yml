@@ -1,0 +1,48 @@
+slug: spot-the-difference
+title: "Spot the difference"
+kind: signals
+difficulty: intermediate
+par_minutes: 20
+position: 1
+briefing: >
+  TEAPOT has started posting holiday pictures to a public board, and they look like nothing at all. Our
+  analysts are sure the pictures are carrying messages. Find them.
+learning_summary: >
+  Changing the lowest bit of a pixel's colour is invisible to the eye, so a picture can carry a hidden
+  message in those bits. Data can also ride along after the end of a file, ignored by viewers. Neither is
+  encryption: once you know where to look, it's readable.
+hints:
+  - body: "Load a picture and add Hidden bits. For the postcard, try Strings instead."
+    penalty_percent: 15
+  - body: "The beach picture's hidden bits are Base64. Add From Base64 after Hidden bits."
+    penalty_percent: 15
+intercepts:
+  - key: dog_name
+    title: "Sentry post"
+    source: "Public picture board"
+    question: "What is the sentry dog called?"
+    solution: "TEAPOT: the sentry dog is called Biscuit. Bring ham."
+    file: sentry-post.png
+    flag: "Biscuit"
+    explanation: >
+      Hidden in the lowest bit of each red, green and blue value, one bit at a time. Each colour changes by at
+      most one step out of 256, far too little to see.
+  - key: fallback_frequency
+    title: "Lighthouse postcard"
+    source: "Public picture board"
+    question: "What is TEAPOT's fallback frequency?"
+    solution: "TEAPOT FALLBACK FREQUENCY 4.625 MHz. Listen on the hour."
+    file: lighthouse-postcard.png
+    flags: [ "4.625 MHz", "4.625" ]
+    explanation: >
+      Tacked on after the picture's end marker. Image viewers stop at the end of the picture and never show
+      it; Strings shows it at the very end.
+  - key: pickup_time
+    title: "Shingle beach"
+    source: "Public picture board"
+    question: "What time is the boat pickup?"
+    solution: "Boat pickup at 0215 from the shingle beach."
+    file: shingle-beach.png
+    flag: "0215"
+    explanation: >
+      Two layers: Base64 hidden in the picture's lowest bits. Hidden bits, then From Base64.

@@ -1,0 +1,20 @@
+<%# SECRET-FREE ZONE, as for an inbox: never render an intercept's key, solution, explanation, recipe or
+    flag here. The page holds only what the player was given: the text or file, the question, and their
+    own submissions. %>
+<div class="flex flex-col gap-4">
+  <%= render "mission_attempts/status_bar", attempt: %>
+  <div id="mission_notice" aria-live="polite"></div>
+  <div class="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] items-start">
+    <div class="flex flex-col gap-4">
+      <%= render "mission_attempts/job", attempt: %>
+      <%= render "mission_attempts/signals/queue", attempt:, current: intercept %>
+      <%= render "mission_attempts/hints", attempt: %>
+    </div>
+    <%# The Workbench sits outside everything a move re-renders, so its recipe survives a submission, and
+        it's permanent across visits, so it survives switching intercepts too. %>
+    <div class="flex flex-col gap-4 min-w-0" data-controller="workbench">
+      <%= render "mission_attempts/signals/intercept", attempt:, intercept: %>
+      <%= render "mission_attempts/signals/workbench" %>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+slug: daily-band-practice
+title: "Band practice"
+kind: signals
+difficulty: beginner
+par_minutes: 5
+position: 4
+briefing: "TEAPOT is keeping tabs on the Puffin Point brass band. The key, for once, was in the clear: PUFFIN."
+learning_summary: "Vigenère shifts each letter by the matching letter of a key word, round and round. With the key, it falls open."
+intercepts:
+  - key: band_venue
+    title: "Rehearsal notice"
+    source: "HF radio, 1400Z"
+    question: "Where will the band practise? (The key is PUFFIN.)"
+    solution: "The band will practise in the drill hall at seven. Bring earplugs."
+    encode: [ { vigenere: PUFFIN } ]
+    flag: "drill hall"
+    explanation: "Vigenère with the key PUFFIN. A key sent in the clear protects nothing."

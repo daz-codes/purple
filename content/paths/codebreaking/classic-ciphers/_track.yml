@@ -1,0 +1,7 @@
+title: Classic Ciphers
+description: >
+  Now TEAPOT is using a key. The Vigenère cipher shifts each letter by a different amount, set by a key word,
+  and it fooled people for three hundred years. Its weakness is the key: find it, and the rest follows.
+position: 2
+difficulty: intermediate
+unlock_after: 3

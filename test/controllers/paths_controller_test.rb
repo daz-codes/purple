@@ -13,7 +13,10 @@ class PathsControllerTest < ActionDispatch::IntegrationTest
       assert_select "*", text: /Coming soon/, count: 0
       assert_select "[data-testid=path-progress]", count: 0
     end
-    assert_select "section#codebreaking", text: /Coming soon/
+    assert_select "section#codebreaking" do
+      assert_select "h3", text: "Encodings"
+      assert_select "h3", text: "Intercept of the Day", count: 0
+    end
     assert_select "section#break-in", text: /Coming soon/
   end
 
@@ -43,5 +46,35 @@ class PathsControllerTest < ActionDispatch::IntegrationTest
   test "the old track list redirects to the paths" do
     get "/tracks"
     assert_redirected_to "/paths"
+  end
+
+  test "a locked track says what opens it, and opens once that's done" do
+    sign_in_as users(:one)
+    get paths_path
+    assert_select "section#codebreaking a[href=?]", track_path(tracks(:ciphers)), text: /🔒 Finish 1 more mission on Encodings/
+
+    MissionAttempt.start(user: users(:one), mission: missions(:kettle)).stand_down
+    get paths_path
+    assert_select "section#codebreaking a[href=?]", track_path(tracks(:ciphers)), text: /0 of 1 mission finished/
+  end
+
+  test "a locked path says so" do
+    track = Track.create!(path: paths(:break_in), slug: "injection", title: "Injection", description: "x", difficulty: "beginner", published: true)
+    Mission.create!(track:, slug: "open-door", title: "Open door", kind: "signals", difficulty: "beginner", par_minutes: 5,
+                    published: true, briefing: "x", learning_summary: "x")
+    get paths_path
+
+    assert_select "section#break-in", text: /🔒 Locked/
+    assert_select "section#break-in [data-testid=locked]", text: "Finish 3 more missions on any path to open Break-in."
+  end
+
+  test "the Intercept of the day is on top, and says when it's done" do
+    get paths_path
+    assert_select "[data-testid=daily-intercept][href=?]", mission_path(missions(:daily_drizzle)), text: /Crack it/
+
+    sign_in_as users(:one)
+    MissionAttempt.start(user: users(:one), mission: missions(:daily_drizzle)).stand_down
+    get paths_path
+    assert_select "[data-testid=daily-intercept]", text: /Done today ✓/
   end
 end

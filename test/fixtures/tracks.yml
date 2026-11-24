@@ -6,3 +6,32 @@ basics:
   position: 1
   difficulty: beginner
   published: true
+
+encodings:
+  path: codebreaking
+  slug: encodings
+  title: Encodings
+  description: Base64 and friends.
+  position: 1
+  difficulty: beginner
+  published: true
+
+ciphers:
+  path: codebreaking
+  slug: ciphers
+  title: Ciphers
+  description: Keys and shifts.
+  position: 2
+  difficulty: intermediate
+  unlock_after: 1
+  published: true
+
+daily:
+  path: codebreaking
+  slug: daily
+  title: Intercept of the Day
+  description: One a day.
+  position: 9
+  difficulty: beginner
+  daily: true
+  published: true

@@ -1,6 +1,9 @@
 <%# SECRET-FREE ZONE: this screen is rendered mid-mission. Only show what the player can already see.
     Never render a message's key, legit flag, what it expects, its points or arrival trigger, links'
     outcomes, red flags, techniques, or attachment or reply outcomes here (test/system/mission_play_test.rb checks the HTML). %>
+<% if attempt.mission.kind_signals? %>
+  <%= render "mission_attempts/signals/play", attempt:, intercept: local_assigns[:intercept] %>
+<% else %>
 <% phone = attempt.mission.kind_messages? %>
 <div class="flex flex-col gap-4">
   <%= render "mission_attempts/status_bar", attempt: %>
@@ -21,3 +24,4 @@
   </div>
   <%= render "mission_attempts/browser", attempt: %>
 </div>
+<% end %>

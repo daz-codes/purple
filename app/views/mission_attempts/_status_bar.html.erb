@@ -7,9 +7,15 @@
     <h1 class="text-lg font-bold truncate"><%= attempt.mission.title %></h1>
   </div>
   <div class="flex items-center gap-4">
-    <p class="text-sm text-ink-muted" data-testid="inbox-count">
-      <%= pluralize(attempt.inbox_messages.size, attempt.mission.kind_inbox? ? "email" : "message") %> to deal with
-    </p>
+    <% if attempt.mission.kind_signals? %>
+      <p class="text-sm text-ink-muted" data-testid="inbox-count">
+        <%= pluralize(attempt.intercepts.count { |intercept| !attempt.closed?(intercept) }, "intercept") %> still open
+      </p>
+    <% else %>
+      <p class="text-sm text-ink-muted" data-testid="inbox-count">
+        <%= pluralize(attempt.inbox_messages.size, attempt.mission.kind_inbox? ? "email" : "message") %> to deal with
+      </p>
+    <% end %>
     <%= button_to "Stand down", mission_attempt_stand_down_path(attempt), class: "btn-ghost",
           form: { data: { turbo_confirm: "Stand down? Anything you haven't dealt with counts as ignored." } } %>
   </div>

@@ -39,13 +39,19 @@ class Badge::Rulebook
       @card ||= attempt&.scorecard
     end
 
+    # The phishing badges are judged on an inbox or phone mission's scorecard, never a signals one.
+    def message_card
+      card if card.is_a?(MissionAttempt::Scorecard)
+    end
+
     def reported_a_phish?
-      card.present? && card.phishes.any?(&:reported?)
+      message_card.present? && message_card.phishes.any?(&:reported?)
     end
 
     # Every red flag in every phish found, and no hints.
     def found_every_red_flag_without_hints?
-      card.present? && card.phishes.any? && card.phishes.all? { |result| result.missed_flags.empty? } && card.hints.none?
+      message_card.present? && message_card.phishes.any? &&
+        message_card.phishes.all? { |result| result.missed_flags.empty? } && message_card.hints.none?
     end
 
     def three_star_mission?
@@ -54,7 +60,7 @@ class Badge::Rulebook
 
     # Every genuine message handled as it needed, and every phish reported.
     def handled_everything_right?
-      card.present? && card.genuine.all?(&:done?) && card.phishes.all?(&:reported?)
+      message_card.present? && message_card.genuine.all?(&:done?) && message_card.phishes.all?(&:reported?)
     end
 
     # Three bait pages or downloads closed before entering anything, across all the player's missions.
@@ -65,6 +71,8 @@ class Badge::Rulebook
       opened = AttemptAction.where(kind: MissionAttempt::Browsing::TAB_OPENERS).select(:mission_attempt_id)
       count = 0
       @user.mission_attempts.finished.where(id: opened).includes(:mission, :attempt_actions).find_each do |finished|
+        next unless finished.scorecard.is_a?(MissionAttempt::Scorecard)
+
         count += finished.scorecard.messages.sum { |result| result.near_misses.size }
         return true if count >= NEAR_MISSES_FOR_NINJA
       end

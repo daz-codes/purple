@@ -49,6 +49,12 @@
           <%= link_to blue ? "Pick a mission" : "Pick a target", blue ? paths_path : targets_path, class: blue ? "btn-blue" : "btn-red" %>
         <% end %>
       </div>
+      <% if blue && (daily = @daily.mission) %>
+        <p class="mt-4 text-sm" data-testid="daily-intercept">
+          📡 Intercept of the day: <%= link_to daily.title, daily, class: "font-semibold underline" %>
+          <% if @daily.done_by?(@user) %><span class="text-ink-muted">· done today ✓</span><% end %>
+        </p>
+      <% end %>
     </section>
   <% end %>
 </div>

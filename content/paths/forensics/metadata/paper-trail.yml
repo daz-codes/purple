@@ -1,0 +1,48 @@
+slug: paper-trail
+title: "Paper trail"
+kind: signals
+difficulty: beginner
+par_minutes: 15
+position: 2
+briefing: >
+  A draft visitor rota for Puffin Point turned up on a Grizzlemark file server. The document itself looks
+  harmless. Its properties, and something tucked inside the file, are not.
+learning_summary: >
+  Documents record who wrote them and with what software, and files can hold text that never appears on
+  the page. Check a document's properties before you publish it, and use "strings" to see everything
+  readable a file contains.
+hints:
+  - body: "The File metadata step reads a PDF's properties."
+    penalty_percent: 10
+  - body: "Strings shows every readable run of text in a file, including lines a PDF viewer never displays."
+    penalty_percent: 10
+intercepts:
+  - key: rota_author
+    title: "Visitor rota"
+    source: "Grizzlemark file server"
+    question: "Who wrote the visitor rota?"
+    solution: "Author: Sgt. Wilbur Cragg. Title: Puffin Point visitor rota - DRAFT."
+    file: visitor-rota.pdf
+    flag: "Wilbur Cragg"
+    explanation: >
+      The PDF's Author property, filled in by the software from the writer's account name.
+  - key: rota_software
+    title: "Visitor rota, made with"
+    source: "Grizzlemark file server"
+    question: "Which software made the document?"
+    solution: "Creator: Grizzlemark Office Suite. Producer: Grizzlemark Office Suite 4.2."
+    file: visitor-rota.pdf
+    flag: "Grizzlemark Office Suite"
+    explanation: >
+      Creator and Producer name the software. Here it gives the game away: Puffin Point's rota was written on
+      Grizzlemark's own office software.
+  - key: drop_point
+    title: "Visitor rota, between the lines"
+    source: "Grizzlemark file server"
+    question: "Where should the printed copy be left?"
+    solution: "TEAPOT: leave the printed copy in the old boathouse."
+    file: visitor-rota.pdf
+    flag: "old boathouse"
+    explanation: >
+      A comment line near the top of the file. PDF viewers skip comments, so it never shows on the page, but
+      Strings finds it in a moment.

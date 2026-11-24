@@ -1,0 +1,7 @@
+title: Hidden Pictures
+description: >
+  Steganography hides a message inside something that doesn't look like a message at all: the tiniest
+  changes to a picture's colours, or bytes tacked on after the picture ends.
+position: 2
+difficulty: intermediate
+unlock_after: 2

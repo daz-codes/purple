@@ -9,12 +9,20 @@ class MissionAttemptsController < ApplicationController
     redirect_to mission_path(params[:mission_id])
   end
 
-  # Starts a mission, or resumes the one already in progress.
+  # Starts a mission, or resumes the one already in progress. A locked mission can't be started, however
+  # the request got here.
   def create
     mission = Mission.playable.find_by!(slug: params[:mission_id])
+    return redirect_to(mission, alert: unlocks.opens_when(mission.track)) unless unlocks.open?(mission)
+
     redirect_to MissionAttempt.start(user: Current.user, mission:)
   end
 
+  # A signals mission shows one intercept at a time: the one named in the URL, or the first still open.
   def show
+    return unless @attempt.open? && @attempt.mission.kind_signals?
+
+    @intercept = @attempt.find_intercept(params[:intercept]) ||
+      @attempt.intercepts.find { |intercept| !@attempt.closed?(intercept) } || @attempt.intercepts.first
   end
 end

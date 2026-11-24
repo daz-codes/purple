@@ -1,0 +1,17 @@
+slug: daily-fish-pie
+title: "Canteen gossip"
+kind: signals
+difficulty: beginner
+par_minutes: 5
+position: 2
+briefing: "TEAPOT has an agent in the Puffin Point canteen, and today they're reporting on lunch."
+learning_summary: "ROT13 shifts every letter 13 places, and doing it again undoes it. It hides spoilers, not secrets."
+intercepts:
+  - key: canteen_special
+    title: "Lunch report"
+    source: "Dead letter drop, 1130Z"
+    question: "What's the canteen special today?"
+    solution: "The canteen special today is fish pie. Avoid the custard."
+    encode: [ { rot: 13 } ]
+    flag: "fish pie"
+    explanation: "ROT13: a ROT step with a shift of 13 undoes it."

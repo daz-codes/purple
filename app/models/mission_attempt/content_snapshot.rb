@@ -7,7 +7,9 @@
 class MissionAttempt::ContentSnapshot
   def self.capture(mission)
     mission.as_json(include: {
-      track: {}, hints: {}, messages: { include: { links: {}, red_flags: {}, techniques: {} } }
+      track: {}, hints: {}, messages: { include: { links: {}, red_flags: {}, techniques: {} } },
+      # The file itself isn't needed to judge or explain the attempt, and isn't JSON.
+      intercepts: { except: :file_data }
     })
   end
 
@@ -17,7 +19,7 @@ class MissionAttempt::ContentSnapshot
 
   def mission
     @mission ||= begin
-      mission = record(Mission, @attributes.except("messages", "hints", "track"))
+      mission = record(Mission, @attributes.except("messages", "hints", "track", "intercepts"))
       associate(mission, :track, record(Track, @attributes.fetch("track")))
       associate(mission, :hints, @attributes.fetch("hints").map { |attributes| record(Hint, attributes) })
       messages = @attributes.fetch("messages").map do |attributes|
@@ -34,6 +36,10 @@ class MissionAttempt::ContentSnapshot
         message
       end
       associate(mission, :messages, messages)
+      # Copies taken before signals missions existed have no intercepts.
+      intercepts = @attributes.fetch("intercepts", []).map { |attributes| record(Intercept, attributes) }
+      intercepts.each { |intercept| associate(intercept, :mission, mission) }
+      associate(mission, :intercepts, intercepts)
       mission
     end
   end

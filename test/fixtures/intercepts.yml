@@ -1,0 +1,56 @@
+<% encoded = ->(recipe, text) { Intercept::Cipher.new(recipe).encode(text).force_encoding("UTF-8") } %>
+opening:
+  mission: kettle
+  key: new_codename
+  position: 1
+  title: Opening call
+  source: HF radio, 0310Z
+  question: What is TEAPOT calling the base?
+  solution: TEAPOT CALLS THE BASE THE BISCUIT TIN.
+  body: <%= encoded.(%w[ to_base64 ], "TEAPOT CALLS THE BASE THE BISCUIT TIN.") %>
+  recipe: <%= %w[ to_base64 ].to_json %>
+  flag_digests: <%= [ Intercept.digest("Biscuit tin") ].to_json %>
+  explanation: Base64 is an encoding.
+  points: 100
+
+wrapped:
+  mission: kettle
+  key: meeting_place
+  position: 2
+  title: Wrapped twice
+  source: Chat relay, 0322Z
+  question: Where are they meeting?
+  solution: Meet at the Old Lighthouse at 0340.
+  body: <%= encoded.(%w[ to_base64 to_base64 ], "Meet at the Old Lighthouse at 0340.") %>
+  recipe: <%= %w[ to_base64 to_base64 ].to_json %>
+  flag_digests: <%= [ Intercept.digest("Old Lighthouse"), Intercept.digest("the old lighthouse") ].to_json %>
+  explanation: Encoded twice.
+  points: 100
+
+harbour_boom:
+  mission: tea_for_two
+  key: boom_opening
+  position: 1
+  title: Harbour orders
+  source: HF radio, 0614Z
+  question: When does the boom open?
+  solution: The harbour boom opens at high tide.
+  body: <%= encoded.([ { "vigenere" => "KETTLE" } ], "The harbour boom opens at high tide.") %>
+  recipe: <%= [ { "vigenere" => "KETTLE" } ].to_json %>
+  flag_digests: <%= [ Intercept.digest("high tide") ].to_json %>
+  explanation: Vigenère with KETTLE.
+  points: 100
+
+forecast:
+  mission: daily_drizzle
+  key: forecast
+  position: 1
+  title: Weather for the kettles
+  source: Chat relay, 0700Z
+  question: What's the forecast?
+  solution: Drizzle, then more drizzle.
+  body: <%= encoded.(%w[ to_base64 ], "Drizzle, then more drizzle.") %>
+  recipe: <%= %w[ to_base64 ].to_json %>
+  flag_digests: <%= [ Intercept.digest("drizzle") ].to_json %>
+  explanation: Plain Base64.
+  points: 50

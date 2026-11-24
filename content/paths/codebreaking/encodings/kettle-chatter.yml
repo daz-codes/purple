@@ -1,0 +1,50 @@
+slug: kettle-chatter
+title: "Kettle chatter"
+kind: signals
+difficulty: beginner
+par_minutes: 10
+position: 1
+briefing: >
+  Allied analysts have a name for the Grand Duchy of Grizzlemark's cyber unit: TRUCULENT TEAPOT. Overnight,
+  the listening post at Puffin Point picked up three bursts of its traffic. None of it is encrypted. It only
+  looks that way. Find out what TEAPOT is calling the base, where it's meeting, and what it's buying.
+learning_summary: >
+  Encoding isn't encryption. Base64 and hex only change how bytes are written down, so anyone can turn them
+  back without a key. Recognise them by their alphabet: Base64 uses A–Z, a–z, 0–9, + and /, often ending in
+  =; hex uses only 0–9 and a–f.
+hints:
+  - body: "Text made of letters, digits, + and /, ending in = or ==, is almost always Base64. Try From Base64."
+    penalty_percent: 10
+  - body: "If the output of one step still looks encoded, add the same step again."
+    penalty_percent: 10
+intercepts:
+  - key: new_codename
+    title: "Opening call"
+    source: "HF radio, 0310Z"
+    question: "What is TEAPOT now calling Puffin Point?"
+    solution: "TEAPOT CONTROL TO ALL KETTLES. THE TARGET IS NOW CALLED THE BISCUIT TIN. AWAIT FURTHER ORDERS."
+    encode: [ to_base64 ]
+    flag: "Biscuit tin"
+    explanation: >
+      Base64 writes every 3 bytes as 4 characters from a 64-letter alphabet, padding the end with =. It's
+      how email attachments travel, not a secret: the From Base64 step reads it straight back.
+  - key: meeting_place
+    title: "Wrapped twice"
+    source: "Chat relay, 0322Z"
+    question: "Where are the kettles meeting?"
+    solution: "Bring the blue thermos. We meet at the Old Lighthouse when the fog comes in."
+    encode: [ to_base64, to_base64 ]
+    flag: "Old Lighthouse"
+    explanation: >
+      Encoded twice. The first From Base64 gave more Base64, so a second one was needed. Encoding something
+      again doesn't make it any safer: each layer comes off just as easily.
+  - key: crate_count
+    title: "Shopping list"
+    source: "Packet radio, 0347Z"
+    question: "How many crates is TEAPOT paying for?"
+    solution: "PAY THE SUPPLIER FOR 40 CRATES OF GINGERNUTS BY FRIDAY. CASH ONLY."
+    encode: [ to_hex ]
+    flag: "40"
+    explanation: >
+      Hex writes each byte as two characters from 0–9 and a–f, so 50 41 59 is "PAY". Long runs of those
+      sixteen characters, always an even number of them, are a strong sign of hex.

@@ -9,6 +9,14 @@ class Badge::RulebookTest < ActiveSupport::TestCase
     assert_equal %w[ first_catch eagle_eye clean_mission productive_paranoid ], earned(perfect_mission)
   end
 
+  test "a perfect signals mission earns Clean Mission, and none of the phishing badges" do
+    attempt = MissionAttempt.start(user: @user, mission: missions(:kettle))
+    attempt.submit_flag(intercepts(:opening), "biscuit tin")
+    attempt.submit_flag(intercepts(:wrapped), "old lighthouse")
+
+    assert_equal %w[ clean_mission ], earned(attempt)
+  end
+
   test "reporting a phish but missing a red flag earns First Catch only" do
     attempt = play { |a| a.archive(messages(:newsletter)); a.flag(messages(:fake_invoice), "from"); a.report(messages(:fake_invoice)) }
 

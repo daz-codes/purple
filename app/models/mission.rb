@@ -1,8 +1,9 @@
-# One playable round for Blue: an inbox (or a phone) full of messages to deal with. par_minutes is
-# the target time for the speed bonus.
+# One playable round for Blue: an inbox (or a phone) full of messages to deal with, or (signals) a
+# queue of intercepts to decode. par_minutes is the target time for the speed bonus, and how long the
+# briefing says a mission takes.
 # For the MVP every mission is authored by the system playing Red.
 class Mission < ApplicationRecord
-  enum :kind, { inbox: "inbox", messages: "messages" }, prefix: true, validate: true
+  enum :kind, { inbox: "inbox", messages: "messages", signals: "signals" }, prefix: true, validate: true
   enum :difficulty, { beginner: "beginner", intermediate: "intermediate", advanced: "advanced" }, validate: true
   enum :author_side, { red: "red" }, prefix: :authored_by, validate: true
   enum :author_type, { system: "system", player: "player" }, prefix: :authored_by, validate: true
@@ -10,6 +11,7 @@ class Mission < ApplicationRecord
   belongs_to :track
   has_many :messages, -> { order(:position) }, dependent: :destroy
   has_many :hints, -> { order(:position) }, dependent: :destroy
+  has_many :intercepts, -> { order(:position) }, dependent: :destroy
   has_many :mission_attempts, dependent: :restrict_with_exception
 
   scope :published, -> { where(published: true) }

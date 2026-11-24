@@ -1,0 +1,64 @@
+<%# The Workbench runs entirely in the browser, on what the player has loaded. It never knows or checks a
+    flag: that only happens when one is submitted.
+    It's permanent across visits (switching intercepts keeps the recipe), so all its state lives in the DOM. %>
+<section id="workbench" class="card" aria-labelledby="workbench-heading" data-testid="workbench" data-turbo-permanent>
+  <h2 id="workbench-heading" class="text-xl font-bold">Workbench</h2>
+  <p class="mt-1 text-sm text-ink-muted">
+    Load an intercept, then add steps. Each step works on the one before; the output updates as you go.
+  </p>
+
+  <div class="mt-4">
+    <div class="flex items-baseline justify-between gap-2">
+      <label for="workbench-input" class="form-label">Input</label>
+      <p class="text-xs text-ink-muted" data-workbench-target="source" aria-live="polite">Nothing loaded yet: load an intercept, or type or paste here.</p>
+    </div>
+    <textarea id="workbench-input" rows="4" spellcheck="false" class="form-input font-mono text-sm"
+              data-workbench-target="input" data-action="input->workbench#typed"></textarea>
+  </div>
+
+  <div class="mt-4 flex flex-wrap items-end gap-2">
+    <div class="flex-1 min-w-48">
+      <label for="workbench-operation" class="form-label">Add a step</label>
+      <select id="workbench-operation" class="form-input" data-workbench-target="operation">
+        <% Intercept::Workbench.grouped.each do |group, operations| %>
+          <optgroup label="<%= group %>">
+            <% operations.each do |operation| %>
+              <option value="<%= operation.name %>" data-argument="<%= operation.argument %>"><%= operation.label %></option>
+            <% end %>
+          </optgroup>
+        <% end %>
+      </select>
+    </div>
+    <button type="button" class="btn-blue" data-action="workbench#add">Add step</button>
+  </div>
+
+  <ol class="mt-4 space-y-2" data-workbench-target="steps" aria-label="Recipe"></ol>
+
+  <div class="mt-4">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h3 id="workbench-output-heading" class="form-label">Output</h3>
+      <div class="flex gap-3 text-sm" role="group" aria-label="Show the output as">
+        <label><input type="radio" name="workbench-view" value="text" checked data-action="workbench#run" data-workbench-target="view"> Text</label>
+        <label><input type="radio" name="workbench-view" value="hex" data-action="workbench#run" data-workbench-target="view"> Hex</label>
+      </div>
+    </div>
+    <pre class="mt-1 min-h-16 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-line bg-surface-sunken p-3 font-mono text-sm"
+         aria-labelledby="workbench-output-heading" aria-live="polite" data-workbench-target="output" data-testid="workbench-output"></pre>
+  </div>
+
+  <template data-workbench-target="stepTemplate">
+    <li class="rounded-lg border border-line p-3" data-testid="workbench-step">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="font-semibold" data-role="label"></span>
+        <label class="flex items-center gap-2 text-sm" data-role="argument" hidden>
+          <span data-role="argument-label"></span>
+          <input type="text" class="form-input w-48 py-1 font-mono" spellcheck="false" autocomplete="off" data-role="argument-input"
+                 data-action="input->workbench#run">
+        </label>
+        <button type="button" class="ml-auto text-sm text-ink-muted underline" data-action="workbench#remove">Remove</button>
+      </div>
+      <p class="mt-2 text-sm text-red-team" data-role="error" hidden></p>
+      <div class="mt-2 text-sm" data-role="view" hidden></div>
+    </li>
+  </template>
+</section>

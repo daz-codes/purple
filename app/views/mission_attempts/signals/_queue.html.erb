@@ -1,0 +1,20 @@
+<%# Every intercept, in order, and whether it's still open. Solving one is no secret: the player knows. %>
+<nav id="mission_intercepts" class="card p-4" aria-labelledby="queue-heading">
+  <h2 id="queue-heading" class="text-lg font-bold">Intercepts</h2>
+  <ol class="mt-3 space-y-1 text-sm">
+    <% attempt.intercepts.each_with_index do |queued, index| %>
+      <% ref = attempt.intercept_ref(queued) %>
+      <% selected = current && queued.id == current.id %>
+      <li>
+        <%= link_to mission_attempt_path(attempt, intercept: ref),
+              class: "flex items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-surface-raised #{"bg-surface-raised font-semibold" if selected}",
+              aria: { current: (selected ? "true" : nil) }, data: { testid: "queued-intercept" } do %>
+          <span class="truncate"><%= index + 1 %>. <%= queued.title %></span>
+          <span class="shrink-0 text-xs text-ink-muted">
+            <% if attempt.solved?(queued) %>Found ✓<% elsif attempt.closed?(queued) %>Closed<% else %>Open<% end %>
+          </span>
+        <% end %>
+      </li>
+    <% end %>
+  </ol>
+</nav>

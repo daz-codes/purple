@@ -1,0 +1,47 @@
+<% ref = attempt.intercept_ref(intercept) %>
+<% number = attempt.intercepts.index(intercept) + 1 %>
+<section id="mission_intercept" class="card" aria-labelledby="intercept-heading" data-testid="intercept">
+  <p class="text-xs font-semibold uppercase tracking-widest text-ink-muted">
+    Intercept <%= number %> of <%= attempt.intercepts.size %> · <%= intercept.source %>
+  </p>
+  <h2 id="intercept-heading" class="mt-1 text-xl font-bold"><%= intercept.title %></h2>
+  <p class="mt-3 font-semibold"><%= intercept.question %></p>
+
+  <% if intercept.file? %>
+    <% file_url = mission_attempt_intercept_file_path(attempt, ref) %>
+    <% if intercept.image? %>
+      <img src="<%= file_url %>" alt="The intercepted image, <%= intercept.file_name %>" class="mt-4 max-h-80 rounded-lg border border-line">
+    <% end %>
+    <p class="mt-4 flex flex-wrap items-center gap-3 text-sm">
+      <%= link_to "Download #{intercept.file_name}", file_url, class: "underline" %>
+      <button type="button" class="btn-ghost" data-action="workbench#loadFile"
+              data-workbench-url-param="<%= file_url %>" data-workbench-name-param="<%= intercept.file_name %>">Load into the Workbench</button>
+    </p>
+  <% else %>
+    <pre class="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-line bg-surface-sunken p-3 font-mono text-sm" data-testid="intercept-body"><%= intercept.body %></pre>
+    <button type="button" class="btn-ghost mt-3" data-action="workbench#loadText"
+            data-workbench-text-param="<%= intercept.body %>" data-workbench-name-param="<%= intercept.title %>">Load into the Workbench</button>
+  <% end %>
+
+  <div class="mt-6 border-t border-line pt-4">
+    <% if attempt.solved?(intercept) %>
+      <% found = attempt.submissions(intercept).find { |action| action.result["correct"] } %>
+      <p class="font-semibold text-safe" data-testid="flag-found">✓ Flag found: <span class="font-mono"><%= found.result["answer"] %></span></p>
+    <% elsif attempt.closed?(intercept) %>
+      <p class="font-semibold" data-testid="intercept-closed">Closed: you've used all <%= MissionAttempt::Decoding::MAX_WRONG %> tries. The debrief shows the answer.</p>
+    <% else %>
+      <%= form_with url: mission_attempt_intercept_flags_path(attempt, ref), class: "flex flex-col gap-2" do |form| %>
+        <%= form.label :answer, "Your answer (the flag)", class: "form-label" %>
+        <div class="flex flex-wrap gap-2">
+          <%= form.text_field :answer, maxlength: MissionAttempt::Decoding::ANSWER_LIMIT, autocomplete: "off", spellcheck: false,
+                required: true, class: "form-input flex-1 min-w-48 font-mono", aria: { describedby: "flag-warning flag-tries" } %>
+          <%= form.submit "Submit flag", class: "btn-blue" %>
+        </div>
+        <p id="flag-warning" class="text-xs text-ink-muted">Never type real passwords or personal details. What you type is kept for your debrief.</p>
+        <p id="flag-tries" class="text-xs text-ink-muted">
+          <%= pluralize(attempt.tries_left(intercept), "try") %> left. Each wrong answer costs <%= MissionAttempt::InterceptScorecard::WRONG_ANSWER.abs %> points.
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+</section>

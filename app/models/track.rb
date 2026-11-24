@@ -1,5 +1,8 @@
 # A themed run of missions within a path, played in order. unlock_after is how many missions on the
-# track before must be finished for this one to open (enforced from P1).
+# track before must be finished for this one to open (User::Unlocks).
+#
+# A daily track is the pool the Intercept of the day is drawn from (DailyIntercept): it's not listed on
+# the paths page, has no unlock rule of its own and doesn't count towards a path's progress.
 class Track < ApplicationRecord
   belongs_to :path
 
@@ -9,6 +12,7 @@ class Track < ApplicationRecord
 
   scope :published, -> { where(published: true) }
   scope :ordered, -> { order(:position) }
+  scope :listed, -> { where(daily: false) }
 
   validates :slug, presence: true, uniqueness: true
   validates :title, :description, presence: true

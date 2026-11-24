@@ -23,3 +23,39 @@ site_visit:
   published: true
   briefing: You're on site with only your phone.
   learning_summary: IT will never ask for a one-time code.
+
+kettle:
+  track: encodings
+  slug: kettle
+  title: Kettle chatter
+  kind: signals
+  difficulty: beginner
+  par_minutes: 10
+  position: 1
+  published: true
+  briefing: TEAPOT is chattering.
+  learning_summary: Encoding isn't encryption.
+
+tea_for_two:
+  track: ciphers
+  slug: tea-for-two
+  title: Tea for two
+  kind: signals
+  difficulty: intermediate
+  par_minutes: 10
+  position: 1
+  published: true
+  briefing: Now with a key.
+  learning_summary: Keys matter.
+
+daily_drizzle:
+  track: daily
+  slug: daily-drizzle
+  title: Weather watch
+  kind: signals
+  difficulty: beginner
+  par_minutes: 5
+  position: 1
+  published: true
+  briefing: Today's forecast.
+  learning_summary: Base64 isn't secret.
