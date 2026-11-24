@@ -9,21 +9,25 @@ import { OPERATIONS, bytesFromText, textFromBytes, hexFromBytes } from "workbenc
 // input's text (or, for a file, its bytes on the textarea element), and each step as an <li> holding
 // its operation and argument. Each run reads it all afresh.
 export default class extends Controller {
-  static targets = ["input", "source", "operation", "steps", "stepTemplate", "output", "view"]
+  static targets = ["body", "input", "source", "operation", "steps", "stepTemplate", "output", "view"]
 
   connect() {
     this.run()
   }
 
-  loadText({ params: { text, name } }) {
+  // The text comes from the intercept on the page and the name from a plain data attribute, never from
+  // Stimulus action params: those are parsed as JSON, so hex made only of digits would load as a number.
+  loadText({ currentTarget }) {
+    const name = currentTarget.dataset.workbenchName
     this.inputTarget.workbenchBytes = null
     this.inputTarget.readOnly = false
-    this.inputTarget.value = text
+    this.inputTarget.value = this.bodyTarget.textContent
     this.sourceTarget.textContent = `Loaded: ${name}`
     this.run()
   }
 
-  async loadFile({ params: { url, name } }) {
+  async loadFile({ currentTarget, params: { url } }) {
+    const name = currentTarget.dataset.workbenchName
     this.sourceTarget.textContent = `Loading ${name}…`
     try {
       const response = await fetch(url, { credentials: "same-origin" })

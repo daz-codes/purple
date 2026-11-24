@@ -40,6 +40,16 @@ class MissionAttemptsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=flag-found]", text: /biscuit tin/
   end
 
+  test "a signals mission whose intercepts were removed under an open attempt still shows, and can be stood down" do
+    sign_in_as users(:one)
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    missions(:kettle).intercepts.destroy_all
+
+    get mission_attempt_path(attempt)
+    assert_response :success
+    assert_select "[data-testid=no-intercepts]"
+  end
+
   test "a signals mission's page holds no answers" do
     sign_in_as users(:one)
     attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))

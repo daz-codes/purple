@@ -13,7 +13,13 @@
     <%# The Workbench sits outside everything a move re-renders, so its recipe survives a submission, and
         it's permanent across visits, so it survives switching intercepts too. %>
     <div class="flex flex-col gap-4 min-w-0" data-controller="workbench">
-      <%= render "mission_attempts/signals/intercept", attempt:, intercept: %>
+      <% if intercept %>
+        <%= render "mission_attempts/signals/intercept", attempt:, intercept: %>
+      <% else %>
+        <section id="mission_intercept" class="card" data-testid="no-intercepts">
+          <p>There are no intercepts in this mission right now. Stand down to see your debrief.</p>
+        </section>
+      <% end %>
       <%= render "mission_attempts/signals/workbench" %>
     </div>
   </div>

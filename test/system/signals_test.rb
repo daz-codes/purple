@@ -64,6 +64,53 @@ class SignalsTest < ApplicationSystemTestCase
     assert_selector "[data-testid=workbench-output]", text: "!46esab ton"
   end
 
+  test "an intercept that looks like a number or JSON loads into the Workbench exactly as shown" do
+    sign_in users(:one)
+    hex = Intercept::Cipher.new(%w[ to_hex ]).encode("Ship at 0340")
+    assert_match(/\A\d+\z/, hex)
+    intercepts(:opening).update!(body: hex, recipe: %w[ to_hex ], title: "1234")
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    visit mission_attempt_path(attempt)
+
+    click_on "Load into the Workbench"
+    assert_field "Input", with: hex
+    assert_text "Loaded: 1234"
+    add_step "From hex"
+    assert_selector "[data-testid=workbench-output]", text: "Ship at 0340"
+
+    intercepts(:opening).update!(body: '[{"to":"TEAPOT"}]', title: "true")
+    visit mission_attempt_path(attempt)
+    click_on "Load into the Workbench"
+    assert_field "Input", with: '[{"to":"TEAPOT"}]'
+    assert_text "Loaded: true"
+  end
+
+  test "URL decoding gives back raw bytes, so a high-byte XOR then URL-encoding decodes in the browser" do
+    sign_in users(:one)
+    attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
+    visit mission_attempt_path(attempt)
+    assert_selector "[data-testid=workbench]"
+
+    cipher = Intercept::Cipher.new([ { "xor_hex" => "F00D" }, "url_encode" ])
+    body = cipher.encode("Meet at the Old Lighthouse at 0340.")
+    assert_match(/%[89A-F]/, body)
+    cases = [
+      { body:, steps: cipher.undo_steps, solution: "Meet at the Old Lighthouse at 0340." },
+      { body: "50%+off%zz", steps: [ [ "url_decode" ] ], solution: CGI.unescape("50%+off%zz") }
+    ]
+    failures = run_operations(<<~JS, cases)
+      const results = []
+      for (const { body, steps, solution } of cases) {
+        let bytes = ops.bytesFromText(body)
+        for (const [name, argument] of steps) bytes = (await ops.OPERATIONS[name](bytes, argument)).bytes
+        const decoded = ops.textFromBytes(bytes)
+        if (decoded !== solution) results.push(`${body}: ${decoded}`)
+      }
+      return results
+    JS
+    assert_empty failures
+  end
+
   test "every shipped intercept decodes in the browser exactly as the importer encoded it" do
     Content::Import.new.run
     sign_in users(:one)

@@ -5,11 +5,15 @@
 # Relaxed mode (copied from the player's setting when the attempt starts) turns timing off: no speed
 # bonus and no urgency penalties. An attempt left idle for two hours (no move made) expires, in relaxed
 # mode too: taking as long as you like means as long as you keep playing.
+#
+# A signals mission gets a day instead: its work happens in the Workbench, in the browser, so the server
+# sees no move until a flag goes in, and a hard intercept can take hours of quiet decoding.
 module MissionAttempt::Timed
   extend ActiveSupport::Concern
 
   CALL_PENALTY = 30
   EXPIRES_AFTER = 2.hours
+  SIGNALS_EXPIRES_AFTER = 24.hours
 
   included do
     validates :penalty_seconds, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
@@ -21,7 +25,12 @@ module MissionAttempt::Timed
   end
 
   def stale?(now: Time.current)
-    open? && now - last_active_at > EXPIRES_AFTER
+    open? && now - last_active_at > expires_after
+  end
+
+  # How long the attempt can sit idle before it expires.
+  def expires_after
+    mission.kind_signals? ? SIGNALS_EXPIRES_AFTER : EXPIRES_AFTER
   end
 
   # When the player last made a move, or started the mission.

@@ -27,7 +27,7 @@ class User::UnlocksTest < ActiveSupport::TestCase
 
   test "an attempt that timed out doesn't count as finished" do
     attempt = MissionAttempt.start(user: users(:one), mission: missions(:kettle))
-    travel MissionAttempt::Timed::EXPIRES_AFTER + 1.minute
+    travel attempt.expires_after + 1.minute
     attempt.expire_if_stale
 
     assert attempt.timed_out?
@@ -74,5 +74,13 @@ class User::UnlocksTest < ActiveSupport::TestCase
     assert unlocks(nil).open?(missions(:daily_drizzle))
     assert_not unlocks(nil).open?(tracks(:ciphers))
     assert_not unlocks(nil).finished?(missions(:kettle))
+  end
+
+  test "playing the Intercept of the day doesn't open the locked path it sits on" do
+    tracks(:daily).update!(path: paths(:break_in))
+    MissionAttempt.start(user: users(:one), mission: missions(:daily_drizzle))
+
+    assert unlocks.open?(missions(:daily_drizzle))
+    assert_not unlocks.open?(paths(:break_in))
   end
 end

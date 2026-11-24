@@ -53,7 +53,8 @@ class User::Unlocks
 
   private
     def path_open?(path)
-      return true if played_on?(path.tracks)
+      # The daily track is open to everyone, so playing it doesn't open the path it sits on.
+      return true if played_on?(path.tracks.reject(&:daily?))
 
       case path.opens
       when "always" then true

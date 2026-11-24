@@ -55,12 +55,21 @@ function fromBase32(bytes) {
   return result(out)
 }
 
+// Byte for byte, like Ruby's CGI.unescape: "+" is a space, %XX is that byte (whether or not the bytes
+// make UTF-8, since XOR output rarely does), and anything else, a stray "%" included, passes through.
 function urlDecode(bytes) {
-  try {
-    return result(bytesFromText(decodeURIComponent(textFromBytes(bytes).replace(/\+/g, " "))))
-  } catch {
-    throw new Error("That isn't valid URL encoding.")
+  const out = []
+  const hex = (byte) => (byte >= 48 && byte <= 57) || (byte >= 65 && byte <= 70) || (byte >= 97 && byte <= 102)
+  for (let index = 0; index < bytes.length; index++) {
+    const byte = bytes[index]
+    if (byte === 0x25 && hex(bytes[index + 1]) && hex(bytes[index + 2])) {
+      out.push(parseInt(String.fromCharCode(bytes[index + 1], bytes[index + 2]), 16))
+      index += 2
+    } else {
+      out.push(byte === 0x2b ? 0x20 : byte)
+    }
   }
+  return result(Uint8Array.from(out))
 }
 
 // --- Ciphers ---------------------------------------------------------------------------------

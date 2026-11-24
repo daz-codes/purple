@@ -15,12 +15,12 @@
     <p class="mt-4 flex flex-wrap items-center gap-3 text-sm">
       <%= link_to "Download #{intercept.file_name}", file_url, class: "underline" %>
       <button type="button" class="btn-ghost" data-action="workbench#loadFile"
-              data-workbench-url-param="<%= file_url %>" data-workbench-name-param="<%= intercept.file_name %>">Load into the Workbench</button>
+              data-workbench-url-param="<%= file_url %>" data-workbench-name="<%= intercept.file_name %>">Load into the Workbench</button>
     </p>
   <% else %>
-    <pre class="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-line bg-surface-sunken p-3 font-mono text-sm" data-testid="intercept-body"><%= intercept.body %></pre>
+    <pre class="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-line bg-surface-sunken p-3 font-mono text-sm" data-testid="intercept-body" data-workbench-target="body"><%= intercept.body %></pre>
     <button type="button" class="btn-ghost mt-3" data-action="workbench#loadText"
-            data-workbench-text-param="<%= intercept.body %>" data-workbench-name-param="<%= intercept.title %>">Load into the Workbench</button>
+            data-workbench-name="<%= intercept.title %>">Load into the Workbench</button>
   <% end %>
 
   <div class="mt-6 border-t border-line pt-4">
