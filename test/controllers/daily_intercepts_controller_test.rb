@@ -3,7 +3,7 @@ require "test_helper"
 class DailyInterceptsControllerTest < ActionDispatch::IntegrationTest
   test "goes to today's briefing" do
     get daily_intercept_path
-    assert_redirected_to mission_path(DailyIntercept.new.mission)
+    assert_redirected_to mission_path(Mission::DailyIntercept.new.mission)
   end
 
   test "says so when there isn't one" do

@@ -3,7 +3,7 @@ class DailyInterceptsController < ApplicationController
   allow_unauthenticated_access
 
   def show
-    mission = DailyIntercept.new.mission or return redirect_to(paths_path, alert: "There's no Intercept of the day yet.")
+    mission = Mission::DailyIntercept.new.mission or return redirect_to(paths_path, alert: "There's no Intercept of the day yet.")
     redirect_to mission
   end
 end

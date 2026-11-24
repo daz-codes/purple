@@ -1,7 +1,7 @@
 # The Intercept of the day: one signals mission from the daily track, the same for everyone on a given
 # day (Europe/London, like streaks), working through the pool in order. It's an ordinary mission, so it
 # earns Blue XP the first time it's played and counts towards the day's streak.
-class DailyIntercept
+class Mission::DailyIntercept
   attr_reader :day
 
   def initialize(day: User::Streaks.day_of(Time.current))

@@ -1,7 +1,7 @@
 # A themed run of missions within a path, played in order. unlock_after is how many missions on the
 # track before must be finished for this one to open (User::Unlocks).
 #
-# A daily track is the pool the Intercept of the day is drawn from (DailyIntercept): it's not listed on
+# A daily track is the pool the Intercept of the day is drawn from (Mission::DailyIntercept): it's not listed on
 # the paths page, has no unlock rule of its own and doesn't count towards a path's progress.
 class Track < ApplicationRecord
   belongs_to :path

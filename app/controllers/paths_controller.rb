@@ -3,6 +3,6 @@ class PathsController < ApplicationController
 
   def index
     @paths = Path.published.ordered.includes(:opens_after_path, tracks: :missions)
-    @daily = DailyIntercept.new
+    @daily = Mission::DailyIntercept.new
   end
 end
